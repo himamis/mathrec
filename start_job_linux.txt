@@ -1,0 +1,17 @@
+DATE=`date '+%Y_%M_%d__%H_%m_%S'`
+JOB_NAME="image2latex_"$DATE
+OUTPUT_PATH="gs://image2latex-mlengine/output"
+REGION="us-central1"
+DATA_URL="gs://image2latex-mlengine/data-simple/"
+
+gcloud ml-engine jobs submit training $JOB_NAME \
+    --job-dir $OUTPUT_PATH \
+    --runtime-version 1.4 \
+    --module-name trainer.task \
+    --package-path trainer/ \
+    --region $REGION \
+    --config config.yaml \
+    -- \
+    --gcs \
+    --data-path $DATA_URL \
+    --start-epoch 0

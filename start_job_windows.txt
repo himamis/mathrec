@@ -1,0 +1,16 @@
+SET JOB_NAME=image2latex_%date:~-4%_%date:~3,2%_%date:~0,2%__%time:~0,2%_%time:~3,2%_%time:~6,2%
+SET OUTPUT_PATH=gs://image2latex-mlengine/output
+SET REGION=us-central1
+SET DATA_URL=gs://image2latex-mlengine/data-simple/
+
+gcloud ml-engine jobs submit training %JOB_NAME% ^
+    --job-dir %OUTPUT_PATH% ^
+    --runtime-version 1.4 ^
+    --module-name trainer.task ^
+    --package-path trainer/ ^
+    --region %REGION% ^
+    --config config.yaml ^
+    -- ^
+    --gcs ^
+    --data-path %DATA_URL% ^
+    --start-epoch 0
