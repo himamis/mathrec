@@ -1,0 +1,11 @@
+include 'renderer-base'
+include 'renderer-desktop'
+
+rootProject.children.each { project ->
+    String projectName = project.name
+    if (projectName.startsWith('renderer')) {
+    	String projectDirName = "geogebra/retex/$projectName"
+    	project.projectDir = new File(settingsDir, projectDirName)
+    	assert project.projectDir.isDirectory()
+    }
+}
