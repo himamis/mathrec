@@ -1,5 +1,4 @@
 import graphics as g
-import images as i
 
 
 def _token_sequence(tokens, index, sequence):
@@ -25,8 +24,8 @@ command_tokens = ["\\frac"]
 
 class Parser:
 
-    def __init__(self):
-        self.image = i.Images()
+    def __init__(self, image):
+        self.image = image
 
     def parse(self, tokens):
         graphics = g.Graphics()

@@ -3,6 +3,8 @@ import numpy as np
 import string
 import cv2
 import parser as p
+import images as i
+import preprocessor as pre
 from functools import reduce
 import graphics as gr
 
@@ -127,19 +129,24 @@ def long_expr():
     return expr
 
 
+base = "/Users/balazs/university/extracted_images"
+
+
 if __name__ == '__main__':
     tokens = []
     gen = random_simple_equation()
+    #gen = g.NumberGenerator(p_real=1.0, separator=",")
     gen.generate_formula(tokens)
 
-    parser = p.Parser()
+    images = i.Images(base, pre.Preprocessor())
+    parser = p.Parser(images)
     image = parser.parse(tokens)
+    s = reduce((lambda a, b: a + " " + b), tokens)
+    print(s)
 
     cv2.imshow('image', image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
-
-    # tokens = []
 
     # gen = long_expr()
     # gen.generate_formula(tokens)
