@@ -5,8 +5,8 @@ import cv2
 import parser as p
 import images as i
 import preprocessor as pre
+import postprocessor as post
 from functools import reduce
-import graphics as gr
 
 poly = g.PolynomialGenerator()
 expr = g.ExpressionGenerator()
@@ -138,9 +138,12 @@ if __name__ == '__main__':
     #gen = g.NumberGenerator(p_real=1.0, separator=",")
     gen.generate_formula(tokens)
 
+
     images = i.Images(base, pre.Preprocessor())
     parser = p.Parser(images)
     image = parser.parse(tokens)
+    post = post.Postprocessor()
+    image = post.postprocess(image)
     s = reduce((lambda a, b: a + " " + b), tokens)
     print(s)
 
