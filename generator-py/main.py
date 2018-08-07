@@ -1,7 +1,10 @@
 import generators as g
 import numpy as np
 import string
+import cv2
+import parser as p
 from functools import reduce
+import graphics as gr
 
 poly = g.PolynomialGenerator()
 expr = g.ExpressionGenerator()
@@ -124,14 +127,24 @@ def long_expr():
     return expr
 
 
-
 if __name__ == '__main__':
     tokens = []
-
-    gen = long_expr()
+    gen = random_simple_equation()
     gen.generate_formula(tokens)
-    s = reduce((lambda a, b: a + " " + b), tokens)
+
+    parser = p.Parser()
+    image = parser.parse(tokens)
+
+    cv2.imshow('image', image)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+    # tokens = []
+
+    # gen = long_expr()
+    # gen.generate_formula(tokens)
+    # s = reduce((lambda a, b: a + " " + b), tokens)
 
 
 
-    print(s)
+    # print(s)
