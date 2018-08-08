@@ -1,6 +1,8 @@
 import numpy as np
 
 
+
+
 class TokenGenerator:
 
     def __init__(self, token="x"):
@@ -8,6 +10,9 @@ class TokenGenerator:
 
     def generate_formula(self, tokens):
         tokens += [self.token]
+
+    def vocabulary(self):
+        return { self.token }
 
 
 class NumberGenerator:
@@ -33,6 +38,14 @@ class NumberGenerator:
             tokens += [str(np.random.random_integers(1, 9))]
             tokens += [str(np.random.random_integers(0, 9)) for _ in range(length - 1)]
 
+    def vocabulary(self):
+        vocab = { str(num) for num in range(0,10) } 
+        if self.p_neg > 0:
+            vocab = vocab | { '-' }
+        if self.p_real > 0:
+            vocab = vocab | { self.separator }
+        return vocab
+
 
 class ExpressionGenerator:
 
@@ -45,6 +58,15 @@ class ExpressionGenerator:
             if index < len(self.operators) and self.operators[index] is not None:
                 tokens += [self.operators[index]]
             self.generators[index].generate_formula(tokens)
+
+    def vocabulary(self):
+        vocab = set()
+        for generator in self.generators:
+            vocab = vocab | generator.vocabulary()
+        for operator in self.operators:
+            if operator is not None:
+                vocab = vocab | { operator }
+        return vocab
 
 
 class CommandGenerator:
@@ -60,6 +82,13 @@ class CommandGenerator:
             generator.generate_formula(tokens)
             tokens += "}"
 
+    def vocabulary(self):
+        vocab = set()
+        for character in self.name:
+            vocab = vocab | { character }
+        for generator in self.generators:
+            vocab = vocab | generator.vocabulary()
+        return vocab
 
 class CallableGenerator:
 
@@ -78,6 +107,14 @@ class CallableGenerator:
                 tokens += [","]
         tokens += [self.brackets[1]]
 
+    def vocabulary(self):
+        vocab = { self.brackets[0], self.brackets[1] }
+        for character in self.name:
+            vocab = vocab | { character }
+        for generator in self.generators:
+            vocab = vocab | generator.vocabulary()
+        return vocab
+
 
 class RelationGenerator:
 
@@ -89,6 +126,9 @@ class RelationGenerator:
         self.generators[0].generate_formula(tokens)
         tokens += [self.operator]
         self.generators[1].generate_formula(tokens)
+
+    def vocabulary(self):
+        return self.generators[0].vocabulary() | self.generators[1].vocabulary() | { self.operator }
 
 
 class VariableGenerator:
@@ -110,6 +150,16 @@ class VariableGenerator:
         else:
             tokens += [self.variable_name]
 
+    def vocabulary(self):
+        vocab = { self.variable_name }
+        if self.scale_generator is not None:
+            vocab = vocab | self.scale_generator.vocabulary()
+            if self.multiplier is not None:
+                vocab = vocab | { self.multiplier }
+        if self.variable_wrapper is not None:
+            vocab = vocab | { self.variable_wrapper.vocabulary() }
+        return vocab
+
 
 class PowerGenerator:
 
@@ -128,6 +178,12 @@ class PowerGenerator:
         tokens += ["^", "{"]
         self.power_generator.generate_formula(tokens)
         tokens += ["}"]
+
+    def vocabulary(self):
+        vocab = { "(", ")", "^", "{", "}" }
+        vocab = vocab | self.generator.vocabulary()
+        vocab = vocab | self.power_generator.vocabulary()
+        return vocab
 
 
 # These build on the ones before
@@ -165,6 +221,12 @@ class PolynomialGenerator:
             else:
                 self.number_gen.generate_formula(new_tokens)
         tokens += new_tokens
+
+    def vocabulary(self):
+        vocab = { "+" } | self.var_gen.vocabulary()
+        if self.p_minus > 0:
+            vocab = vocab | { "-" }
+        return vocab
 
 
 square_brackets = ("[", "]")
