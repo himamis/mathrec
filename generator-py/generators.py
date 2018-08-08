@@ -1,6 +1,13 @@
 import numpy as np
 
-
+'''
+Generators should be classes that have at least two public methods with the following signatures
+generate_formula([String])
+vocabulary()
+The first one should generate a random and valid mathematical expression in latex
+broken down into the smallest tokens possible (e.g. sin should be 's', 'i', 'n', instead of 'sin').
+The second method should return all tokens that the generator can generate in a set.
+'''
 
 
 class TokenGenerator:
@@ -39,7 +46,7 @@ class NumberGenerator:
             tokens += [str(np.random.random_integers(0, 9)) for _ in range(length - 1)]
 
     def vocabulary(self):
-        vocab = { str(num) for num in range(0,10) } 
+        vocab = { str(num) for num in range(0, 10) }
         if self.p_neg > 0:
             vocab = vocab | { '-' }
         if self.p_real > 0:
@@ -89,6 +96,7 @@ class CommandGenerator:
         for generator in self.generators:
             vocab = vocab | generator.vocabulary()
         return vocab
+
 
 class CallableGenerator:
 
