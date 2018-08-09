@@ -19,7 +19,7 @@ class TokenGenerator:
         tokens += [self.token]
 
     def vocabulary(self):
-        return { self.token }
+        return {self.token}
 
 
 class NumberGenerator:
@@ -46,11 +46,11 @@ class NumberGenerator:
             tokens += [str(np.random.random_integers(0, 9)) for _ in range(length - 1)]
 
     def vocabulary(self):
-        vocab = { str(num) for num in range(0, 10) }
+        vocab = {str(num) for num in range(0, 10)}
         if self.p_neg > 0:
-            vocab = vocab | { '-' }
+            vocab = vocab | {'-'}
         if self.p_real > 0:
-            vocab = vocab | { self.separator }
+            vocab = vocab | {self.separator}
         return vocab
 
 
@@ -72,7 +72,7 @@ class ExpressionGenerator:
             vocab = vocab | generator.vocabulary()
         for operator in self.operators:
             if operator is not None:
-                vocab = vocab | { operator }
+                vocab = vocab | {operator}
         return vocab
 
 
@@ -92,7 +92,7 @@ class CommandGenerator:
     def vocabulary(self):
         vocab = set()
         for character in self.name:
-            vocab = vocab | { character }
+            vocab = vocab | {character}
         for generator in self.generators:
             vocab = vocab | generator.vocabulary()
         return vocab
@@ -116,9 +116,9 @@ class CallableGenerator:
         tokens += [self.brackets[1]]
 
     def vocabulary(self):
-        vocab = { self.brackets[0], self.brackets[1] }
+        vocab = {self.brackets[0], self.brackets[1]}
         for character in self.name:
-            vocab = vocab | { character }
+            vocab = vocab | {character}
         for generator in self.generators:
             vocab = vocab | generator.vocabulary()
         if len(self.generators) > 1:
@@ -138,7 +138,7 @@ class RelationGenerator:
         self.generators[1].generate_formula(tokens)
 
     def vocabulary(self):
-        return self.generators[0].vocabulary() | self.generators[1].vocabulary() | { self.operator }
+        return self.generators[0].vocabulary() | self.generators[1].vocabulary() | {self.operator}
 
 
 class VariableGenerator:
@@ -161,13 +161,15 @@ class VariableGenerator:
             tokens += [self.variable_name]
 
     def vocabulary(self):
-        vocab = { self.variable_name }
+        vocab = set()
+        for character in self.variable_name:
+            vocab.add(character)
         if self.scale_generator is not None:
             vocab = vocab | self.scale_generator.vocabulary()
             if self.multiplier is not None:
-                vocab = vocab | { self.multiplier }
+                vocab.add(self.multiplier)
         if self.variable_wrapper is not None:
-            vocab = vocab | { self.variable_wrapper.vocabulary() }
+            vocab = vocab | {self.variable_wrapper.vocabulary()}
         return vocab
 
 
@@ -190,7 +192,7 @@ class PowerGenerator:
         tokens += ["}"]
 
     def vocabulary(self):
-        vocab = { "(", ")", "^", "{", "}" }
+        vocab = {"(", ")", "^", "{", "}"}
         vocab = vocab | self.generator.vocabulary()
         vocab = vocab | self.power_generator.vocabulary()
         return vocab
@@ -233,9 +235,25 @@ class PolynomialGenerator:
         tokens += new_tokens
 
     def vocabulary(self):
-        vocab = { "+" } | self.var_gen.vocabulary()
+        vocab = {"+"} | self.var_gen.vocabulary()
         if self.p_minus > 0:
-            vocab = vocab | { "-" }
+            vocab = vocab | {"-"}
+        return vocab
+
+
+class RandomGenerator:
+
+    def __init__(self, generators):
+        self.generators = generators
+
+    def generate_formula(self, tokens):
+        generator = np.random.choice(self.generators)
+        generator.generate_formula(tokens)
+
+    def vocabulary(self):
+        vocab = set()
+        for generator in self.generators:
+            vocab = vocab | generator.vocabulary()
         return vocab
 
 
