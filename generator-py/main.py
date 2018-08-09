@@ -16,12 +16,6 @@ num = g.NumberGenerator()
 tok = g.TokenGenerator()
 
 
-def normal_len(length_mean, length_sd, min=1):
-    length = np.random.normal(length_mean, length_sd)
-    length = round(abs(length))
-    return max(length, min)
-
-
 def random_polynomial():
     poly.length = np.random.choice([2, 3, 4])
     poly.var_gen.variable_name = np.random.choice(["x", "y", "a", "b"])
