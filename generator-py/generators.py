@@ -121,6 +121,8 @@ class CallableGenerator:
             vocab = vocab | { character }
         for generator in self.generators:
             vocab = vocab | generator.vocabulary()
+        if len(self.generators) > 1:
+            vocab = vocab | {","}
         return vocab
 
 
