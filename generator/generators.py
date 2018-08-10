@@ -1,6 +1,6 @@
 import numpy as np
 import string
-from collection import collection
+from .collection import c
 
 '''
 Generators should be classes that have at least two public methods with the following signatures
@@ -68,7 +68,7 @@ class NumberGenerator:
 
 class ExpressionGenerator:
 
-    def __init__(self, generators=[], operators=collection([])):
+    def __init__(self, generators=[], operators=c([])):
         self.generators = generators
         self.operators = operators
         self.randomize_order = False
@@ -118,7 +118,7 @@ class CommandGenerator:
 class CallableGenerator:
 
     def __init__(self, name, generators, brackets):
-        self._name = collection(name)
+        self._name = c(name)
         self.generators = generators
         self.brackets = brackets
 
@@ -128,7 +128,7 @@ class CallableGenerator:
 
     @name.setter
     def name(self, value):
-        self._name = collection(value)
+        self._name = c(value)
 
     def generate_formula(self, tokens, config):
         if self.name is not None:
@@ -159,7 +159,7 @@ class CallableGenerator:
 
 class RelationGenerator:
 
-    def __init__(self, operator=collection("="), generators=[TokenGenerator(), TokenGenerator()]):
+    def __init__(self, operator=c("="), generators=[TokenGenerator(), TokenGenerator()]):
         self.operator = operator
         self.generators = generators
 
@@ -229,7 +229,7 @@ class PowerGenerator:
 # These build on the ones before
 class PolynomialGenerator:
 
-    def __init__(self, length=collection(3), p_miss=0.1, p_minus=0.3):
+    def __init__(self, length=c(3), p_miss=0.1, p_minus=0.3):
         self.length = length
         self.p_miss = p_miss
         self.p_minus = p_minus
@@ -305,7 +305,7 @@ def random_simple_expression():
     var2 = VariableGenerator()
     rand = RandomGenerator([var1, var2])
 
-    operators = [collection(None), collection(["+", "-"])]
+    operators = [c(None), c(["+", "-"])]
     expr = ExpressionGenerator([rand, num])
     expr.randomize_order = True
     expr.operators = operators
@@ -315,7 +315,7 @@ def random_simple_expression():
 
 def random_polynomial():
     poly = PolynomialGenerator()
-    poly.length = collection([2, 3, 4])
+    poly.length = c([2, 3, 4])
 
     return poly
 
@@ -328,11 +328,11 @@ def random_simple_equation():
     expr = ExpressionGenerator()
     expr.generators = [var, num]
     expr.randomize_order = True
-    expr.operators = [collection([None, "+", "-"]), collection(["+", "-"])]
+    expr.operators = [c([None, "+", "-"]), c(["+", "-"])]
 
     rel = ExpressionGenerator()
     rel.generators = [expr, num]
-    rel.operators = [collection(None), collection(["=", "\\leq", "\\geq"])]
+    rel.operators = [c(None), c(["=", "\\leq", "\\geq"])]
 
     return rel
 
@@ -372,7 +372,7 @@ def random_fraction():
 
     tok = TokenGenerator("y")
     rel = ExpressionGenerator()
-    rel.operators = [collection(None), collection("=")]
+    rel.operators = [c(None), c("=")]
 
     #TODO Factor out pow_e
     rel.generators = [tok, RandomGenerator([fraction])]
@@ -383,7 +383,7 @@ def random_fraction():
 def random_long_expression_no_frac():
     commands = ["sin", "cos", "tan"]
     simple = random_simple_expression()
-    command_gen = function_generator(collection(commands), [simple])
+    command_gen = function_generator(c(commands), [simple])
     random = RandomGenerator([command_gen, simple])
 
     return random
@@ -402,10 +402,7 @@ def random_long_expression():
     for i in range(4, 8):
         expr = ExpressionGenerator()
         expr.generators = [_random_long_expr_item() for _ in range(i)]
-        expr.operators = [collection(None)] + [collection(["+", "-"]) for _ in range(i - 1)]
+        expr.operators = [c(None)] + [c(["+", "-"]) for _ in range(i - 1)]
         generators.append(expr)
-    #length = np.random.choice([4, 5, 6, 7])
-    ##expr.generators = [long_expr_item() for _ in range(length)]
-    #e#xpr.operators = [None]+[np.random.choice(["+", "-"]) for _ in range(length-1)]
 
     return RandomGenerator(generators)

@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import cv2
-import graphics as g
+from .utils import new_image
 
 
 def _token2image(token):
@@ -16,7 +16,7 @@ def _token2image(token):
 
 
 def _dot():
-    dot = g._new_image(20, 45, 255)
+    dot = new_image(20, 45, 255)
     cv2.circle(dot, (10, 22), 10, (255, 255, 255, 0))
     return dot
 

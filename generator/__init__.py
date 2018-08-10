@@ -1,2 +1,2 @@
-from images import Images
-from generators import *
+from .generators import *
+from .collection import c

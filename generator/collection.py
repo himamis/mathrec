@@ -13,7 +13,13 @@ class Collection:
         return set(self.values)
 
 
-def collection(values):
+def c(values):
+    """
+    Creates a collection of values.
+
+    :param values: list of values
+    :return: a collection
+    """
     if isinstance(values, Collection):
         return values
     elif isinstance(values, list):
