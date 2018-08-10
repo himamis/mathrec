@@ -85,7 +85,7 @@ class Graphics:
         offset += _h(numerator)
         _paste(fraction, fraction_line, 0, offset)
         offset += _h(fraction_line)
-        _paste(fraction, denominator, 0, offset)
+        _paste(fraction, denominator, round((width - _w(denominator)) / 2), offset)
 
         self.images.append(fraction)
 
