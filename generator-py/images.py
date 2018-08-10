@@ -5,7 +5,9 @@ import graphics as g
 
 
 def _token2image(token):
-    if token.startswith("\\"):
+    if token == "\\frac":
+        return "-"
+    elif token.startswith("\\"):
         return token[1:]
     elif token == "<":
         return "geq"

@@ -13,7 +13,12 @@ def _token_sequence(tokens, index, sequence):
 
 
 def _find_closing_bracket(tokens, index):
-    while index < len(tokens) and tokens[index] != "}":
+    opening = 0
+    while index < len(tokens) and (opening != 0 or tokens[index] != "}"):
+        if tokens[index] == "{":
+            opening += 1
+        elif tokens[index] == "}":
+            opening -= 1
         index += 1
     return index
 
@@ -48,22 +53,19 @@ class Parser:
                 power_graphics = g.Graphics()
                 self._expression(tokens[index + 2: closing], power_graphics)
                 graphics.power(power_graphics.draw())
-                index += 1
-            elif _token_sequence(tokens, index, "\\frac"):
-                assert tokens[index + 6] == "{"
-                closing = _find_closing_bracket(tokens, index + 7)
+                index = closing + 1
+            elif tokens[index] == "\\frac":
+                assert tokens[index + 1] == "{"
+                closing = _find_closing_bracket(tokens, index + 2)
                 assert tokens[closing + 1] == "{"
                 closing_denom = _find_closing_bracket(tokens, closing + 2)
                 graphics_num = g.Graphics()
-                self._expression(tokens[index + 7: closing], graphics_num)
+                self._expression(tokens[index + 2: closing], graphics_num)
                 graphics_denom = g.Graphics()
                 self._expression(tokens[closing + 2: closing_denom], graphics_denom)
                 graphics.fraction(graphics_num.draw(), graphics_denom.draw(), self.image.image("-"))
-                index += closing_denom + 1
+                index = closing_denom + 1
             else:
                 image = self.image.image(tokens[index])
                 graphics.expression(image)
                 index += 1
-
-
-
