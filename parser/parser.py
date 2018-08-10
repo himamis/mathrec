@@ -1,6 +1,3 @@
-import graphics as g
-
-
 def _token_sequence(tokens, index, sequence):
     seq_index = 0
     ret_val = True
@@ -29,11 +26,11 @@ command_tokens = ["\\frac"]
 
 class Parser:
 
-    def __init__(self, image):
-        self.image = image
+    def __init__(self, graphics_factory):
+        self.graphics_factory = graphics_factory
 
     def parse(self, tokens):
-        graphics = g.Graphics()
+        graphics = self.graphics_factory()
         self._expression(tokens, graphics)
 
         return graphics.draw()
@@ -42,30 +39,28 @@ class Parser:
         while index < len(tokens):
             for cmd in function_tokens:
                 if _token_sequence(tokens, index, cmd):
-                    image = self.image.image(cmd)
-                    graphics.expression(image)
+                    graphics.expression(cmd)
                     index += len(cmd)
                     break
 
             if tokens[index] == "^":
                 assert tokens[index + 1] == "{"
                 closing = _find_closing_bracket(tokens, index + 2)
-                power_graphics = g.Graphics()
+                power_graphics = self.graphics_factory()
                 self._expression(tokens[index + 2: closing], power_graphics)
-                graphics.power(power_graphics.draw())
+                graphics.power(power_graphics)
                 index = closing + 1
             elif tokens[index] == "\\frac":
                 assert tokens[index + 1] == "{"
                 closing = _find_closing_bracket(tokens, index + 2)
                 assert tokens[closing + 1] == "{"
                 closing_denom = _find_closing_bracket(tokens, closing + 2)
-                graphics_num = g.Graphics()
+                graphics_num = self.graphics_factory()
                 self._expression(tokens[index + 2: closing], graphics_num)
-                graphics_denom = g.Graphics()
+                graphics_denom = self.graphics_factory()
                 self._expression(tokens[closing + 2: closing_denom], graphics_denom)
-                graphics.fraction(graphics_num.draw(), graphics_denom.draw(), self.image.image("-"))
+                graphics.fraction(graphics_num, graphics_denom)
                 index = closing_denom + 1
             else:
-                image = self.image.image(tokens[index])
-                graphics.expression(image)
+                graphics.expression(tokens[index])
                 index += 1
