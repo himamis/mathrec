@@ -1,5 +1,5 @@
 import sys
-import formulas as form
+from trainer import formulas
 from trainer import utils
 
 

@@ -2,9 +2,9 @@ import sys
 
 if '--gcs' in sys.argv:
     print('Image2Latex: use google cloud storage')
-    import gcs_file_utils as utils
+    import trainer.gcs_file_utils as utils
 else:
     print('Image2Latex: use local storage')
-    import local_file_utils as utils
+    import trainer.local_file_utils as utils
 
-from keras_implementations import AttentionDecoderLSTMCell, ModelCheckpointer, SequenceGenerator, RNN, Reshape, AttentionLSTMCell
+from trainer.keras_implementations import AttentionDecoderLSTMCell, ModelCheckpointer, SequenceGenerator, RNN, Reshape, AttentionLSTMCell

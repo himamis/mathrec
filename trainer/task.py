@@ -1,7 +1,7 @@
 from trainer import utils
 from trainer import AttentionDecoderLSTMCell, SequenceGenerator, ModelCheckpointer
-import preprocess
-import model
+from trainer import preprocess
+from trainer import model
 import sys
 import keras
 import numpy as np
@@ -18,13 +18,13 @@ set_random_seed(1337)
 
 # gcs-url with the format: gs://<bucket-name>/<path to resource>
 # in my case: gs://image2latex-mlengine/data-simple/
-if '--data-path' in sys.argv:
-    i_arg = sys.argv.index('--data-path') + 1
-    if i_arg >= len(sys.argv):
-        raise Exception('No --data-path argument!')
-    data_base_dir = sys.argv[i_arg]
-else:
-    raise Exception('No --data-path argument!')
+#if '--data-path' in sys.argv:
+#    i_arg = sys.argv.index('--data-path') + 1
+#    if i_arg >= len(sys.argv):
+#        raise Exception('No --data-path argument!')
+#    data_base_dir = sys.argv[i_arg]
+#else:
+#    raise Exception('No --data-path argument!')
 start_epoch = 0
 if '--start-epoch' in sys.argv:
     i_arg = sys.argv.index('--start-epoch') + 1
