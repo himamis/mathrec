@@ -77,13 +77,14 @@ class Graphics:
     def fraction(self, numerator, denominator, fraction_line):
         width = max(_w(numerator), _w(denominator))
         # TODO: add randomness in width
-        fraction_line = _resize(fraction_line, width, _h(fraction_line))
+        padding = 10
+        fraction_line = _resize(fraction_line, width - padding, _h(fraction_line))
 
         fraction = _new_image(width, _h(numerator) + _h(denominator) + _h(fraction_line))
         offset = 0
         _paste(fraction, numerator, round((width - _w(numerator)) / 2), offset)
         offset += _h(numerator)
-        _paste(fraction, fraction_line, 0, offset)
+        _paste(fraction, fraction_line, round(padding / 2), offset)
         offset += _h(fraction_line)
         _paste(fraction, denominator, round((width - _w(denominator)) / 2), offset)
 
