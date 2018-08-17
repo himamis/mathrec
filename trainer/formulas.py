@@ -1,4 +1,3 @@
-from generator import
 
 # supported latex tokens
 tokens_numbers = "0123456789"

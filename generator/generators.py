@@ -146,8 +146,9 @@ class CallableGenerator:
         vocab = {self.brackets[0], self.brackets[1]}
         if self.name is not None:
             for name in self.name.all():
-                for character in name:
-                    vocab.add(character)
+                if name is not None:
+                    for character in name:
+                        vocab.add(character)
         for generator in self.generators:
             vocab = vocab | generator.vocabulary(config)
         if len(self.generators) > 1:
@@ -348,7 +349,7 @@ def random_coord():
     rand = RandomGenerator(generators)
 
     rel = RelationGenerator()
-    rel.operator = "="
+    rel.operator = c("=")
     rel.generators = [rand, co]
 
     return rel
@@ -405,4 +406,10 @@ def random_long_expression():
         expr.operators = [c(None)] + [c(["+", "-"]) for _ in range(i - 1)]
         generators.append(expr)
 
+    return RandomGenerator(generators)
+
+
+def random_generator():
+    generators = [random_simple_expression(), random_polynomial(), random_coord(),
+                  random_fraction(), random_long_expression(), random_long_expression_no_frac()]
     return RandomGenerator(generators)

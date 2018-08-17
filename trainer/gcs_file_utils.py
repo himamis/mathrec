@@ -1,12 +1,18 @@
+'''
 import numpy as np
 import pickle
 from PIL import Image
 from io import BytesIO
-from apache_beam.io.gcp import gcsio
+from google.cloud import storage
+#from apache_beam.io.gcp import gcsio
 
-_gcs = gcsio.GcsIO()
+#_gcs = gcsio.GcsIO()
+
+client = storage.Client("")
 
 def read_pkl(url):
+
+    storage.Bucket()
     with _gcs.open(url, 'rb') as input:
         content = pickle.load(input)
     return content
@@ -64,3 +70,4 @@ def write_npy(url, arr):
 
 def file_exists(url):
     return _gcs.exists(url)
+'''

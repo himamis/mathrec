@@ -26,6 +26,7 @@ set_random_seed(1337)
 #else:
 #    raise Exception('No --data-path argument!')
 start_epoch = 0
+
 if '--start-epoch' in sys.argv:
     i_arg = sys.argv.index('--start-epoch') + 1
     if i_arg < len(sys.argv):

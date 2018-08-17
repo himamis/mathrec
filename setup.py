@@ -7,7 +7,8 @@ REQUIRED_PACKAGES = ['Keras==2.1.6',
                      'google-apitools==0.5.23',
                      'google-cloud-storage>=1.10',
                      'numpy>=1.9.1',
-                     'opencv-python>=3.4.2']
+                     'opencv-python>=3.4.2',
+                     'tensorflow==1.9']
 
 setup(
     name='trainer',

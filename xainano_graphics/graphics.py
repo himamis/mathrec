@@ -46,7 +46,7 @@ class Graphics:
 
     def power(self, power):
         power_image = power.draw()
-        small_power = resize(power, round(w(power_image) / 2), round(h(power_image) / 2))
+        small_power = resize(power_image, round(w(power_image) / 2), round(h(power_image) / 2))
         padded = pad_image(small_power, 0, 0, round(h(power_image) / 2) + 30, 0)
         # TODO vary the positions
 

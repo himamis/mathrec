@@ -48,6 +48,7 @@ class AttentionDecoderLSTMCell(Layer):
         self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer='uniform', trainable=True)
         self.W_y = self.add_weight(name='W_y', shape=(self.D, self.V), initializer='uniform', trainable=True)
         self.built = True # important!!
+        # super([Layer], self).build()
 
     def call(self, inputs, states, constants=None):
         featureGrid = constants[0]
