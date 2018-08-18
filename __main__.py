@@ -1,15 +1,9 @@
-import cv2
 from trainer import utils
 from trainer import AttentionDecoderLSTMCell, SequenceGenerator, ModelCheckpointer
-from trainer import preprocess
 from trainer import model
 import sys
-import keras
-import numpy as np
 import datetime
 from numpy.random import seed
-
-from functools import reduce
 
 from generator import *
 from token_parser import Parser
@@ -17,7 +11,7 @@ from xainano_graphics import create_graphics_factory
 
 from tensorflow import set_random_seed
 from trainer.sequence import xainano_sequence_generator
-
+from trainer.logger import NBatchLogger
 
 
 #config = Config(np.random.choice([",", "."]), c(["x"]), np.random.choice([None, "\\times"]))
@@ -75,27 +69,29 @@ base = "/Users/balazs/university/extracted_images"
 config = Config(".", c(["x"]), None)
 generator = random_generator()
 # End token
-vocabulary = generator.vocabulary(config) | {"<end>"}
+vocabulary = generator.vocabulary(config) | {"<start>", "<end>"}
+vocabulary_map = {val: idx for idx, val in enumerate(vocabulary)}
 token_parser = Parser(create_graphics_factory(base))
 
 
-# generate data generators
-training_data = xainano_sequence_generator(generator, config, token_parser, batch_size)
-validation_data = xainano_sequence_generator(generator, config, token_parser, batch_size)
-testing_data = xainano_sequence_generator(generator, config, token_parser, batch_size)
 
-if utils.file_exists(model_architecture_file):
-    print("Image2Latex:", "Start load model:", datetime.datetime.now().time())
-    json = utils.read_content(model_architecture_file)
-    model = keras.models.model_from_json(json, custom_objects={ 'AttentionDecoderLSTMCell': AttentionDecoderLSTMCell })
-    print("Image2Latex:", "End load model:", datetime.datetime.now().time())
-else:
-    print("Image2Latex:", "Start create model:", datetime.datetime.now().time())
-    model = model.create(len(vocabulary), embedding_size, encoder_size)
-    # I don't do this, because I think there are some bugs, when saving RNN with constants
-    # utils.write_string(model_architecture_file, model.to_json())
-    print("Image2Latex:", "End create model:", datetime.datetime.now().time())
-    # utils.write_npy(model_weights_file.format(epoch=0), model.get_weights())
+# generate data generators
+training_data = xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map)
+validation_data = xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map)
+testing_data = xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map)
+
+#if utils.file_exists(model_architecture_file):
+#    print("Image2Latex:", "Start load model:", datetime.datetime.now().time())
+#    json = utils.read_content(model_architecture_file)
+#    model = keras.models.model_from_json(json, custom_objects={ 'AttentionDecoderLSTMCell': AttentionDecoderLSTMCell })
+#    print("Image2Latex:", "End load model:", datetime.datetime.now().time())
+#else:
+print("Image2Latex:", "Start create model:", datetime.datetime.now().time())
+model, encoder, decoder = model.create(len(vocabulary), embedding_size, encoder_size)
+# I don't do this, because I think there are some bugs, when saving RNN with constants
+# utils.write_string(model_architecture_file, model.to_json())
+print("Image2Latex:", "End create model:", datetime.datetime.now().time())
+# utils.write_npy(model_weights_file.format(epoch=0), model.get_weights())
 
 if start_epoch != 0 and utils.file_exists(model_weights_file.format(epoch=start_epoch)):
     print("Image2Latex:", "Start loading weights of epoch", start_epoch)
@@ -105,10 +101,11 @@ if start_epoch != 0 and utils.file_exists(model_weights_file.format(epoch=start_
     print("Image2Latex:", "Weights set to model")
 
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
+logger = NBatchLogger(1)
 print("Image2Latex:", "Start training...")
-history = model.fit_generator(training_data, 1000, epochs=10, verbose=1,
+history = model.fit_generator(training_data, 1000, epochs=10, verbose=2,
                               validation_data=validation_data, validation_steps=1000,
-                              callbacks=[checkpointer], initial_epoch=start_epoch)
+                              callbacks=[checkpointer, logger], initial_epoch=start_epoch)
 print("Image2Latex:", history.epoch)
 print("Image2Latex:", history.history)
 print("Image2Latex:", "Start evaluating...")

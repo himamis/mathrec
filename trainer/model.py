@@ -6,11 +6,11 @@ from trainer import AttentionDecoderLSTMCell, Reshape
 
 def create(vocabulary_size, embedding_size, encoder_size, free_run=False):
 
-    imgs = Input(shape=(None, None, 1), dtype='float32', name='images') # (batch_size, imgH, imgW, 1)
+    imgs = Input(shape=(None, None, 3), dtype='float32', name='images') # (batch_size, imgH, imgW, 1)
     seqs = Input(shape=(None, 1), dtype='float32', name='sequences') # (batch_size, seq_len)
     
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
-    x = Lambda(lambda a: (a-128)/128)(imgs) # (batch_size, imgH, imgW, 1) - normalize to [-1, +1)
+    x = Lambda(lambda a: (a-128)/128)(imgs) # (batch_size, imgH, imgW, 3) - normalize to [-1, +1)
 
     # conv net
     x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same', activation='relu')(x) # (batch_size, imgH, imgW, 64)
@@ -42,15 +42,14 @@ def create(vocabulary_size, embedding_size, encoder_size, free_run=False):
         return row(input_t), state # (batch_size, W, 2 * encoder_size) 2 times encoder_size because of BiLSTM and concat
     # Important to use a lambda outside a layer
     x = Lambda(lambda x: K.rnn(step_foo, x, [])[1])(x) # (batch_size, H, W, 2 * encoder_size)
-    x = Reshape((-1, 2 * encoder_size))(x) # (batch_size, H * W, 2 * encoder_size) H * W = L in AttentionDecoderLSTMCell
-
-
+    encoder = Reshape((-1, 2 * encoder_size))(x) # (batch_size, H * W, 2 * encoder_size) H * W = L in AttentionDecoderLSTMCell
 
     # decoder
     cell = AttentionDecoderLSTMCell(vocabulary_size, encoder_size * 2, embedding_size, free_run)
-    y = RNN(cell, return_sequences=True)(seqs, constants=[x]) # (batch_size, seq_len, vocabulary_size)
+    decoder = RNN(cell, return_sequences=True)
+    y = decoder(seqs, constants=[encoder])  # (batch_size, seq_len, vocabulary_size)
 
-    model = Model(inputs=imgs, outputs=y)
+    model = Model(inputs=[imgs, seqs], outputs=y)
     model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
-    return model
+    return model, encoder, decoder
 

@@ -134,7 +134,8 @@ class CallableGenerator:
         if self.name is not None:
             name = self.name.get()
             if name is not None:
-                tokens.append(name)
+                for char in name:
+                    tokens.append(char)
         tokens += [self.brackets[0]]
         for index in range(len(self.generators)):
             self.generators[index].generate_formula(tokens, config)
