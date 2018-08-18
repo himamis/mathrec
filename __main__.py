@@ -1,4 +1,4 @@
-from trainer import utils
+from file_utils import utils
 from trainer import AttentionDecoderLSTMCell, SequenceGenerator, ModelCheckpointer
 from trainer import model
 import sys

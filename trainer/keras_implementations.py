@@ -2,7 +2,7 @@ from keras import backend as K
 from keras.engine.topology import Layer
 from keras.layers import Embedding
 import numpy as np
-from trainer import utils
+from file_utils import utils
 import warnings
 from keras.callbacks import Callback
 import traceback
