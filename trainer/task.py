@@ -1,4 +1,4 @@
-from file_utils import utils
+import file_utils as utils
 from trainer import ModelCheckpointer
 from trainer import model
 from args_parser import parse_arg
@@ -22,7 +22,7 @@ set_random_seed(1337)
 
 start_epoch = int(parse_arg('--start-epoch', 0))
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/')
-model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/')
+model_checkpoint_dir = parse_arg('--model-dir', data_base_dir)
 model_architecture_file = model_checkpoint_dir + 'model/architecture.json'
 model_weights_file = model_checkpoint_dir + 'model/weights_{epoch}.h5'
 
