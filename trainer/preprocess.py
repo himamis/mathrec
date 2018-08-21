@@ -1,5 +1,4 @@
 import sys
-from trainer import formulas
 from trainer import utils
 
 

@@ -26,7 +26,7 @@ class Images:
     def __init__(self, base, preprocessor):
         self.directories = next(os.walk(base))[1]
         self.images = {}
-        self.base = base
+        self.base = os.path.join(base, 'xainano_images')
         self.preprocessor = preprocessor
         for directory in self.directories:
             self.images[directory] = next(os.walk(os.path.join(base, directory)))[2]

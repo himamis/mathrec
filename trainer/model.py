@@ -3,6 +3,7 @@ from keras.models import Model
 from keras.layers import Input, RNN, Conv2D, Concatenate, MaxPooling2D, BatchNormalization, Activation, Bidirectional, Embedding, LSTM, Lambda, Flatten
 # if you use sometimes a current keras implementation, you don't need RNN and Reshape anymore and you can use it from keras
 from trainer import AttentionDecoderLSTMCell, Reshape
+from trainer.defaults import create_vocabulary
 
 def create(vocabulary_size, embedding_size, encoder_size, free_run=False):
 
@@ -53,3 +54,8 @@ def create(vocabulary_size, embedding_size, encoder_size, free_run=False):
     model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
     return model, encoder, decoder
 
+
+def create_default(vocabulary_size=len(create_vocabulary()), free_run=False):
+    embedding_size = 80  # not needed in current version
+    encoder_size = 256
+    return create(vocabulary_size, embedding_size, encoder_size, free_run)

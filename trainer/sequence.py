@@ -1,5 +1,6 @@
 import numpy as np
 from xainano_graphics import utils
+from trainer.defaults import *
 
 
 def pad_with(vector, pad_width, iaxis, kwargs):
@@ -50,4 +51,9 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
             targets[index] = [vocabulary_map[token] for token in targets[index]]
 
         yield [np.stack(inputs), np.reshape(np.stack(input_sequences), (batch_size, -1, 1))], \
-              np.reshape(np.stack(targets), (batch_size, -1, 1))
+               np.reshape(np.stack(targets), (batch_size, -1, 1))
+
+
+def create_default_sequence_generator(token_parser, generator=create_generator(), config=create_config(), batch_size=1,
+                                      vocabulary_map=create_vocabulary_map()):
+    return xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map)
