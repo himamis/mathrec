@@ -1,30 +1,25 @@
 from trainer import model
-from file_utils import utils
+from trainer.defaults import *
+from trainer.sequence import create_default_sequence_generator
+import file_utils as utils
 import numpy as np
-from trainer import defaults
 import cv2
-
-# set seeds so that every trainingsprocess is starting with same weights.
-# it is also needed when creating the model and setting weights from a file, 
-# because there must be some kind of randomness in it, because with not setting
-# seeds it generates different output every time. But I don't know where :(
+from functools import reduce
 from numpy.random import seed
 from tensorflow import set_random_seed
-from trainer.sequence import create_default_sequence_generator
-from functools import reduce
 
 seed(1337)
 set_random_seed(1337)
-
+model.create_default()
 
 print('Enter base dir:')
 data_base_dir = input()
-vocabulary_set = defaults.create_vocabulary()
+vocabulary_set = create_vocabulary()
 weights_file = data_base_dir + 'model/weights_{epoch}.h5'
-vocabulary = defaults.create_vocabulary_map()
-generator = defaults.create_generator()
+vocabulary = create_vocabulary_map()
+generator = create_generator()
 
-token_parser = defaults.create_token_parser(data_base_dir)
+token_parser = create_token_parser(data_base_dir)
 sequence = create_default_sequence_generator(token_parser)
 
 print('Vocabulary read. Size is', len(vocabulary))
