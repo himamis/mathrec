@@ -31,13 +31,13 @@ batch_size = 8
 generator = create_generator()
 config = create_config()
 vocabulary = create_vocabulary(generator, config)
-encoder_vocabulary, decoder_vocabulary = create_vocabulary_maps(vocabulary)
+vocabulary_maps = create_vocabulary_maps(vocabulary)
 token_parser = create_token_parser(data_base_dir)
 
 # generate data generators
-training_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_map)
-validation_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_map)
-testing_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_map)
+training_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
+validation_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
+testing_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
 
 print("Image2Latex:", "Start create model:", datetime.datetime.now().time())
 model, encoder, decoder = model.create_default(len(vocabulary))
