@@ -7,13 +7,17 @@ import cv2
 from functools import reduce
 from numpy.random import seed
 from tensorflow import set_random_seed
+from args_parser import parse_arg
 
 seed(1337)
 set_random_seed(1337)
 model.create_default()
 
-print('Enter base dir:')
-data_base_dir = input()
+data_base_dir = parse_arg('--data-base-dir', None)
+if data_base_dir is None:
+    print('Enter base dir:')
+    data_base_dir = input()
+
 vocabulary_set = create_vocabulary()
 weights_file = data_base_dir + 'model/weights_{epoch}.h5'
 vocabulary = create_vocabulary_map()

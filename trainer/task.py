@@ -1,7 +1,7 @@
 from file_utils import utils
 from trainer import ModelCheckpointer
 from trainer import model
-import sys
+from args_parser import parse_arg
 import datetime
 from numpy.random import seed
 
@@ -20,23 +20,9 @@ seed(1337)
 set_random_seed(1337)
 
 
-def get_param(name, default):
-    if name in sys.argv:
-        i_arg = sys.argv.index(name) + 1
-        if i_arg < len(sys.argv):
-            print(name + '\t resolved to \t' + sys.argv[i_arg])
-            return sys.argv[i_arg]
-        else:
-            print(name + '\t using default \t' + str(default))
-            return default
-    else:
-        print(name + '\t using default \t' + str(default))
-        return default
-
-
-start_epoch = int(get_param('--start-epoch', 0))
-data_base_dir = get_param('--data-base-dir', '/Users/balazs/university/')
-model_checkpoint_dir = get_param('--model-dir', '/Users/balazs/university/')
+start_epoch = int(parse_arg('--start-epoch', 0))
+data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/')
+model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/')
 model_architecture_file = model_checkpoint_dir + 'model/architecture.json'
 model_weights_file = model_checkpoint_dir + 'model/weights_{epoch}.h5'
 
