@@ -24,7 +24,7 @@ encoder_vocabulary, decoder_vocabulary = create_vocabulary_maps(vocabulary_set)
 generator = create_generator()
 
 token_parser = create_token_parser(data_base_dir)
-sequence = create_default_sequence_generator(token_parser)
+sequence = create_default_sequence_generator(token_parser, batch_size=6)
 
 print('Vocabulary read. Size is', len(encoder_vocabulary))
 print('Start creating model')

@@ -1,16 +1,11 @@
 import numpy as np
 from xainano_graphics import utils
 from trainer.defaults import *
-
-
-def pad_with(vector, pad_width, iaxis, kwargs):
-    pad_value = kwargs.get('padder', "<end>")
-    vector[:pad_width[0]] = pad_value
-    vector[-pad_width[1]:] = pad_value
-    return vector
+from keras.utils import to_categorical
 
 
 def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary_map):
+    vocabulary_size = len(vocabulary_map)
     while True:
         inputs = []
         input_sequences = []
@@ -43,15 +38,15 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
 
             # Resize sequence
             seq = input_sequences[index]
-            input_sequences[index] = np.append(seq, np.repeat('end', max_seq_len - len(seq)))
+            input_sequences[index] = np.append(seq, np.repeat('<end>', max_seq_len - len(seq)))
             input_sequences[index] = [vocabulary_map[token] for token in input_sequences[index]]
 
             t_seq = targets[index]
-            targets[index] = np.append(t_seq, np.repeat('end', max_seq_len - len(t_seq)))
+            targets[index] = np.append(t_seq, np.repeat('<end>', max_seq_len - len(t_seq)))
             targets[index] = [vocabulary_map[token] for token in targets[index]]
 
-        yield [np.stack(inputs), np.reshape(np.stack(input_sequences), (batch_size, -1, 1))], \
-               np.reshape(np.stack(targets), (batch_size, -1, 1))
+        yield [np.stack(inputs), to_categorical(input_sequences, vocabulary_size)], \
+            to_categorical(targets, vocabulary_size)
 
 
 def create_default_sequence_generator(token_parser, generator=create_generator(), config=create_config(), batch_size=1,

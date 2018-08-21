@@ -8,7 +8,7 @@ from trainer.defaults import create_vocabulary
 def create(vocabulary_size, embedding_size, encoder_size, free_run=False):
 
     imgs = Input(shape=(None, None, 3), dtype='float32', name='images') # (batch_size, imgH, imgW, 1)
-    seqs = Input(shape=(None, 1), dtype='float32', name='sequences') # (batch_size, seq_len)
+    seqs = Input(shape=(None, vocabulary_size), dtype='float32', name='sequences') # (batch_size, seq_len)
     
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
     x = Lambda(lambda a: (a-128)/128)(imgs) # (batch_size, imgH, imgW, 3) - normalize to [-1, +1)
