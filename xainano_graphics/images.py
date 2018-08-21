@@ -2,7 +2,7 @@ import os
 import numpy as np
 import cv2
 from .utils import new_image
-
+import logging
 
 def _token2image(token):
     if token == "\\frac":
@@ -28,8 +28,11 @@ class Images:
         self.directories = next(os.walk(self.base))[1]
         self.images = {}
         self.preprocessor = preprocessor
+        logging.info("Loading directories: " + str(self.directories))
         for directory in self.directories:
-            self.images[directory] = next(os.walk(os.path.join(self.base, directory)))[2]
+            path = os.path.join(self.base, directory)
+            logging.debug("Loading directory : \t " + path) 
+            self.images[directory] = next(os.walk(path))[2]
 
     def image(self, token):
         token = _token2image(token)
