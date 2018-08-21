@@ -1,7 +1,7 @@
 from trainer import model
 from file_utils import utils
 import numpy as np
-from trainer.defaults import *
+from trainer import defaults
 import cv2
 
 # set seeds so that every trainingsprocess is starting with same weights.
@@ -19,12 +19,12 @@ set_random_seed(1337)
 
 print('Enter base dir:')
 data_base_dir = input()
-vocabulary_set = create_vocabulary()
+vocabulary_set = defaults.create_vocabulary()
 weights_file = data_base_dir + 'model/weights_{epoch}.h5'
-vocabulary = create_vocabulary_map()
-generator = create_generator()
+vocabulary = defaults.create_vocabulary_map()
+generator = defaults.create_generator()
 
-token_parser = create_token_parser(data_base_dir)
+token_parser = defaults.create_token_parser(data_base_dir)
 sequence = create_default_sequence_generator(token_parser)
 
 print('Vocabulary read. Size is', len(vocabulary))
