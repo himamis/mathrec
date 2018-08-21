@@ -31,7 +31,7 @@ batch_size = 8
 generator = create_generator()
 config = create_config()
 vocabulary = create_vocabulary(generator, config)
-vocabulary_map = create_vocabulary_map(vocabulary)
+encoder_vocabulary, decoder_vocabulary = create_vocabulary_maps(vocabulary)
 token_parser = create_token_parser(data_base_dir)
 
 # generate data generators

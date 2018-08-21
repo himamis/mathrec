@@ -43,11 +43,11 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
 
             # Resize sequence
             seq = input_sequences[index]
-            input_sequences[index] = np.pad(seq, (0, max_seq_len - len(seq)),  pad_with)
+            input_sequences[index] = np.append(seq, np.repeat('end', max_seq_len - len(seq)))
             input_sequences[index] = [vocabulary_map[token] for token in input_sequences[index]]
 
             t_seq = targets[index]
-            targets[index] = np.pad(t_seq, (0, max_seq_len - len(t_seq)),  pad_with)
+            targets[index] = np.append(t_seq, np.repeat('end', max_seq_len - len(t_seq)))
             targets[index] = [vocabulary_map[token] for token in targets[index]]
 
         yield [np.stack(inputs), np.reshape(np.stack(input_sequences), (batch_size, -1, 1))], \
@@ -55,5 +55,5 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
 
 
 def create_default_sequence_generator(token_parser, generator=create_generator(), config=create_config(), batch_size=1,
-                                      vocabulary_map=create_vocabulary_map()):
-    return xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map)
+                                      vocabulary_map=create_vocabulary_maps()):
+    return xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map[0])
