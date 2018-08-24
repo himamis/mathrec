@@ -52,10 +52,11 @@ class AttentionDecoderLSTMCell(Layer):
     def call(self, inputs, states, constants=None):
         featureGrid = constants[0]
         # Input
-        #if self.free_run:
-        #    _input = K.argmax(states[0]) # (batch_size)
-        #else:
-        _input = K.cast(inputs[:, 0], 'int32') # (batch_size)
+        if self.free_run:
+            _input = K.argmax(states[0]) # (batch_size)
+        else:
+            _input = inputs
+            #_input = K.cast(inputs[:, 0], 'int32') # (batch_size)
         #_input = K.one_hot(_input, self.V) # (batch_size, V)
         x = K.concatenate((_input, states[1])) # (batch_size, V + D)
 

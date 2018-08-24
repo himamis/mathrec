@@ -1,13 +1,13 @@
 from keras import backend as K
 from keras.models import Model
-from keras.layers import Input, RNN, Conv2D, Concatenate, MaxPooling2D, BatchNormalization, Activation, Bidirectional, Embedding, LSTM, Lambda, Flatten
+from keras.layers import Input, RNN, Conv2D, Concatenate, Permute, MaxPooling2D, BatchNormalization, Activation, Bidirectional, Embedding, LSTM, Lambda, Flatten
 # if you use sometimes a current keras implementation, you don't need RNN and Reshape anymore and you can use it from keras
 from trainer import AttentionDecoderLSTMCell, Reshape
 from trainer.defaults import create_vocabulary
 
 def create(vocabulary_size, embedding_size, encoder_size, free_run=False):
 
-    imgs = Input(shape=(None, None, 3), dtype='float32', name='images') # (batch_size, imgH, imgW, 1)
+    imgs = Input(shape=(256, 512, 3), dtype='float32', name='images') # (batch_size, imgH, imgW, 1)
     seqs = Input(shape=(None, vocabulary_size), dtype='float32', name='sequences') # (batch_size, seq_len)
     
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
@@ -37,21 +37,23 @@ def create(vocabulary_size, embedding_size, encoder_size, free_run=False):
     x = Activation('relu')(x)
 
     # row encoder
-    row = Bidirectional(LSTM(encoder_size, return_sequences=True), merge_mode='concat')
+    row = Bidirectional(LSTM(encoder_size, input_shape=(vocabulary_size,), return_sequences=True, name="encoder"), merge_mode='concat')
 
     def step_foo(input_t, state): # input_t: (batch_size, W, D), state doesn't matter
         return row(input_t), state # (batch_size, W, 2 * encoder_size) 2 times encoder_size because of BiLSTM and concat
     # Important to use a lambda outside a layer
     x = Lambda(lambda x: K.rnn(step_foo, x, [])[1])(x) # (batch_size, H, W, 2 * encoder_size)
-    encoder = Reshape((-1, 2 * encoder_size))(x) # (batch_size, H * W, 2 * encoder_size) H * W = L in AttentionDecoderLSTMCell
+    x = Permute((2, 1, 3))(x)
+    encoder = Reshape((-1, 32 * 2 * encoder_size))(x)
+    #encoder = Reshape((-1, 2 * encoder_size))(x) # (batch_size, H * W, 2 * encoder_size) H * W = L in AttentionDecoderLSTMCell
 
     # decoder
-    cell = AttentionDecoderLSTMCell(vocabulary_size, encoder_size * 2, embedding_size, free_run)
-    decoder = RNN(cell, return_sequences=True)
+    cell = AttentionDecoderLSTMCell(vocabulary_size, 32 * encoder_size * 2, embedding_size, free_run, input_shape=(vocabulary_size,))
+    decoder = RNN(cell, input_shape=(vocabulary_size,), return_sequences=True, name="decoder")
     y = decoder(seqs, constants=[encoder])  # (batch_size, seq_len, vocabulary_size)
 
     model = Model(inputs=[imgs, seqs], outputs=y)
-    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
     return model, encoder, decoder
 
 
