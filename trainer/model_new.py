@@ -1,7 +1,7 @@
 from keras import backend as K
 from keras.models import Model
-from keras.layers import Input, RNN, Conv2D, Concatenate, Permute, MaxPooling2D, BatchNormalization, Activation, \
-    Bidirectional, Embedding, LSTM, Lambda, Flatten, Dense, Reshape, Average
+from keras.layers import Input, RNN, Conv2D, MaxPooling2D, BatchNormalization, Activation, \
+    Bidirectional, LSTM, Lambda, Dense, Reshape
 from keras.layers import Embedding
 # if you use sometimes a current keras implementation, you don't need RNN and Reshape anymore and you can use it from keras
 from trainer import AttentionLSTMDecoderCell
@@ -54,9 +54,12 @@ def create(vocabulary_size, embedding_size, encoder_size):
     x = Lambda(lambda x: K.rnn(step_foo, x, [])[1])(x)  # (batch_size, H, W, 2 * encoder_size)
     encoder = Reshape((-1, 2 * encoder_size))(x)  # (batch_size, H * W, 2 * encoder_size) H * W = L in AttentionDecoderLSTMCell
 
-    averaged_image_features = Lambda(lambda x: K.mean(x, axis=1))(encoder)
-    initial_state_h = Dense(vocabulary_size)(averaged_image_features)
-    initial_state_c = Dense(vocabulary_size)(averaged_image_features)
+    image_average = Lambda(lambda x: K.mean(x, axis=1))
+    average_encoder_feature = image_average(encoder)
+    initial_state_h_dense = Dense(vocabulary_size)
+    initial_state_c_dense = Dense(vocabulary_size)
+    initial_state_h = initial_state_h_dense(average_encoder_feature)
+    initial_state_c = initial_state_c_dense(average_encoder_feature)
 
     embedding = Embedding(vocabulary_size, embedding_size)(seqs)
 
@@ -67,7 +70,17 @@ def create(vocabulary_size, embedding_size, encoder_size):
 
     model = Model(inputs=[imgs, seqs], outputs=y)
     model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
-    return model, encoder, decoder
+
+    encoder_model = Model(imgs, encoder)
+
+    feature_grid_input = Input(shape=(32 * 32, 512), dtype='float32', name='feature_grid')
+    average_input = image_average(feature_grid_input)
+    initial_state_h = initial_state_h_dense(average_input)
+    initial_state_c = initial_state_c_dense(average_input)
+    output = decoder(embedding, constants=[feature_grid_input], initial_state=[initial_state_h, initial_state_c])
+
+    decoder_model = Model(inputs=[seqs, feature_grid_input], outputs=output)
+    return model, encoder_model, decoder_model
 
 
 def create_default(vocabulary_size=len(create_vocabulary())):

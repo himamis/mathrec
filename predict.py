@@ -1,4 +1,4 @@
-from trainer import model
+from trainer import model_new
 from trainer.defaults import *
 from trainer.sequence import create_default_sequence_generator
 import file_utils as utils
@@ -11,7 +11,6 @@ from args_parser import parse_arg
 
 seed(1337)
 set_random_seed(1337)
-model.create_default()
 
 data_base_dir = parse_arg('--data-base-dir', None)
 if data_base_dir is None:
@@ -24,11 +23,11 @@ encoder_vocabulary, decoder_vocabulary = create_vocabulary_maps(vocabulary_set)
 generator = create_generator()
 
 token_parser = create_token_parser(data_base_dir)
-sequence = create_default_sequence_generator(token_parser, batch_size=6)
+sequence = create_default_sequence_generator(token_parser, batch_size=1)
 
 print('Vocabulary read. Size is', len(encoder_vocabulary))
 print('Start creating model')
-model, encoder, decoder = model.create_default(len(encoder_vocabulary), True)
+model, encoder, decoder = model_new.create_default(len(encoder_vocabulary))
 print('Model created')
 for epoch in reversed(range(10)):
     file = weights_file.format(epoch=epoch + 1)
@@ -42,16 +41,23 @@ for epoch in reversed(range(10)):
 
 for inputs, output in sequence:
     inp = inputs[0]
+    image = inp[0:1, :]
+
     #s = reduce((lambda a, b: a + " " + b), inputs[1])
     #print("Token sequence is: " + s)
-    cv2.imshow('image', inp[0])
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    cv2.imshow('image', image[0])
 
-    y = model.predict(inputs, batch_size=1)
-    for seq in y:
-        outp = ''
-        for tok in seq:
-            outp += decoder_vocabulary[np.argmax(tok)] + ' '
-        print(outp)
+    encoded_image = encoder.predict(image)
+
+    seq = np.array([[encoder_vocabulary['<start>']]])
+
+    while True:
+        y = decoder.predict([seq, encoded_image])
+        max = np.argmax(y)
+        token = decoder_vocabulary[max]
+        print(decoder_vocabulary[np.argmax(y)])
+        if token == '<end>':
+            break
+        seq = np.array([[max]])
     print('')
+    cv2.destroyAllWindows()
