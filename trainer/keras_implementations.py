@@ -29,6 +29,7 @@ class AttentionLSTMDecoderCell(LSTMCell):
         self.Wa_b = self.add_weight(name="Wa_b", shape=(self.alignment_hidden,), initializer='uniform')
 
         self.va = self.add_weight(name="va", shape=(self.alignment_hidden,), initializer='uniform')
+        #self.va_b = self.add_weight(name="va_b", shape=(1,), initializer='uniform')
         super(AttentionLSTMDecoderCell, self).build((None, input_shape[0][1] + input_shape[1][2] + self.output_dim))
 
 

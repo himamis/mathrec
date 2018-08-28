@@ -50,7 +50,6 @@ def create(vocabulary_size, embedding_size, encoder_size, free_run=False):
     averaged_image_features = Lambda(lambda x: K.mean(x, axis=2))(encoder)
     initial_state_h = Dense(encoder_size * 2)(averaged_image_features)
     initial_state_c = Dense(encoder_size * 2)(averaged_image_features)
-    cell =
 
 
     # decoder

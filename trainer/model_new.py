@@ -10,7 +10,7 @@ from trainer.defaults import create_vocabulary
 
 def create(vocabulary_size, embedding_size, encoder_size, internal_embedding=512):
     imgs = Input(shape=(256, 512, 3), dtype='float32', name='images')  # (batch_size, imgH, imgW, 1)
-    seqs = Input(shape=(None, ), dtype='float32', name='sequences')  # (batch_size, seq_len)
+    seqs = Input(shape=(None, vocabulary_size), dtype='float32', name='sequences')  # (batch_size, seq_len)
 
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
     x = Lambda(lambda a: (a - 128) / 128)(imgs)  # (batch_size, imgH, imgW, 3) - normalize to [-1, +1)
@@ -61,15 +61,15 @@ def create(vocabulary_size, embedding_size, encoder_size, internal_embedding=512
     initial_state_h = initial_state_h_dense(average_encoder_feature)
     initial_state_c = initial_state_c_dense(average_encoder_feature)
 
-    embedding = Embedding(vocabulary_size, embedding_size)(seqs)
+    #embedding = Embedding(vocabulary_size, embedding_size)(seqs)
 
     # decoder
     cell = AttentionLSTMDecoderCell(vocabulary_size, encoder_size * 2, internal_embedding)
     decoder = RNN(cell, return_sequences=True, name="decoder")
-    y = decoder(embedding, constants=[encoder], initial_state=[initial_state_h, initial_state_c])  # (batch_size, seq_len, vocabulary_size)
+    y = decoder(seqs, constants=[encoder], initial_state=[initial_state_h, initial_state_c])  # (batch_size, seq_len, vocabulary_size)
 
     model = Model(inputs=[imgs, seqs], outputs=y)
-    model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
     encoder_model = Model(imgs, encoder)
 
@@ -77,7 +77,7 @@ def create(vocabulary_size, embedding_size, encoder_size, internal_embedding=512
     average_input = image_average(feature_grid_input)
     initial_state_h = initial_state_h_dense(average_input)
     initial_state_c = initial_state_c_dense(average_input)
-    output = decoder(embedding, constants=[feature_grid_input], initial_state=[initial_state_h, initial_state_c])
+    output = decoder(seqs, constants=[feature_grid_input], initial_state=[initial_state_h, initial_state_c])
 
     decoder_model = Model(inputs=[seqs, feature_grid_input], outputs=output)
     return model, encoder_model, decoder_model
