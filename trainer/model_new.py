@@ -8,7 +8,7 @@ from trainer import AttentionLSTMDecoderCell
 from trainer.defaults import create_vocabulary
 
 
-def create(vocabulary_size, embedding_size, encoder_size):
+def create(vocabulary_size, embedding_size, encoder_size, internal_embedding=512):
     imgs = Input(shape=(256, 512, 3), dtype='float32', name='images')  # (batch_size, imgH, imgW, 1)
     seqs = Input(shape=(None, ), dtype='float32', name='sequences')  # (batch_size, seq_len)
 
@@ -64,7 +64,7 @@ def create(vocabulary_size, embedding_size, encoder_size):
     embedding = Embedding(vocabulary_size, embedding_size)(seqs)
 
     # decoder
-    cell = AttentionLSTMDecoderCell(vocabulary_size, encoder_size * 2, 200)
+    cell = AttentionLSTMDecoderCell(vocabulary_size, encoder_size * 2, internal_embedding)
     decoder = RNN(cell, return_sequences=True, name="decoder")
     y = decoder(embedding, constants=[encoder], initial_state=[initial_state_h, initial_state_c])  # (batch_size, seq_len, vocabulary_size)
 
@@ -84,6 +84,7 @@ def create(vocabulary_size, embedding_size, encoder_size):
 
 
 def create_default(vocabulary_size=len(create_vocabulary())):
-    embedding_size = 80  # not needed in current version
+    embedding_size = 80
     encoder_size = 256
-    return create(vocabulary_size, embedding_size, encoder_size)
+    internal_embedding = 512
+    return create(vocabulary_size, embedding_size, encoder_size, internal_embedding)
