@@ -1,6 +1,6 @@
 import file_utils as utils
 from trainer import ModelCheckpointer
-from trainer import model
+from trainer import model_new
 from args_parser import parse_arg
 import datetime
 from numpy.random import seed
@@ -40,7 +40,7 @@ validation_data = create_default_sequence_generator(token_parser, generator, con
 testing_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
 
 print("Image2Latex:", "Start create model:", datetime.datetime.now().time())
-model, encoder, decoder = model.create_default(len(vocabulary))
+model, encoder, decoder = model_new.create_default(len(vocabulary))
 # I don't do this, because I think there are some bugs, when saving RNN with constants
 # utils.write_string(model_architecture_file, model.to_json())
 print("Image2Latex:", "End create model:", datetime.datetime.now().time())

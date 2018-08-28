@@ -1,5 +1,5 @@
 from keras import backend as K
-from keras.layers import Embedding
+from keras.layers import Embedding, LSTMCell, Wrapper
 import numpy as np
 import file_utils as utils
 import warnings
@@ -10,6 +10,44 @@ import sys
 import inspect
 from keras.engine.topology import Layer
 from keras.engine.topology import InputSpec
+
+
+class AttentionLSTMDecoderCell(LSTMCell):
+
+    def __init__(self, output_dim, feature_size, alignment_hidden,  **kwargs):
+        self.output_dim = output_dim
+        self.feature_size = feature_size
+        self.alignment_hidden = alignment_hidden
+
+        super(AttentionLSTMDecoderCell, self).__init__(output_dim, **kwargs)
+
+    def build(self, input_shape):
+        self.Ua = self.add_weight(name="Ua", shape=(self.feature_size, self.alignment_hidden), initializer='uniform')
+        self.Ua_b = self.add_weight(name="Ua_b", shape=(self.alignment_hidden,), initializer='uniform')
+
+        self.Wa = self.add_weight(name="Wa", shape=(self.output_dim, self.alignment_hidden), initializer='uniform')
+        self.Wa_b = self.add_weight(name="Wa_b", shape=(self.alignment_hidden,), initializer='uniform')
+
+        self.va = self.add_weight(name="va", shape=(self.alignment_hidden,), initializer='uniform')
+        super(AttentionLSTMDecoderCell, self).build((None, input_shape[0][1] + input_shape[1][2] + self.output_dim))
+
+
+    def call(self, inputs, states, training=None, constants=None):
+        # Calculate context
+        feature_grid = constants[0] # (batch_size, h*w, feature_size)
+        s = states[0] # (batch_size, output_dim)
+        Uahj = K.dot(feature_grid, self.Ua) + self.Ua_b # (batch_size, h*w, alignment_hidden)
+        Wasi = K.dot(s, self.Wa) + self.Wa_b # (batch_size, alignment_hidden)
+        sm = K.tanh(K.expand_dims(Wasi, 1) + Uahj) # (batch_size, h*w, alignment_hidden)
+        e = K.dot(sm, K.expand_dims(self.va, 1))[:,:,0] # (batch_size, h*w)
+        a = K.softmax(e) # (batch_size, h*w)
+        c = K.batch_dot(K.expand_dims(a, 1), feature_grid)[:, 0, :] # (batch_size, feature_size)
+
+        new_inputs = K.concatenate((inputs, states[0], c))
+
+        h, [h, c] = super(AttentionLSTMDecoderCell, self).call(new_inputs, states, training=training)
+
+        return h, [h, c]
 
 
 class AttentionDecoderLSTMCell(Layer):
