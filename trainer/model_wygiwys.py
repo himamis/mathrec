@@ -45,32 +45,31 @@ def create(vocabulary_size, embedding_size, encoder_size, internal_embedding=512
     # (batch_size, 32, 32, 512)
 
     # row encoder
-    row = Bidirectional(LSTM(encoder_size, return_sequences=True, name="encoder"), merge_mode='concat')
+    row_encoder = Bidirectional(LSTM(encoder_size, return_sequences=True, name="encoder"), merge_mode='concat')
 
     def step_foo(input_t, state):  # input_t: (batch_size, W, D), state doesn't matter
-        return row(input_t), state  # (batch_size, W, 2 * encoder_size) 2 times encoder_size because of BiLSTM and concat
+        return row_encoder(input_t, initial_state=state)  # (batch_size, W, 2 * encoder_size) 2 times encoder_size because of BiLSTM and concat
 
     # Important to use a lambda outside a layer
+    fw_initial_state_h = Dense(vocabulary_size)(average_encoder_feature)
+    fw_initial_state_c = Dense(vocabulary_size)(average_encoder_feature)
+    bw_initial_state_h = Dense(vocabulary_size)(average_encoder_feature)
+    bw_initial_state_c = Dense(vocabulary_size)(average_encoder_feature)
     x = Lambda(lambda x: K.rnn(step_foo, x, [])[1])(x)  # (batch_size, H, W, 2 * encoder_size)
     encoder = Reshape((-1, 2 * encoder_size))(x)  # (batch_size, H * W, 2 * encoder_size) H * W = L in AttentionDecoderLSTMCell
 
     image_average = Lambda(lambda x: K.mean(x, axis=1))
     average_encoder_feature = image_average(encoder)
-    initial_state_h_dense = Dense(vocabulary_size)
-    initial_state_c_dense = Dense(vocabulary_size)
-    initial_state_h = initial_state_h_dense(average_encoder_feature)
-    initial_state_c = initial_state_c_dense(average_encoder_feature)
+
 
     #embedding = Embedding(vocabulary_size, embedding_size)(seqs)
 
     # decoder
-    cell = AttentionLSTMDecoderCell(encoder_size * 2, encoder_size * 2, internal_embedding)
+    cell = AttentionLSTMDecoderCell(vocabulary_size, encoder_size * 2, internal_embedding)
     decoder = RNN(cell, return_sequences=True, name="decoder")
-    y = decoder(seqs, constants=[encoder], initial_state=[initial_state_h, initial_state_c])  # (batch_size, seq_len, encoder_size*2)
-    decoder_dense = Dense(vocabulary_size, activation="softmax")
-    decoder_output = decoder_dense(y)
+    y = decoder(seqs, constants=[encoder], initial_state=[initial_state_h, initial_state_c])  # (batch_size, seq_len, vocabulary_size)
 
-    model = Model(inputs=[imgs, seqs], outputs=decoder_output)
+    model = Model(inputs=[imgs, seqs], outputs=y)
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
     encoder_model = Model(imgs, encoder)
@@ -80,9 +79,8 @@ def create(vocabulary_size, embedding_size, encoder_size, internal_embedding=512
     initial_state_h = initial_state_h_dense(average_input)
     initial_state_c = initial_state_c_dense(average_input)
     output = decoder(seqs, constants=[feature_grid_input], initial_state=[initial_state_h, initial_state_c])
-    decoder_output = decoder_dense(output)
 
-    decoder_model = Model(inputs=[seqs, feature_grid_input], outputs=decoder_output)
+    decoder_model = Model(inputs=[seqs, feature_grid_input], outputs=output)
     return model, encoder_model, decoder_model
 
 
