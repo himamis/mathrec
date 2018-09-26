@@ -17,32 +17,37 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 3) - normalize to [-1, +1)
 
     # conv net
-    x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same', activation='relu')(
-        x)  # (batch_size, imgH, imgW, 64)
+    x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
     x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
 
-    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', activation='relu')(
-        x)  # (batch_size, imgH/2, imgW/2, 128)
-    x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2/2, imgW/2/2, 128)
-
-    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH/2/2, imgW/2/2,  256)
-    x = BatchNormalization(scale=False)(x)
+    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = BatchNormalization()(x)
     x = Activation('relu')(x)
-
-    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same', activation='relu')(
-        x)  # (batch_size, imgH/2/2, imgW/2/2, 256)
-    x = MaxPooling2D(pool_size=(1, 2), strides=(1, 2), padding='valid')(x)  # (batch_size, imgH/2/2/2, imgW/2/2, 256)
-
-    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH/2/2/2, imgW/2/2, 512)
-    x = BatchNormalization(scale=False)(x)
+    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = MaxPooling2D(pool_size=(2, 1), strides=(2, 1), padding='valid')(x)  # (batch_size, imgH/2/2/2, imgW/2/2/2, 512)
+    x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
 
-    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same')(
-        x)  # (batch_size, imgH/2/2/2, imgW/2/2/2, 512) = (batch_size, H, W, D)
-    x = BatchNormalization(scale=False)(x)
+    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = MaxPooling2D(pool_size=(1, 2), strides=(1, 2), padding='valid')(x)
+    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
+
+    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+    x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
     # (batch_size, 32, 32, 512)
 
     # row encoder
@@ -71,7 +76,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
 
     encoder_model = Model(encoder_input_imgs, encoder)
 
-    feature_grid_input = Input(shape=(32 * 32, 2*encoder_size), dtype='float32', name='feature_grid')
+    feature_grid_input = Input(shape=(32 * 64, 2*encoder_size), dtype='float32', name='feature_grid')
     decoder_state_h = Input(shape=(encoder_size * 2,))
     decoder_state_c = Input(shape=(encoder_size * 2,))
     decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input])
