@@ -57,8 +57,10 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
 
     # decoder
     cell = AttentionDecoderLSTMCell(vocabulary_size, encoder_size * 2, internal_embedding)
-    decoder = RNN(cell, return_sequences=True, name="decoder")
-    decoder_output = decoder(decoder_input, constants=[encoder])  # (batch_size, seq_len, encoder_size*2)
+    decoder = RNN(cell, return_sequences=True, return_state=True, name="decoder")
+    decoder_output, _, _ = decoder(decoder_input, constants=[encoder])  # (batch_size, seq_len, encoder_size*2)
+    decoder_dense = Dense(vocabulary_size, activation="softmax")
+    decoder_output = decoder_dense(decoder_output)
 
     model = Model(inputs=[encoder_input_imgs, decoder_input], outputs=decoder_output)
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
@@ -66,14 +68,16 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     encoder_model = Model(encoder_input_imgs, encoder)
 
     feature_grid_input = Input(shape=(32 * 32, 2*encoder_size), dtype='float32', name='feature_grid')
-    decoder_output = decoder(decoder_input, constants=[feature_grid_input])
-    decoder_model = Model([feature_grid_input, decoder_input], decoder_output)
+    decoder_state_h = Input(shape=(encoder_size * 2,))
+    decoder_state_c = Input(shape=(encoder_size * 2,))
+    decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input])
+    decoder_output = decoder_dense(decoder_output)
+    decoder_model = Model([feature_grid_input, decoder_input, decoder_state_h, decoder_state_c], [decoder_output, state_h, state_c])
 
     return model, encoder_model, decoder_model
 
 
 def create_default(vocabulary_size=len(create_vocabulary())):
-    embedding_size = 80
     encoder_size = 256
     internal_embedding = 512
-    return create(vocabulary_size, embedding_size, encoder_size, internal_embedding)
+    return create(vocabulary_size, encoder_size, internal_embedding)

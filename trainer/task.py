@@ -30,6 +30,7 @@ model_architecture_file = model_checkpoint_dir + 'model/architecture.json'
 model_weights_file = model_checkpoint_dir + 'model/weights_{epoch}.h5'
 
 batch_size = 32
+max_length = 200
 
 generator = create_generator()
 config = create_config()
@@ -66,33 +67,47 @@ def testmodel(epoch, logs):
     predx, predy = next(callback_data)
 
     print("Testing model")
-    predout = model.predict(predx,batch_size=1)
+    print("Encoding data")
+    feature_grid = encoder.predict(predx[0], batch_size=1)
 
-    print("Target: ")
-    for i in range(0, batch_size):
-        seq = []
-        for j in range(0, predy[i].shape[0]):
-            val = np.argmax(predy[i][j])
-            seq.append(vocabulary_maps[1][val])
-        print(seq)
-        print("\n")
+    print("Decoding target")
+    sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
+    sequence[0, 0, vocabulary_maps[0]["<start>"]] = 1.
 
-    print("Prediction: ")
-    for i in range(0, batch_size):
-        seq = []
-        for j in range(0, predout[i].shape[0]):
-            val = np.argmax(predout[i][j])
-            seq.append(vocabulary_maps[1][val])
-        print(seq)
-        print("\n")
+    h = np.zeros((1, 256 * 2), dtype="float32")
+    c = np.zeros((1, 256 * 2), dtype="float32")
+    states = [h, c]
+
+    decoded_sentence = ""
+    while True:
+        output, h, c = decoder.predict([feature_grid, sequence] + states)
+
+        # Sample token
+        sampled_token_index = np.argmax(output[0, -1, :])
+        sampled_char = vocabulary_maps[1][sampled_token_index]
+        decoded_sentence += sampled_char
+
+        # Exit condition: hit max length, or find stop character
+        if sampled_char == "<end>" or len(decoded_sentence) > max_length:
+            break
+
+        # Update sequence
+        sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
+        sequence[0, 0, sampled_token_index] = 1.
+
+        states = [h, c]
+
+    print("Prediction")
+    print(decoded_sentence)
+    print("\n")
 
 
 # Callback to display the target and prediciton
 testmodelcb = LambdaCallback(on_batch_end=testmodel)
 
 print("Image2Latex:", "Start training...")
-history = model.fit_generator(training_data, 10, epochs=100, verbose=2,
-                              validation_data=validation_data, validation_steps=5,
+history = model.fit_generator(training_data, 100, epochs=10, verbose=2,
+                              validation_data=validation_data, validation_steps=100,
                               callbacks=[checkpointer, logger, testmodelcb], initial_epoch=start_epoch)
 print("Image2Latex:", history.epoch)
 print("Image2Latex:", history.history)

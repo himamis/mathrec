@@ -68,7 +68,7 @@ class AttentionDecoderLSTMCell(Layer):
         self.D = D
         self.E = E
         self.V = V
-        self.state_size = (V, self.D, self.D, self.D) # (y, out, h, c)
+        self.state_size = (self.D, self.D) # (out, c)
         super(AttentionDecoderLSTMCell, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -85,16 +85,17 @@ class AttentionDecoderLSTMCell(Layer):
         self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer='uniform')
         self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer='uniform', trainable=True)
         self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer='uniform')
-        self.W_y = self.add_weight(name='W_y', shape=(self.D, self.V), initializer='uniform', trainable=True)
-        self.b_y = self.add_weight(name='b_y', shape=(self.V,), initializer='uniform', trainable=True)
-        self.built = True # important!!
-        # super([Layer], self).build()
+        #self.W_y = self.add_weight(name='W_y', shape=(self.D, self.V), initializer='uniform', trainable=True)
+        #self.b_y = self.add_weight(name='b_y', shape=(self.V,), initializer='uniform', trainable=True)
+        #self.built = True # important!!
+        super(AttentionDecoderLSTMCell, self).build(input_shape)
+
 
     def call(self, inputs, states, constants=None):
         feature_grid = constants[0]
         # Input
         _input = inputs
-        x = K.concatenate((_input, states[1])) # (batch_size, V + D)
+        x = K.concatenate((_input, states[0])) # (batch_size, V + D)
 
         # LSTM
         x = K.expand_dims(x, 1) # (batch_size, 1, V + D)
@@ -102,7 +103,7 @@ class AttentionDecoderLSTMCell(Layer):
         i = K.sigmoid(K.dot(x, self.W_i) + self.b_i)[:,0] # (batch_size, D)
         g = K.tanh(K.dot(x, self.W_g) + self.b_g)[:,0] # (batch_size, D)
         o = K.sigmoid(K.dot(x, self.W_o) + self.b_o)[:,0] # (batch_size, D)
-        c = states[3] * f + i * g # (batch_size, D)
+        c = states[1] * f + i * g # (batch_size, D)
         h = K.tanh(c) * o # (batch_size, D)
 
         # Attention
@@ -117,10 +118,11 @@ class AttentionDecoderLSTMCell(Layer):
         hz = K.concatenate((h, z)) # (batch_size, 2D,)
         hz = K.expand_dims(hz, 1) # (batch_size, 1, 2D)
         out = K.tanh(K.dot(hz, self.W_out) + self.b_out) # (batch_size, 1, D)
-        y = K.softmax(K.dot(out, self.W_y)[:,0] + self.b_y) # (batch_size, V)
-        out = out[:,0] # (batch_size, D)
+        out = out[:, 0]  # (batch_size, D)
+        #y = K.softmax(K.dot(out, self.W_y)[:,0] + self.b_y) # (batch_size, V)
 
-        return y, [y, out, h, c]
+        return out, [out, c]
+
 
     # if you want sometimes to save the model architecture
     def get_config(self):
