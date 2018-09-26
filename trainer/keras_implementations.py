@@ -64,12 +64,11 @@ class AttentionDecoderLSTMCell(Layer):
         call method
     '''
 
-    def __init__(self, V = 0, D = 0, E = 0, free_run=True, **kwargs):
+    def __init__(self, V = 0, D = 0, E = 0, **kwargs):
         self.D = D
         self.E = E
         self.V = V
         self.state_size = (V, self.D, self.D, self.D) # (y, out, h, c)
-        self.free_run = free_run
         super(AttentionDecoderLSTMCell, self).__init__(**kwargs)
 
     def build(self, input_shape):
@@ -83,20 +82,18 @@ class AttentionDecoderLSTMCell(Layer):
         self.b_i = self.add_weight(name='b_i', shape=(self.D,), initializer='uniform', trainable=True)
         self.b_o = self.add_weight(name='b_o', shape=(self.D,), initializer='uniform', trainable=True)
         self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer='uniform', trainable=True)
+        self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer='uniform')
         self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer='uniform', trainable=True)
+        self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer='uniform')
         self.W_y = self.add_weight(name='W_y', shape=(self.D, self.V), initializer='uniform', trainable=True)
+        self.b_y = self.add_weight(name='b_y', shape=(self.V,), initializer='uniform', trainable=True)
         self.built = True # important!!
         # super([Layer], self).build()
 
     def call(self, inputs, states, constants=None):
-        featureGrid = constants[0]
+        feature_grid = constants[0]
         # Input
-        if self.free_run:
-            _input = K.argmax(states[0]) # (batch_size)
-        else:
-            _input = inputs
-            #_input = K.cast(inputs[:, 0], 'int32') # (batch_size)
-        #_input = K.one_hot(_input, self.V) # (batch_size, V)
+        _input = inputs
         x = K.concatenate((_input, states[1])) # (batch_size, V + D)
 
         # LSTM
@@ -109,18 +106,18 @@ class AttentionDecoderLSTMCell(Layer):
         h = K.tanh(c) * o # (batch_size, D)
 
         # Attention
-        b = K.dot(K.expand_dims(h, 1), self.W_e)[:,0] # (batch_size, D)
+        b = K.dot(K.expand_dims(h, 1), self.W_e)[:,0] + self.b_e # (batch_size, D)
         b = K.expand_dims(b) # (batch_size, D, 1)
-        e = K.batch_dot(featureGrid, b)[:,:,0] # (batch_size, L)
+        e = K.batch_dot(feature_grid, b)[:,:,0] # (batch_size, L)
         a = K.softmax(e) # (batch_size, L)
         a = K.expand_dims(a, 1) # (batch_size, 1, L)
-        z = K.batch_dot(a, featureGrid)[:,0] # (batch_size, D)
+        z = K.batch_dot(a, feature_grid)[:,0] # (batch_size, D)
 
         # Output
         hz = K.concatenate((h, z)) # (batch_size, 2D,)
         hz = K.expand_dims(hz, 1) # (batch_size, 1, 2D)
-        out = K.tanh(K.dot(hz, self.W_out)) # (batch_size, 1, D)
-        y = K.softmax(K.dot(out, self.W_y)[:,0]) # (batch_size, V)
+        out = K.tanh(K.dot(hz, self.W_out) + self.b_out) # (batch_size, 1, D)
+        y = K.softmax(K.dot(out, self.W_y)[:,0] + self.b_y) # (batch_size, V)
         out = out[:,0] # (batch_size, D)
 
         return y, [y, out, h, c]

@@ -4,16 +4,17 @@ from keras.layers import Input, RNN, Conv2D, MaxPooling2D, BatchNormalization, A
     Bidirectional, LSTM, Lambda, Dense, Reshape
 from keras.layers import Embedding
 # if you use sometimes a current keras implementation, you don't need RNN and Reshape anymore and you can use it from keras
-from trainer import AttentionLSTMDecoderCell
+from trainer import AttentionLSTMDecoderCell, AttentionDecoderLSTMCell
 from trainer.defaults import create_vocabulary
+import numpy as np
 
 
-def create(vocabulary_size, embedding_size, encoder_size, internal_embedding=512):
-    imgs = Input(shape=(256, 512, 3), dtype='float32', name='images')  # (batch_size, imgH, imgW, 1)
-    seqs = Input(shape=(None, vocabulary_size), dtype='float32', name='sequences')  # (batch_size, seq_len)
+def create(vocabulary_size, encoder_size, internal_embedding=512):
+    encoder_input_imgs = Input(shape=(256, 512, 3), dtype='float32', name='encoder_input_images')  # (batch_size, imgH, imgW, 1)
+    decoder_input = Input(shape=(None, vocabulary_size), dtype='float32', name='decoder_input_sequences')  # (batch_size, seq_len)
 
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
-    x = Lambda(lambda a: (a - 128) / 128)(imgs)  # (batch_size, imgH, imgW, 3) - normalize to [-1, +1)
+    x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 3) - normalize to [-1, +1)
 
     # conv net
     x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same', activation='relu')(
@@ -54,35 +55,20 @@ def create(vocabulary_size, embedding_size, encoder_size, internal_embedding=512
     x = Lambda(lambda x: K.rnn(step_foo, x, [])[1])(x)  # (batch_size, H, W, 2 * encoder_size)
     encoder = Reshape((-1, 2 * encoder_size))(x)  # (batch_size, H * W, 2 * encoder_size) H * W = L in AttentionDecoderLSTMCell
 
-    image_average = Lambda(lambda x: K.mean(x, axis=1))
-    average_encoder_feature = image_average(encoder)
-    initial_state_h_dense = Dense(vocabulary_size)
-    initial_state_c_dense = Dense(vocabulary_size)
-    initial_state_h = initial_state_h_dense(average_encoder_feature)
-    initial_state_c = initial_state_c_dense(average_encoder_feature)
-
-    #embedding = Embedding(vocabulary_size, embedding_size)(seqs)
-
     # decoder
-    cell = AttentionLSTMDecoderCell(encoder_size * 2, encoder_size * 2, internal_embedding)
+    cell = AttentionDecoderLSTMCell(vocabulary_size, encoder_size * 2, internal_embedding)
     decoder = RNN(cell, return_sequences=True, name="decoder")
-    y = decoder(seqs, constants=[encoder], initial_state=[initial_state_h, initial_state_c])  # (batch_size, seq_len, encoder_size*2)
-    decoder_dense = Dense(vocabulary_size, activation="softmax")
-    decoder_output = decoder_dense(y)
+    decoder_output = decoder(decoder_input, constants=[encoder])  # (batch_size, seq_len, encoder_size*2)
 
-    model = Model(inputs=[imgs, seqs], outputs=decoder_output)
+    model = Model(inputs=[encoder_input_imgs, decoder_input], outputs=decoder_output)
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-    encoder_model = Model(imgs, encoder)
+    encoder_model = Model(encoder_input_imgs, encoder)
 
-    feature_grid_input = Input(shape=(32 * 32, 512), dtype='float32', name='feature_grid')
-    average_input = image_average(feature_grid_input)
-    initial_state_h = initial_state_h_dense(average_input)
-    initial_state_c = initial_state_c_dense(average_input)
-    output = decoder(seqs, constants=[feature_grid_input], initial_state=[initial_state_h, initial_state_c])
-    decoder_output = decoder_dense(output)
+    feature_grid_input = Input(shape=(32 * 32, 2*encoder_size), dtype='float32', name='feature_grid')
+    decoder_output = decoder(decoder_input, constants=[feature_grid_input])
+    decoder_model = Model([feature_grid_input, decoder_input], decoder_output)
 
-    decoder_model = Model(inputs=[seqs, feature_grid_input], outputs=decoder_output)
     return model, encoder_model, decoder_model
 
 
