@@ -6,7 +6,7 @@ from keras.layers import Embedding
 # if you use sometimes a current keras implementation, you don't need RNN and Reshape anymore and you can use it from keras
 from trainer import AttentionLSTMDecoderCell, AttentionDecoderLSTMCell
 from trainer.defaults import create_vocabulary
-import numpy as np
+import tensorflow as tf
 
 
 def create(vocabulary_size, encoder_size, internal_embedding=512):
@@ -63,7 +63,11 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     decoder_output = decoder_dense(decoder_output)
 
     model = Model(inputs=[encoder_input_imgs, decoder_input], outputs=decoder_output)
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
+
+    def exact(y_true, y_pred):
+        return K.sum(tf.cast(K.all(K.equal(y_pred, y_true), 2, keepdims=True), tf.float32), 1)
+
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy', exact])
 
     encoder_model = Model(encoder_input_imgs, encoder)
 

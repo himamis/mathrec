@@ -68,7 +68,12 @@ def testmodel(epoch, logs):
 
     print("Testing model")
     print("Encoding data")
-    feature_grid = encoder.predict(predx[0], batch_size=1)
+    feature_grid = encoder.predict(predx[0])
+
+    print("Expected target")
+    target_sentence = [vocabulary_maps[1][np.argmax(char)] for char in predy[0]]
+    print(target_sentence)
+    print("\n")
 
     print("Decoding target")
     sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
@@ -103,7 +108,7 @@ def testmodel(epoch, logs):
 
 
 # Callback to display the target and prediciton
-testmodelcb = LambdaCallback(on_batch_end=testmodel)
+testmodelcb = LambdaCallback(on_epoch_end=testmodel)
 
 print("Image2Latex:", "Start training...")
 history = model.fit_generator(training_data, 100, epochs=10, verbose=2,
