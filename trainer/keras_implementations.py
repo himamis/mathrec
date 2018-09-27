@@ -64,27 +64,29 @@ class AttentionDecoderLSTMCell(Layer):
         call method
     '''
 
-    def __init__(self, V = 0, D = 0, E = 0, **kwargs):
+    def __init__(self, V = 0, D = 0, E = 0, kernel_initializer='glorot_normal', bias_initializer='zeros', **kwargs):
         self.D = D
         self.E = E
         self.V = V
         self.state_size = (self.D, self.D) # (out, c)
+        self.kernel_initializer = kernel_initializer
+        self.bias_initializer = bias_initializer
         super(AttentionDecoderLSTMCell, self).__init__(**kwargs)
 
     def build(self, input_shape):
         # generating weights. In future one maybe implements biases for W_e, W_out, W_y...
-        self.W_f = self.add_weight(name='W_f', shape=(self.D + self.V, self.D), initializer='uniform', trainable=True)
-        self.W_g = self.add_weight(name='W_g', shape=(self.D + self.V, self.D), initializer='uniform', trainable=True)
-        self.W_i = self.add_weight(name='W_i', shape=(self.D + self.V, self.D), initializer='uniform', trainable=True)
-        self.W_o = self.add_weight(name='W_o', shape=(self.D + self.V, self.D), initializer='uniform', trainable=True)
-        self.b_f = self.add_weight(name='b_f', shape=(self.D,), initializer='uniform', trainable=True)
-        self.b_g = self.add_weight(name='b_g', shape=(self.D,), initializer='uniform', trainable=True)
-        self.b_i = self.add_weight(name='b_i', shape=(self.D,), initializer='uniform', trainable=True)
-        self.b_o = self.add_weight(name='b_o', shape=(self.D,), initializer='uniform', trainable=True)
-        self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer='uniform', trainable=True)
-        self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer='uniform')
-        self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer='uniform', trainable=True)
-        self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer='uniform')
+        self.W_f = self.add_weight(name='W_f', shape=(self.D + self.V, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.W_g = self.add_weight(name='W_g', shape=(self.D + self.V, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.W_i = self.add_weight(name='W_i', shape=(self.D + self.V, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.W_o = self.add_weight(name='W_o', shape=(self.D + self.V, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.b_f = self.add_weight(name='b_f', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
+        self.b_g = self.add_weight(name='b_g', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
+        self.b_i = self.add_weight(name='b_i', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
+        self.b_o = self.add_weight(name='b_o', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
+        self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer=self.bias_initializer)
+        self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer=self.bias_initializer)
         #self.W_y = self.add_weight(name='W_y', shape=(self.D, self.V), initializer='uniform', trainable=True)
         #self.b_y = self.add_weight(name='b_y', shape=(self.V,), initializer='uniform', trainable=True)
         #self.built = True # important!!

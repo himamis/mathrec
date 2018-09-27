@@ -118,7 +118,7 @@ testmodelcb = LambdaCallback(on_epoch_end=testmodel)
 print("Image2Latex:", "Start training...")
 history = model.fit_generator(training_data, 100, epochs=10, verbose=2,
                               validation_data=validation_data, validation_steps=100,
-                              callbacks=[checkpointer, logger, testmodelcb, scheduler], initial_epoch=start_epoch)
+                              callbacks=[checkpointer, logger, testmodelcb], initial_epoch=start_epoch)
 print("Image2Latex:", history.epoch)
 print("Image2Latex:", history.history)
 print("Image2Latex:", "Start evaluating...")

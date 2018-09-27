@@ -9,6 +9,10 @@ from keras.optimizers import  RMSprop
 
 
 def create(vocabulary_size, encoder_size, internal_embedding=512):
+    # Weight initializers
+    kernel_init = 'glorot_normal'
+    bias_init = 'zeros'
+
     encoder_input_imgs = Input(shape=(256, 512, 3), dtype='float32', name='encoder_input_images')  # (batch_size, imgH, imgW, 1)
     decoder_input = Input(shape=(None, vocabulary_size), dtype='float32', name='decoder_input_sequences')  # (batch_size, seq_len)
 
@@ -16,41 +20,41 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 3) - normalize to [-1, +1)
 
     # conv net
-    x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     #x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
 
-    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     #x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
 
-    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     #x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
 
-    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     #x = BatchNormalization()(x)
     x = Activation('relu')(x)
-    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same')(x)  # (batch_size, imgH, imgW, 64)
+    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
     # (batch_size, 16, 32, 512)
 
     # row encoder
-    row = Bidirectional(LSTM(encoder_size, return_sequences=True, name="encoder"), merge_mode='concat')
+    row = Bidirectional(LSTM(encoder_size, return_sequences=True, name="encoder", kernel_initializer=kernel_init, bias_initializer=bias_init), merge_mode='concat')
 
     def step_foo(input_t, state):  # input_t: (batch_size, W, D), state doesn't matter
         return row(input_t), state  # (batch_size, W, 2 * encoder_size) 2 times encoder_size because of BiLSTM and concat
@@ -63,11 +67,11 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     cell = AttentionDecoderLSTMCell(vocabulary_size, encoder_size * 2, internal_embedding)
     decoder = RNN(cell, return_sequences=True, return_state=True, name="decoder")
     decoder_output, _, _ = decoder(decoder_input, constants=[encoder])  # (batch_size, seq_len, encoder_size*2)
-    decoder_dense = Dense(vocabulary_size, activation="softmax")
+    decoder_dense = Dense(vocabulary_size, activation="softmax", kernel_initializer=kernel_init, bias_initializer=bias_init)
     decoder_output = decoder_dense(decoder_output)
 
     model = Model(inputs=[encoder_input_imgs, decoder_input], outputs=decoder_output)
-    model.compile(optimizer=RMSprop(lr=0.01), loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
 
     encoder_model = Model(encoder_input_imgs, encoder)
 
