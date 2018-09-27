@@ -79,7 +79,8 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     feature_grid_input = Input(shape=(16 * 32, 2*encoder_size), dtype='float32', name='feature_grid')
     decoder_state_h = Input(shape=(encoder_size * 2,))
     decoder_state_c = Input(shape=(encoder_size * 2,))
-    decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input])
+    decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input],
+                                               initial_state=[decoder_state_h, decoder_state_c])
     decoder_output = decoder_dense(decoder_output)
     decoder_model = Model([feature_grid_input, decoder_input, decoder_state_h, decoder_state_c], [decoder_output, state_h, state_c])
 
