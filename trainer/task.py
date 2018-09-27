@@ -60,8 +60,8 @@ if start_epoch != 0 and utils.file_exists(model_weights_file.format(epoch=start_
 
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
-def schedule(epoch, current_lr):
-    return current_lr / 2
+def schedule(epoch, lr):
+    return lr / 2
 scheduler = LearningRateScheduler(schedule, 1)
 
 
