@@ -48,7 +48,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
     x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
-    # (batch_size, 32, 32, 512)
+    # (batch_size, 16, 32, 512)
 
     # row encoder
     row = Bidirectional(LSTM(encoder_size, return_sequences=True, name="encoder"), merge_mode='concat')
@@ -76,7 +76,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
 
     encoder_model = Model(encoder_input_imgs, encoder)
 
-    feature_grid_input = Input(shape=(32 * 64, 2*encoder_size), dtype='float32', name='feature_grid')
+    feature_grid_input = Input(shape=(16 * 32, 2*encoder_size), dtype='float32', name='feature_grid')
     decoder_state_h = Input(shape=(encoder_size * 2,))
     decoder_state_c = Input(shape=(encoder_size * 2,))
     decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input])
