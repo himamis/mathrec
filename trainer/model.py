@@ -2,11 +2,10 @@ from keras import backend as K
 from keras.models import Model
 from keras.layers import Input, RNN, Conv2D, MaxPooling2D, BatchNormalization, Activation, \
     Bidirectional, LSTM, Lambda, Dense, Reshape
-from keras.layers import Embedding
 # if you use sometimes a current keras implementation, you don't need RNN and Reshape anymore and you can use it from keras
-from trainer import AttentionLSTMDecoderCell, AttentionDecoderLSTMCell
+from trainer import AttentionDecoderLSTMCell
 from trainer.defaults import create_vocabulary
-import tensorflow as tf
+from keras.optimizers import  RMSprop
 
 
 def create(vocabulary_size, encoder_size, internal_embedding=512):
@@ -68,11 +67,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     decoder_output = decoder_dense(decoder_output)
 
     model = Model(inputs=[encoder_input_imgs, decoder_input], outputs=decoder_output)
-
-    def exact(y_true, y_pred):
-        return K.sum(tf.cast(K.all(K.equal(y_pred, y_true), 2, keepdims=True), tf.float32), 1)
-
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy', exact])
+    model.compile(optimizer=RMSprop(lr=0.01), loss='categorical_crossentropy', metrics=['accuracy'])
 
     encoder_model = Model(encoder_input_imgs, encoder)
 
