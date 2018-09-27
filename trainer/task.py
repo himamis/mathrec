@@ -10,7 +10,7 @@ from tensorflow import set_random_seed
 from trainer.sequence import create_default_sequence_generator
 from trainer.logger import NBatchLogger
 
-from keras.callbacks import LambdaCallback
+from keras.callbacks import LambdaCallback, LearningRateScheduler
 
 from trainer.defaults import *
 
@@ -60,6 +60,9 @@ if start_epoch != 0 and utils.file_exists(model_weights_file.format(epoch=start_
 
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
+def schedule(epoch, current_lr):
+    return current_lr / 2
+scheduler = LearningRateScheduler(schedule, 1)
 
 
 # Function to display the target and prediciton
@@ -113,7 +116,7 @@ testmodelcb = LambdaCallback(on_epoch_end=testmodel)
 print("Image2Latex:", "Start training...")
 history = model.fit_generator(training_data, 100, epochs=10, verbose=2,
                               validation_data=validation_data, validation_steps=100,
-                              callbacks=[checkpointer, logger, testmodelcb], initial_epoch=start_epoch)
+                              callbacks=[checkpointer, logger, testmodelcb, scheduler], initial_epoch=start_epoch)
 print("Image2Latex:", history.epoch)
 print("Image2Latex:", history.history)
 print("Image2Latex:", "Start evaluating...")
