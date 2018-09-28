@@ -13,7 +13,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     kernel_init = 'glorot_normal'
     bias_init = 'zeros'
 
-    encoder_input_imgs = Input(shape=(256, 512, 3), dtype='float32', name='encoder_input_images')  # (batch_size, imgH, imgW, 1)
+    encoder_input_imgs = Input(shape=(None, None, 3), dtype='float32', name='encoder_input_images')  # (batch_size, imgH, imgW, 1)
     decoder_input = Input(shape=(None, vocabulary_size), dtype='float32', name='decoder_input_sequences')  # (batch_size, seq_len)
 
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
@@ -75,7 +75,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
 
     encoder_model = Model(encoder_input_imgs, encoder)
 
-    feature_grid_input = Input(shape=(16 * 32, 2*encoder_size), dtype='float32', name='feature_grid')
+    feature_grid_input = Input(shape=(None, 2 * encoder_size), dtype='float32', name='feature_grid')
     decoder_state_h = Input(shape=(encoder_size * 2,))
     decoder_state_c = Input(shape=(encoder_size * 2,))
     decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input],
