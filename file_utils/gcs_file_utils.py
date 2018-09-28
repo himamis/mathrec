@@ -1,62 +1,60 @@
+import numpy as np
+import pickle
+import cv2
+from io import BytesIO
 from google.cloud import storage
 
 storage_client = storage.Client()
 bucket_name = 'image2latex-mlengine'
-bucket = storage_client.create_bucket(bucket_name)
-bucket.blob('file').download
-
-'''
-import numpy as np
-import pickle
-from PIL import Image
-from io import BytesIO
-from google.cloud import storage
-#from apache_beam.io.gcp import gcsio
+bucket = storage_client.bucket(bucket_name)
+#bucket.blob('file').download
 
 #_gcs = gcsio.GcsIO()
 
-client = storage.Client("")
+#client = storage.Client("")
 
 def read_pkl(url):
-
-    storage.Bucket()
-    with _gcs.open(url, 'rb') as input:
-        content = pickle.load(input)
+    blob = bucket.blob(url)
+    bytes = BytesIO(blob.download_as_string())
+    content = pickle.load(bytes)
     return content
 
 
 def write_pkl(url, data):
-    with _gcs.open(url, 'wb') as output:
-        pickle.dump(data, output, 2)
+    data_string = pickle.dumps(data, 2)
+    blob = bucket.blob(url)
+    blob.upload_from_string(data_string)
+    #with _gcs.open(url, 'wb') as output:
+    #    pickle.dump(data, output, 2)
 
 
 def read_img(url, max_size=None):
-    with _gcs.open(url, 'rb') as inp:
-        cont = inp.read()
-    with Image.open(BytesIO(cont)) as img:
-        image = img.convert('YCbCr')
-        if(max_size != None):
-            image = image.resize(max_size)
-        nparr = np.asarray(image)
-    return nparr
+    blob = bucket.blob(url)
+    bytes = blob.download_as_string()
+    buf = np.frombuffer(bytes, np.uint8)
+    img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
+    return np.asarray(img)
+
+def list_files(url):
+    return [blob.name for blob in bucket.list_blobs(prefix=url)]
 
 
-def read_lines(url):
-    with _gcs.open(url, 'r') as input:
-        content = input.read().splitlines()
-    return content
+#def read_lines(url):
+#    with _gcs.open(url, 'r') as input:
+#        content = input.read().splitlines()
+#    return content
 
 
-def write_list(url, list):
-    with _gcs.open(url, 'w') as output:
-        for token in list:
-            output.write("%s\r\n" % token)
+#def write_list(url, list):
+#    with _gcs.open(url, 'w') as output:
+#        for token in list:
+#            output.write("%s\r\n" % token)
 
 
-def read_content(url):
-    with _gcs.open(url, 'r') as input:
-        content = input.read()
-    return content
+#def read_content(url):
+#    with _gcs.open(url, 'r') as input:
+#        content = input.read()
+#    return content
 
 
 def write_string(url, string):
@@ -65,16 +63,18 @@ def write_string(url, string):
 
 
 def read_npy(url):
-    with _gcs.open(url, 'rb') as input:
-        arr = np.load(input, encoding='bytes')
-    return arr
+    return None
+    #with _gcs.open(url, 'rb') as input:
+    #    arr = np.load(input, encoding='bytes')
+    #return arr
 
 
 def write_npy(url, arr):
-    with _gcs.open(url, 'wb') as output:
-        arr = np.save(output, arr)
+    return None
+    #with _gcs.open(url, 'wb') as output:
+    #    arr = np.save(output, arr)
 
 
 def file_exists(url):
-    return _gcs.exists(url)
-'''
+    return False
+    #return _gcs.exists(url)

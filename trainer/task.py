@@ -60,11 +60,11 @@ validation_data = create_default_sequence_generator(token_parser, generator, con
 testing_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
 callback_data = create_default_sequence_generator(token_parser, generator, config, 1, vocabulary_maps)
 
-print("Image2Latex:", "Start create model:", datetime.datetime.now().time())
+print("Image2Latex:", "Start create model:", datetime.now().time())
 model, encoder, decoder = model.create_default(len(vocabulary))
 # I don't do this, because I think there are some bugs, when saving RNN with constants
 # utils.write_string(model_architecture_file, model.to_json())
-print("Image2Latex:", "End create model:", datetime.datetime.now().time())
+print("Image2Latex:", "End create model:", datetime.now().time())
 # utils.write_npy(model_weights_file.format(epoch=0), model.get_weights())
 
 if start_epoch != 0 and utils.file_exists(model_weights_file.format(epoch=start_epoch)):

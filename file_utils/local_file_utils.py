@@ -3,6 +3,7 @@ import numpy as np
 import pickle
 from PIL import Image
 from io import BytesIO
+import cv2
 
 
 def read_pkl(file):
@@ -39,16 +40,18 @@ def read_npy(url):
     return arr
 
 
-def read_img(url, max_size=None):
+def read_img(url):
     with open(url, 'rb') as inp:
         cont = inp.read()
-    with Image.open(BytesIO(cont)) as img:
-        image = img.convert('YCbCr')
-        if(max_size != None):
-            image = image.resize(max_size)
-        nparr = np.asarray(image)
+        buf = np.frombuffer(cont, np.uint8)
+        img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
+        nparr = np.asarray(img)
     return nparr
 
 
 def file_exists(path):
     return os.path.exists(path)
+
+
+def list_files(path):
+    return [os.path.join(path, fname) for fname in next(os.walk(path))[2]]

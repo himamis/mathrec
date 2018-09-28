@@ -2,7 +2,7 @@ import os
 import numpy as np
 import cv2
 from .utils import new_image
-import logging
+import file_utils
 
 def _token2image(token):
     if token == "\\frac":
@@ -20,19 +20,23 @@ def _dot():
     cv2.circle(dot, (10, 22), 10, (255, 255, 255, 0))
     return dot
 
+_images = ['!', '1', '8', 'H', '[', 'd', 'gamma', 'j', 'log', 'pi', 'sqrt', 'w', '(', '2', '9', 'M', ']', 'div', 'geq',
+           'k', 'lt', 'pm', 'sum', 'y', ')', '3', '=', 'N', 'alpha', 'e', 'gt', 'l', 'mu', 'prime', 'tan', 'z', '+',
+           '4', 'A', 'R', 'ascii_124', 'exists', 'i', 'lambda', 'neq', 'q', 'theta', '{', ',', '5', 'C', 'S', 'b', 'f',
+           'in', 'ldots', 'o', 'rightarrow', 'times', '}', '-', '6', 'Delta', 'T', 'beta', 'forall', 'infty', 'leq', 'p',
+           'sigma', 'u', '0', '7', 'G', 'X', 'cos', 'forward_slash', 'int', 'lim', 'phi', 'sin', 'v']
 
 class Images:
 
     def __init__(self, base, preprocessor):
         self.base = os.path.join(base, 'xainano_images')
-        self.directories = next(os.walk(self.base))[1]
+        self.directories = _images
         self.images = {}
         self.preprocessor = preprocessor
-        logging.info("Loading directories: " + str(self.directories))
+        #logging.info("Loading directories: " + str(self.directories))
         for directory in self.directories:
             path = os.path.join(self.base, directory)
-            logging.debug("Loading directory : \t " + path) 
-            self.images[directory] = next(os.walk(path))[2]
+            self.images[directory] = file_utils.list_files(path)
 
     def image(self, token):
         token = _token2image(token)
@@ -50,8 +54,8 @@ class Images:
     def _random_image(self, token):
         count = len(self.images[token])
         index = np.random.randint(count)
-        path = os.path.join(self.base, token, self.images[token][index])
-        image = cv2.imread(path)
+        path = self.images[token][index]
+        image = file_utils.read_img(path)#cv2.imread(path)
         image = self.preprocessor.preprocess(image, token)
 
         return image
