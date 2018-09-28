@@ -5,6 +5,9 @@ from args_parser import parse_arg
 import datetime
 from numpy.random import seed
 import numpy as np
+from datetime import datetime
+from os import path
+import git
 
 from tensorflow import set_random_seed
 from trainer.sequence import create_default_sequence_generator
@@ -14,6 +17,7 @@ from keras.callbacks import LambdaCallback, LearningRateScheduler
 
 from trainer.defaults import *
 
+
 # set seeds so that every trainingsprocess is starting with same weights.
 # it is also needed when creating the model and setting weights from a file,
 # because there must be some kind of randomness in it, because with not setting
@@ -22,12 +26,24 @@ from trainer.defaults import *
 seed(1337)
 set_random_seed(1337)
 
+date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
+folder_str = 'model-' + date_str
+architecture_fname = 'architecture.json'
+weights_fname = 'weights_{epoch}.h5'
+result_fname = 'result_log.txt'
+history_fname = 'history.pkl'
 
 start_epoch = int(parse_arg('--start-epoch', 0))
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/')
 model_checkpoint_dir = parse_arg('--model-dir', data_base_dir)
-model_architecture_file = model_checkpoint_dir + 'model/architecture.json'
-model_weights_file = model_checkpoint_dir + 'model/weights_{epoch}.h5'
+model_architecture_file = path.join(model_checkpoint_dir, folder_str, architecture_fname)
+model_weights_file = path.join(model_checkpoint_dir, folder_str, weights_fname)
+results_file = path.join(model_checkpoint_dir, folder_str, result_fname)
+history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
+
+start_time = datetime.now()
+log = "git hash:\t\t\t'" + git.Repo().head.object.hexsha + "'\n"
+log += 'start time:\t\t\t' + str(start_time) + '\n'
 
 batch_size = 32
 max_length = 200
@@ -60,12 +76,6 @@ if start_epoch != 0 and utils.file_exists(model_weights_file.format(epoch=start_
 
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
-def schedule(epoch, lr):
-    if epoch % 2 == 0:
-        return lr / 2
-    return lr
-scheduler = LearningRateScheduler(schedule, 1)
-
 
 # Function to display the target and prediciton
 def testmodel(epoch, logs):
@@ -119,9 +129,15 @@ print("Image2Latex:", "Start training...")
 history = model.fit_generator(training_data, 100, epochs=10, verbose=2,
                               validation_data=validation_data, validation_steps=100,
                               callbacks=[checkpointer, logger, testmodelcb], initial_epoch=start_epoch)
+end_time = datetime.now()
+log += 'end time:\t\t\t' + str(end_time) + '\n'
 print("Image2Latex:", history.epoch)
 print("Image2Latex:", history.history)
 print("Image2Latex:", "Start evaluating...")
 losses = model.evaluate_generator(testing_data, 1000)
 print(model.metrics_names)
 print(losses)
+log += 'losses:\n'
+log += str(losses)
+utils.write_string(results_file, log)
+utils.write_pkl(history_file, history)
