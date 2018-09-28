@@ -362,7 +362,7 @@ class SequenceGenerator:
                     traceback.print_stack()
                     img = None
             if img is None:
-                raise Exception('Image2Latex: unfähig', n, i)
+                raise Exception('Image2Latex: unfaehig', n, i)
             # before appending img has dimension [height,width,3(YCbCr)], after [height, width, 1]
             x_imgs.append(img[:, :, 0][:, :, None])
         # since the whole sequence looks like: <st> ... <et> we have to create two different
