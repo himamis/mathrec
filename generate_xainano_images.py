@@ -9,12 +9,10 @@ seed_nr = 123
 seed(seed_nr)
 
 
-number_of_images = 5
-
 dir_name = 'xainano_images'
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/')
 output_dir = parse_arg('--output-dir', '/Users/balazs/university/handwritten_images')
-
+number_of_images = int(parse_arg('--count', 200000))
 
 generator = create_generator()
 config = create_config()
