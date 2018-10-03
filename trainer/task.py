@@ -1,7 +1,7 @@
 import file_utils as utils
 from trainer import ModelCheckpointer
 from trainer import model
-from args_parser import parse_arg
+from utilities import parse_arg
 import datetime
 from numpy.random import seed
 import numpy as np

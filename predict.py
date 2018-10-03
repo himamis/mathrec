@@ -7,7 +7,7 @@ import cv2
 from functools import reduce
 from numpy.random import seed
 from tensorflow import set_random_seed
-from args_parser import parse_arg
+from utilities import parse_arg
 
 seed(1336)
 set_random_seed(1336)
