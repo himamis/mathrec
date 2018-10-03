@@ -6,12 +6,14 @@ DATA_URL="gs://image2latex-mlengine/data-simple/"
 
 gcloud ml-engine jobs submit training $JOB_NAME \
     --job-dir $OUTPUT_PATH \
-    --runtime-version 1.4 \
+    --runtime-version 1.9\
     --module-name trainer.task \
     --package-path trainer/ \
     --region $REGION \
     --config config.yaml \
     -- \
     --gcs \
-    --data-path $DATA_URL \
-    --start-epoch 0
+    --data-base-dir $DATA_URL \
+    --model-dir $OUTPUT_PATH \
+    --start-epoch 0 \
+    --git-hexsha `git rev-parse HEAD`

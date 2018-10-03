@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from .utils import resize, sub_image, w, h
+from graphics.utils import resize, sub_image, w, h
 
 
 def _should_minimize(token):

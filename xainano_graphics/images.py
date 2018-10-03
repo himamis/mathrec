@@ -1,8 +1,9 @@
 import os
 import numpy as np
 import cv2
-from .utils import new_image
+from graphics.utils import new_image
 import file_utils
+import logging
 
 def _token2image(token):
     if token == "\\frac":
@@ -33,10 +34,11 @@ class Images:
         self.directories = _images
         self.images = {}
         self.preprocessor = preprocessor
-        #logging.info("Loading directories: " + str(self.directories))
+        logging.info("Loading directories: " + str(self.directories))
         for directory in self.directories:
             path = os.path.join(self.base, directory)
             self.images[directory] = file_utils.list_files(path)
+            logging.info("Loaded directory: " + directory)
 
     def image(self, token):
         token = _token2image(token)

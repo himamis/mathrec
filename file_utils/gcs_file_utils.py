@@ -36,7 +36,8 @@ def read_img(url, max_size=None):
     return np.asarray(img)
 
 def list_files(url):
-    return [blob.name for blob in bucket.list_blobs(prefix=url)]
+    prefix = "gs://" + bucket.name
+    return [blob.name for blob in bucket.list_blobs(prefix=url[url.find(prefix)+len(prefix)+1:])]
 
 
 #def read_lines(url):

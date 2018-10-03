@@ -1,4 +1,4 @@
-from .utils import *
+from graphics.utils import *
 
 
 class Graphics:

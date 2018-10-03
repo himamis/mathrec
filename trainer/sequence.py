@@ -1,5 +1,5 @@
 import numpy as np
-from xainano_graphics import utils
+from graphics import utils
 from trainer.defaults import *
 from keras.utils import to_categorical
 

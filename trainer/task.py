@@ -7,7 +7,6 @@ from numpy.random import seed
 import numpy as np
 from datetime import datetime
 from os import path
-import git
 
 from tensorflow import set_random_seed
 from trainer.sequence import create_default_sequence_generator
@@ -42,7 +41,7 @@ results_file = path.join(model_checkpoint_dir, folder_str, result_fname)
 history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
 
 start_time = datetime.now()
-log = "git hash:\t\t\t'" + git.Repo().head.object.hexsha + "'\n"
+log = "git hash:\t\t\t'" + parse_arg('--git-hexsha', 'NAN') + "'\n"
 log += 'start time:\t\t\t' + str(start_time) + '\n'
 
 batch_size = 32
