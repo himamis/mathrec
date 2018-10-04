@@ -81,6 +81,7 @@ def main():
 
     worker_pool.close()
     file_image_pool.close()
+    worker_pool.join()
 
     image_q.put(("\n", "\n"))
     image_q.put(("\n", "\n"))
@@ -89,7 +90,6 @@ def main():
     image_q.put(("\n", "\n"))
     text_q.put("\n")
 
-    worker_pool.join()
     file_image_pool.join()
 
 
