@@ -20,27 +20,21 @@ if not path.exists(images_path):
     makedirs(images_path)
 
 
-def file_writer(q):
-    '''listens for messages on the q, writes to file. '''
+def image_file_saver(q):
+    '''listens for messages on the q, writes image to file. '''
     f = open(path.join(output_dir, dir_name, data_file), "w")
     while 1:
-
-        text = q.get()
-        if text == "\n":
-            break
-        #print("Writing " + text)
-        f.write(text + "\n")
-        f.flush()
-    f.close()
-
-def image_saver(q):
-    '''listens for messages on the q, writes image to file. '''
-    while 1:
-        (file_path, image) = q.get()
+        (file_path, text, image) = q.get()
         if file_path == "\n":
             break
-        #print("saving " + file_path)
-        png.from_array(image, 'RGB').save(file_path)
+        try:
+            png.from_array(image, 'RGB').save(file_path)
+            f.write(text + "\n")
+            f.flush()
+        except Exception:
+            print("There was an exception. Arrgh")
+    f.close()
+
 
 
 def worker_thread(index):
@@ -51,14 +45,12 @@ def worker_thread(index):
     image = worker_thread.token_parser.parse(tokens)
     filename = filename_format.format(index)
     file_path = path.join(images_path, filename)
-    worker_thread.text_q.put(filename + "\t" + ''.join(tokens))
-    worker_thread.image_q.put((file_path, image))
+    worker_thread.queue.put((file_path, filename + "\t" + ''.join(tokens), image))
 
 
-def worker_init(text_q, image_q):
+def worker_init(queue):
     seed()
-    worker_thread.text_q = text_q
-    worker_thread.image_q = image_q
+    worker_thread.queue = queue
     worker_thread.generator = create_generator()
     worker_thread.config = create_config()
     worker_thread.token_parser = create_token_parser(data_base_dir)
@@ -66,36 +58,21 @@ def worker_init(text_q, image_q):
 
 def main():
     manager = mp.Manager()
-    text_q = manager.Queue()
-    image_q = manager.Queue()
-    file_image_pool = mp.Pool(5)
+    queue = manager.Queue()
+    file_image_pool = mp.Pool(1)
+    file_image_pool.apply_async(image_file_saver, (queue,))
 
-    file_image_pool.apply_async(file_writer, (text_q,))
-    file_image_pool.apply_async(image_saver, (image_q,))
-    file_image_pool.apply_async(image_saver, (image_q,))
-    file_image_pool.apply_async(image_saver, (image_q,))
-    file_image_pool.apply_async(image_saver, (image_q,))
-
-    worker_pool = mp.Pool(mp.cpu_count() * 2, worker_init, [text_q, image_q])
+    worker_pool = mp.Pool(mp.cpu_count() * 2, worker_init, [queue])
     worker_pool.map(worker_thread, range(number_of_images))
 
     worker_pool.close()
     file_image_pool.close()
     worker_pool.join()
-    text_q.join()
-    image_q.join()
+    queue.join()
 
-    image_q.put(("\n", "\n"))
-    image_q.put(("\n", "\n"))
-    image_q.put(("\n", "\n"))
-    image_q.put(("\n", "\n"))
-    text_q.put("\n")
-
+    queue.put(("\n", "\n"))
     file_image_pool.join()
 
 
-
 if __name__ == '__main__':
-    #seed_nr = 123
-    #seed(seed_nr)
     main()
