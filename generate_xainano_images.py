@@ -1,5 +1,5 @@
 from trainer.defaults import *
-from utilities import parse_arg, progress_bar
+from utilities import parse_arg
 from numpy.random import seed
 from os import path, makedirs
 import png
@@ -82,8 +82,9 @@ def main():
     worker_pool.close()
     file_image_pool.close()
     worker_pool.join()
+    text_q.join()
+    image_q.join()
 
-    image_q.put(("\n", "\n"))
     image_q.put(("\n", "\n"))
     image_q.put(("\n", "\n"))
     image_q.put(("\n", "\n"))

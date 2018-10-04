@@ -1,7 +1,12 @@
 from inkml import Graphics
 from inkml import InkML
+from utilities import parse_arg
 import cv2
-import numpy as np
+
+data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/')
+output_dir = parse_arg('--output-dir', '/Users/balazs/university/handwritten_images')
+
+
 
 
 if __name__ == "__main__":
@@ -10,21 +15,7 @@ if __name__ == "__main__":
     inkml = InkML(string)
 
     graphics = Graphics()
-    graphics.start_image(inkml)
-    image = graphics.end_image()
-
-    pts = [np.reshape(np.array(line), (-1, 1, 2)) for line in inkml.symbols]
-
-    cv2.polylines(image, pts, False, (0, 0, 0), 20)
-    #for symbol in inkml.symbols:
-    #    if len(symbol) > 1:
-    #        graphics.new_symbol()
-    #        for i in range(0, len(symbol)):
-    #            graphics.point(symbol[i])
-    #    elif len(symbol) == 1:
-    #        print("Symbol consists of a single point. Ignoring.")
-    #    else:
-    #        print("Symbol is missing points.")
-    #image = graphics.end_image()
+    image = graphics.create_image(inkml)
     cv2.imshow('image', image)
+    cv2.waitKey(0)
     a = 1
