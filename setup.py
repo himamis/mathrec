@@ -16,7 +16,7 @@ setup(
     name='trainer',
     version='0.2',
     install_requires=REQUIRED_PACKAGES,
-    packages=find_packages(),
+    packages=find_packages(exclude=("backgrounds",)),
     include_package_data=True,
     description='Keras trainer application'
 )
