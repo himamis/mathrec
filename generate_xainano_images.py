@@ -13,7 +13,7 @@ number_of_images = int(parse_arg('--count', 200000))
 ncores = int(parse_arg('--ncores', 4))
 
 data_file = "data.txt"
-filename_format = 'formula_{:06d}.jpg'
+filename_format = 'formula_{:06d}.png'
 data = ""
 images_path = path.join(output_dir, dir_name, "images")
 if not path.exists(images_path):

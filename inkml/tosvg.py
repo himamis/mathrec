@@ -1,8 +1,6 @@
-from graphics.utils import *
-import cv2
-import math
 import svgwrite
-import js2py
+import numpy as np
+import math
 
 def normalize_points(inkml):
     info = np.finfo(np.float32)
@@ -39,7 +37,7 @@ def normalize_points(inkml):
     size_y = max_y - min_y
 
     mean_distance /= total_points
-    scale = 20.0 / mean_distance
+    scale = 2.0 / mean_distance
 
     trans_x = -min_x
     trans_y = -min_y
@@ -61,25 +59,3 @@ def normalize_points(inkml):
 
     return (width, height)
 
-class Graphics:
-
-    def create_image(self, inkml):
-        (width, height) = normalize_points(inkml)
-
-        image = new_image(int(width + 1), int(height + 1))
-
-        #pts = [line - point_min for line in inkml.symbols]
-        pts = [np.rint(line) for line in inkml.symbols]
-        pts = [np.asarray(line, dtype=np.int32) for line in pts]
-        pts = [np.reshape(np.array(line), (-1, 1, 2)) for line in pts]
-        cv2.polylines(image, pts, False, (0, 0, 0), 2, lineType=cv2.LINE_AA)
-
-        return image
-
-
-    def create_svg(self, inkml, filename):
-        #svg = svgwrite.Drawing(filename, debug=False)
-        #for symbol in inkml.symbols:
-        #    svg.add(svg.polyline(symbol))
-        #svg.save()
-        svg = self.js()
