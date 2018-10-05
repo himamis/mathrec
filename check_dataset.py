@@ -15,5 +15,7 @@ for line in lines:
     fname, formula = splitted
     if os.path.exists(os.path.join(base_dir, "images", fname)):
         data.write(line)
+    else:
+        print("Image does not exist, skipping line")
 
 data.close()
