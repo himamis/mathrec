@@ -11,7 +11,7 @@ output_dir = parse_arg('--output-dir', '/Users/balazs/university/handwritten_ima
 
 dirs = ["CROHME2016_data/TEST2016_INKML_GT", "CROHME2014_data/TestEM2014GT"] + \
        ["CROHME2013_data/TrainINKML/" + folder for folder in ["MfrDB", "MathBrush", "Kaist", "HAMEX", "extension", "expressmatch"]] + \
-       ["CROHME2012_data/trainData/trainData"]
+       ["CROHME2012_data/trainData"]
 
 
 filtered_strings = ["\\int", "\\sum", "\\prod", "\\geq", "\\leq", "\\neq", "\\ldots", "\\pm"
@@ -53,3 +53,4 @@ if __name__ == "__main__":
                     png.from_array(image, 'RGB').save(os.path.join(output_dir, package_name, "images", fname))
                 except Exception as e:
                     print("Got exception ", e)
+    data_file.close()
