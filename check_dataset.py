@@ -10,7 +10,8 @@ data.seek(0)
 for line in lines:
     splitted = line.replace("\n", "").split("\t")
     if len(splitted) != 2:
-        raise Exception("Line has other than 1 tab character: " + line)
+        print("Skipping: line has other than 1 tab character: " + line)
+        continue
     fname, formula = splitted
     if os.path.exists(os.path.join(base_dir, "images", fname)):
         data.write(line)
