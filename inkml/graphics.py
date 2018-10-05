@@ -1,8 +1,6 @@
 from graphics.utils import *
 import cv2
 import math
-import svgwrite
-import js2py
 
 def normalize_points(inkml):
     info = np.finfo(np.float32)
