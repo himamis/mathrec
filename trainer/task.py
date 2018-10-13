@@ -7,9 +7,10 @@ from numpy.random import seed
 import numpy as np
 from datetime import datetime
 from os import path
+from graphics import augment
 
 from tensorflow import set_random_seed
-from trainer.sequence import create_default_sequence_generator
+from trainer.sequence import create_default_sequence_generator, image_sequencer
 from trainer.logger import NBatchLogger
 
 from keras.callbacks import LambdaCallback, LearningRateScheduler
@@ -33,7 +34,7 @@ result_fname = 'result_log.txt'
 history_fname = 'history.pkl'
 
 start_epoch = int(parse_arg('--start-epoch', 0))
-data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/')
+data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/data')
 model_checkpoint_dir = parse_arg('--model-dir', data_base_dir)
 model_architecture_file = path.join(model_checkpoint_dir, folder_str, architecture_fname)
 model_weights_file = path.join(model_checkpoint_dir, folder_str, weights_fname)
@@ -50,14 +51,77 @@ max_length = 200
 generator = create_generator()
 config = create_config()
 vocabulary = create_vocabulary(generator, config)
+#vocabulary_maps = create_vocabulary_maps(vocabulary)
+#token_parser = create_token_parser(data_base_dir)
+
+def formula_string_to_tokens(formula):
+    full_tokens = ["\\frac", "\\alpha", "\\beta", "\\theta", "\\sigma", "\\pi"]
+    index = 0
+    tokens = []
+
+    while index < len(formula):
+        found = False
+        for full_token in full_tokens:
+            if formula[index:].startswith(full_token):
+                tokens.append(full_token)
+                index += len(full_token)
+                found = True
+                break
+        if not found:
+            tokens.append(formula[index])
+            index += 1
+
+    return tokens
+
+
+def image_map(base):
+    file = open(path.join(base, "data.txt"), "r")
+    lines = file.readlines()
+    file.close()
+    array = []
+    for line in lines:
+        fname, truth = line.replace("\n", "").split("\t")
+
+        array.append((fname, formula_string_to_tokens(truth)))
+    return array
+
+def extend_vocabulary(image_map, vocabulary):
+    for (_, formula)  in image_map:
+        for c in formula:
+            if c not in vocabulary:
+                vocabulary |= {c}
+    return vocabulary
+
+def combine_generators(generator1, generator2):
+    while True:
+        yield next(generator1)
+        yield next(generator2)
+
+
+xainano_path = path.join(data_base_dir, "xainano_images")
+inkml_path = path.join(data_base_dir, "TC11_package")
+xainano_image_map = image_map(xainano_path)
+inkml_image_path = image_map(inkml_path)
+
+vocabulary = extend_vocabulary(inkml_image_path, vocabulary)
 vocabulary_maps = create_vocabulary_maps(vocabulary)
-token_parser = create_token_parser(data_base_dir)
 
 # generate data generators
-training_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
-validation_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
-testing_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
-callback_data = create_default_sequence_generator(token_parser, generator, config, 1, vocabulary_maps)
+#training_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
+#validation_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
+#testing_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
+#callback_data = create_default_sequence_generator(token_parser, generator, config, 1, vocabulary_maps)
+augmentor = augment.Augmentor(path.join(data_base_dir, "backgrounds"))
+training_data1 = image_sequencer(batch_size, xainano_image_map, xainano_path, vocabulary_maps[0], augmentor, split=(0, 80))
+training_data2 = image_sequencer(batch_size, inkml_image_path, inkml_path, vocabulary_maps[0], augmentor, split=(0, 80))
+training_data = combine_generators(training_data1, training_data2)
+validation_data1 = image_sequencer(batch_size, xainano_image_map, xainano_path, vocabulary_maps[0], augmentor, split=(80, 90))
+validation_data2 = image_sequencer(batch_size, inkml_image_path, inkml_path, vocabulary_maps[0], augmentor, split=(80, 90))
+validation_data = combine_generators(validation_data1, validation_data2)
+testing_data1 = image_sequencer(batch_size, xainano_image_map, xainano_path, vocabulary_maps[0], augmentor, split=(90, 100))
+testing_data2 = image_sequencer(batch_size, inkml_image_path, inkml_path, vocabulary_maps[0], augmentor, split=(90, 100))
+testing_data = combine_generators(testing_data1, testing_data2)
+
 
 print("Image2Latex:", "Start create model:", datetime.now().time())
 model, encoder, decoder = model.create_default(len(vocabulary))
@@ -78,8 +142,8 @@ logger = NBatchLogger(1)
 
 # Function to display the target and prediciton
 def testmodel(epoch, logs):
-    predx, predy = next(callback_data)
-
+    #predx, predy = next(callback_data)
+    predx, predy = (None, None)
     print("Testing model")
     print("Encoding data")
     feature_grid = encoder.predict(predx[0])
@@ -122,12 +186,12 @@ def testmodel(epoch, logs):
 
 
 # Callback to display the target and prediciton
-testmodelcb = LambdaCallback(on_epoch_end=testmodel)
+#testmodelcb = LambdaCallback(on_epoch_end=testmodel)
 
 print("Image2Latex:", "Start training...")
 history = model.fit_generator(training_data, 100, epochs=10, verbose=2,
                               validation_data=validation_data, validation_steps=100,
-                              callbacks=[checkpointer, logger, testmodelcb], initial_epoch=start_epoch)
+                              callbacks=[checkpointer, logger], initial_epoch=start_epoch)
 end_time = datetime.now()
 log += 'end time:\t\t\t' + str(end_time) + '\n'
 print("Image2Latex:", history.epoch)
