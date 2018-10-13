@@ -1,0 +1,9 @@
+ {
+   "namespace": "org.geogebra.mathrec",
+   "type": "record",
+   "name": "Entry",
+   "fields": [
+      {"name": "formula", "type": "string"},
+      {"name": "image",  "type": "bytes"}
+   ]
+ }
