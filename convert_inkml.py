@@ -14,7 +14,7 @@ dirs = ["CROHME2016_data/TEST2016_INKML_GT", "CROHME2014_data/TestEM2014GT"] + \
        ["CROHME2012_data/trainData"]
 
 
-filtered_strings = ["\\int", "\\sum", "\\prod", "\\geq", "\\leq", "\\neq", "\\ldots", "\\pm"
+filtered_strings = ["\\int", "\\sum", "\\prod", "\\geq", "\\leq", "\\neq", "\\ldots", "\\pm",
                     "\\existsp", "\\lim", "\\infty", "\\rightarrow", "\\leftarrow", "\\mbox"]
 
 def latex_filter(latex):

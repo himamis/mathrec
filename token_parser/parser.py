@@ -29,8 +29,8 @@ class Parser:
     def __init__(self, graphics_factory):
         self.graphics_factory = graphics_factory
 
-    def parse(self, tokens):
-        graphics = self.graphics_factory()
+    def parse(self, tokens, post_processor):
+        graphics = self.graphics_factory(post_processor)
         self._expression(tokens, graphics)
 
         return graphics.draw()
@@ -61,6 +61,13 @@ class Parser:
                 self._expression(tokens[closing + 2: closing_denom], graphics_denom)
                 graphics.fraction(graphics_num, graphics_denom)
                 index = closing_denom + 1
+            elif tokens[index] == "\\sqrt":
+                assert tokens[index + 1] == "{"
+                closing = _find_closing_bracket(tokens, index + 2)
+                sqrt = self.graphics_factory()
+                self._expression(tokens[index + 2: closing], sqrt)
+                graphics.square_root(sqrt)
+                index = closing + 1
             else:
                 graphics.expression(tokens[index])
                 index += 1

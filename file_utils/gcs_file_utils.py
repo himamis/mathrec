@@ -3,6 +3,8 @@ import pickle
 import cv2
 from io import BytesIO
 from google.cloud import storage
+from file_utils import common
+import tarfile
 
 storage_client = storage.Client()
 bucket_name = 'image2latex-mlengine'
@@ -31,13 +33,16 @@ def write_pkl(url, data):
 def read_img(url, max_size=None):
     blob = bucket.blob(url)
     bytes = blob.download_as_string()
-    buf = np.frombuffer(bytes, np.uint8)
-    img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
-    return np.asarray(img)
+    return common.image_from_bytes(bytes)
 
 def list_files(url):
     prefix = "gs://" + bucket.name
     return [blob.name for blob in bucket.list_blobs(prefix=url[url.find(prefix)+len(prefix)+1:])]
+
+def read_tar(url):
+    blob = bucket.blob(url)
+    bytes = BytesIO(blob.download_as_string())
+    return tarfile.open(fileobj=bytes)
 
 
 #def read_lines(url):

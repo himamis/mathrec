@@ -10,7 +10,7 @@ from os import path
 from graphics import augment
 
 from tensorflow import set_random_seed
-from trainer.sequence import create_default_sequence_generator, image_sequencer
+from trainer.sequence import create_default_sequence_generator, image_sequencer, tar_image_sequencer
 from trainer.logger import NBatchLogger
 
 from keras.callbacks import LambdaCallback, LearningRateScheduler
@@ -101,10 +101,13 @@ def combine_generators(generator1, generator2):
 xainano_path = path.join(data_base_dir, "xainano_images")
 inkml_path = path.join(data_base_dir, "TC11_package")
 xainano_image_map = image_map(xainano_path)
-inkml_image_path = image_map(inkml_path)
+inkml_image_map = image_map(inkml_path)
 
-vocabulary = extend_vocabulary(inkml_image_path, vocabulary)
+vocabulary = extend_vocabulary(inkml_image_map, vocabulary)
 vocabulary_maps = create_vocabulary_maps(vocabulary)
+
+xainano_tar_file = utils.read_tar(path.join(xainano_path, "images.tar"))
+inkml_tar_file = utils.read_tar(path.join(inkml_path, "images.tar"))
 
 # generate data generators
 #training_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
@@ -112,15 +115,26 @@ vocabulary_maps = create_vocabulary_maps(vocabulary)
 #testing_data = create_default_sequence_generator(token_parser, generator, config, batch_size, vocabulary_maps)
 #callback_data = create_default_sequence_generator(token_parser, generator, config, 1, vocabulary_maps)
 augmentor = augment.Augmentor(path.join(data_base_dir, "backgrounds"))
-training_data1 = image_sequencer(batch_size, xainano_image_map, xainano_path, vocabulary_maps[0], augmentor, split=(0, 80))
-training_data2 = image_sequencer(batch_size, inkml_image_path, inkml_path, vocabulary_maps[0], augmentor, split=(0, 80))
+
+# training_data1 = image_sequencer(batch_size, xainano_image_map, xainano_path, vocabulary_maps[0], augmentor, split=(0, 80))
+# training_data2 = image_sequencer(batch_size, inkml_image_map, inkml_path, vocabulary_maps[0], augmentor, split=(0, 80))
+# training_data = combine_generators(training_data1, training_data2)
+# validation_data1 = image_sequencer(batch_size, xainano_image_map, xainano_path, vocabulary_maps[0], augmentor, split=(80, 90))
+# validation_data2 = image_sequencer(batch_size, inkml_image_map, inkml_path, vocabulary_maps[0], augmentor, split=(80, 90))
+# validation_data = combine_generators(validation_data1, validation_data2)
+# testing_data1 = image_sequencer(batch_size, xainano_image_map, xainano_path, vocabulary_maps[0], augmentor, split=(90, 100))
+# testing_data2 = image_sequencer(batch_size, inkml_image_map, inkml_path, vocabulary_maps[0], augmentor, split=(90, 100))
+# testing_data = combine_generators(testing_data1, testing_data2)
+training_data1 = tar_image_sequencer(batch_size, xainano_tar_file, xainano_image_map, vocabulary_maps[0], augmentor, split=(0, 80))
+training_data2 = tar_image_sequencer(batch_size, inkml_tar_file, inkml_image_map, vocabulary_maps[0], augmentor, split=(0, 80))
 training_data = combine_generators(training_data1, training_data2)
-validation_data1 = image_sequencer(batch_size, xainano_image_map, xainano_path, vocabulary_maps[0], augmentor, split=(80, 90))
-validation_data2 = image_sequencer(batch_size, inkml_image_path, inkml_path, vocabulary_maps[0], augmentor, split=(80, 90))
+validation_data1 = tar_image_sequencer(batch_size, xainano_tar_file, xainano_image_map, vocabulary_maps[0], augmentor, split=(80, 90))
+validation_data2 = tar_image_sequencer(batch_size, inkml_path, inkml_image_map, vocabulary_maps[0], augmentor, split=(80, 90))
 validation_data = combine_generators(validation_data1, validation_data2)
-testing_data1 = image_sequencer(batch_size, xainano_image_map, xainano_path, vocabulary_maps[0], augmentor, split=(90, 100))
-testing_data2 = image_sequencer(batch_size, inkml_image_path, inkml_path, vocabulary_maps[0], augmentor, split=(90, 100))
+testing_data1 = tar_image_sequencer(batch_size, xainano_tar_file, xainano_image_map, vocabulary_maps[0], augmentor, split=(90, 100))
+testing_data2 = tar_image_sequencer(batch_size, inkml_tar_file, inkml_image_map, vocabulary_maps[0], augmentor, split=(90, 100))
 testing_data = combine_generators(testing_data1, testing_data2)
+
 
 
 print("Image2Latex:", "Start create model:", datetime.now().time())

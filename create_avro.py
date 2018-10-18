@@ -6,7 +6,7 @@ from avro.datafile import DataFileWriter
 from avro.io import DatumWriter
 
 
-schema = avro.schema.parse(open("dataset.avsc").read())
+schema = avro.schema.Parse(open("dataset.avsc").read())
 
 data_dir = parse_arg("--data-base-dir", required=True)
 collection_name = parse_arg("--database", required=True)
@@ -21,7 +21,7 @@ file.close()
 result = {}
 
 file = os.path.join(base_dir, "dataset.avro")
-writer = DataFileWriter(open(file, "w"), DatumWriter(), schema)
+writer = DataFileWriter(open(file, "wb"), DatumWriter(), schema)
 for line in lines:
     split_line = line.replace("\n", "").split("\t")
     if len(split_line) != 2:

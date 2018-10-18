@@ -1,10 +1,8 @@
 import os
 import numpy as np
 import pickle
-from PIL import Image
-from io import BytesIO
-import cv2
-
+from file_utils import common
+import tarfile
 
 def read_pkl(file):
     with open(file, 'rb') as input:
@@ -16,6 +14,9 @@ def write_pkl(file, object):
     with open(file, 'wb') as output:
         pickle.dump(object, output, 2)  # 2 = protocol version that works with python 2.7
 
+
+def read_tar(file):
+    return tarfile.open(file, "r")
 
 def read_lines(file):
     with open(file, 'r') as f:
@@ -43,9 +44,7 @@ def read_npy(url):
 def read_img(url):
     with open(url, 'rb') as inp:
         cont = inp.read()
-        buf = np.frombuffer(cont, np.uint8)
-        img = cv2.imdecode(buf, cv2.IMREAD_COLOR)
-        nparr = np.asarray(img)
+        nparr = common.image_from_bytes(cont)
     return nparr
 
 

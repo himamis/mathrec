@@ -1,9 +1,11 @@
+from xainano_graphics import postprocessor
 from trainer.defaults import *
 from utilities import parse_arg
 from numpy.random import seed
-from os import path, makedirs
+from os import path, makedirs, remove
 import png
 import multiprocessing as mp
+import cv2
 
 
 dir_name = 'xainano_images'
@@ -33,6 +35,10 @@ def image_file_saver(q):
             f.flush()
         except Exception:
             print("There was an exception. Arrgh")
+            if path.exists(file_path):
+                print("Deleting file")
+                remove(file_path)
+
     f.close()
 
 
@@ -42,7 +48,7 @@ def worker_thread(index):
 
     tokens = []
     worker_thread.generator.generate_formula(tokens, worker_thread.config)
-    image = worker_thread.token_parser.parse(tokens)
+    image = worker_thread.token_parser.parse(tokens, worker_thread.post_processor)
     filename = filename_format.format(index)
     file_path = path.join(images_path, filename)
     worker_thread.queue.put((file_path, filename + "\t" + ''.join(tokens), image))
@@ -51,6 +57,7 @@ def worker_thread(index):
 def worker_init(queue):
     seed()
     worker_thread.queue = queue
+    worker_thread.post_processor = postprocessor.Postprocessor()
     worker_thread.generator = create_generator()
     worker_thread.config = create_config()
     worker_thread.token_parser = create_token_parser(data_base_dir)
@@ -74,5 +81,16 @@ def main():
     file_image_pool.join()
 
 
+def test_images():
+    worker_init(None)
+    while True:
+        tokens = []
+        worker_thread.generator.generate_formula(tokens, worker_thread.config)
+        image = worker_thread.token_parser.parse(tokens, worker_thread.post_processor)
+        cv2.imshow("Image", image)
+        cv2.waitKey(0)
+
+
 if __name__ == '__main__':
-    main()
+    # main()
+    test_images()
