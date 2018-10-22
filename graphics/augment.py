@@ -32,20 +32,22 @@ class Augmentor:
         self.background_files = [x for x in file_utils.list_files(base) if x.endswith(".png")]
 
     def augment(self, img):
-        new_image = self.rotate(img)
-        new_image = self.background(new_image)
-        return self.blur(new_image)
+        new_image = self._background(img)
+        return self._blur(new_image)
 
-    def rotate(self, img):
+    def size_changing_augment(self, img):
+        return self._rotate(img)
+
+    def _rotate(self, img):
         angle = np.random.random_integers(-5, 5)
         return _rotate_bound(img, angle)
 
-    def blur(self, img):
+    def _blur(self, img):
         num = np.random.random_integers(0, 2) * 2 + 1
         sigma = np.random.random_integers(1, 5)
         return cv2.GaussianBlur(img, (num, num), sigma)
 
-    def background(self, img):
+    def _background(self, img):
         index = np.random.random_integers(0, len(self.background_files) - 1)
         bckgrd = file_utils.read_img(self.background_files[index])
         fx = 1

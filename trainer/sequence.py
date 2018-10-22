@@ -1,13 +1,10 @@
-import numpy as np
 from graphics import utils
 from trainer.defaults import *
 from keras.utils import to_categorical
-from file_utils import read_img
-import os
 from file_utils import *
 
 
-def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary_map, height=256, width=512):
+def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary_map, augmentor, post_processor):
     vocabulary_size = len(vocabulary_map)
     while True:
         inputs = []
@@ -17,12 +14,10 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
         max_height = int(0)
         max_seq_len = int(0)
         for index in range(batch_size):
-            while True:
-                tokens = []
-                generator.generate_formula(tokens, config)
-                image = parser.parse(tokens)
-                if utils.w(image) <= width and utils.h(image) <= height:
-                    break
+            tokens = []
+            generator.generate_formula(tokens, config)
+            image = parser.parse(tokens, post_processor)
+            image = augmentor.size_changing_augment(image)
 
             input_sequence = list(tokens)
             input_sequence.insert(0, "<start>")
@@ -32,16 +27,17 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
             input_sequences.append(np.array(input_sequence))
             targets.append(np.array(tokens))
 
-            #max_width = max(utils.w(image), max_width)
-            #max_height = max(utils.h(image), max_height)
+            max_width = max(utils.w(image), max_width)
+            max_height = max(utils.h(image), max_height)
             max_seq_len = max(max_seq_len, len(tokens))
 
         for index in range(batch_size):
             # Resize image
             image = inputs[index]
-            rw, rh = width - utils.w(image), height - utils.h(image)
+            rw, rh = max_width - utils.w(image), max_height - utils.h(image)
             left, top = int(rw / 2), int(rh / 2)
-            inputs[index] = utils.pad_image(image, top, left, rh - top, rw - left)
+            padded_image = utils.pad_image(image, top, left, rh - top, rw - left)
+            inputs[index] = augmentor.augment(padded_image)
 
             # Resize sequence
             seq = input_sequences[index]
@@ -57,9 +53,9 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
         #yield [np.stack(inputs), np.array(input_sequences)], to_categorical(targets, vocabulary_size)
 
 
-def create_default_sequence_generator(token_parser, generator=create_generator(), config=create_config(), batch_size=1,
+def create_default_sequence_generator(token_parser, augmentor, post_processor, generator=create_generator(), config=create_config(), batch_size=1,
                                       vocabulary_map=create_vocabulary_maps()):
-    return xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map[0])
+    return xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map[0], augmentor, post_processor)
 
 def image_sequencer(batch_size, image_map, base, vocabulary_map, augmentor, split=(0, 80)):
     vocabulary_size = len(vocabulary_map)
@@ -78,6 +74,7 @@ def image_sequencer(batch_size, image_map, base, vocabulary_map, augmentor, spli
             fname, formula = image_map[index]
 
             image = read_img(os.path.join(base, "images", fname))
+            image = augmentor.size_changing_augment(image)
             image = augmentor.augment(image)
             max_width = max(utils.w(image), max_width)
             max_height = max(utils.h(image), max_height)
