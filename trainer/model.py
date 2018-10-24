@@ -18,39 +18,42 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
 
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
     x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 3) - normalize to [-1, +1)
+    
+    filter_sizes = [32, 64, 128, 256, 512]
+    for filter_size in filter_sizes:
+        # conv net
+        x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+        x = Activation('relu')(x)
+        x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+        x = BatchNormalization()(x)
+        x = Activation('relu')(x)
+        x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
 
-    # conv net
-    x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    #x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-    x = Conv2D(filters=64, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-    x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
+    
 
-    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+    #x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     #x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-    x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-    x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
+    #x = Activation('relu')(x)
+    #x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+    #x = BatchNormalization()(x)
+    #x = Activation('relu')(x)
+    #x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
 
-    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+    #x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     #x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-    x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-    x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
+    #x = Activation('relu')(x)
+    #x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+    #x = BatchNormalization()(x)
+    #x = Activation('relu')(x)
+    #x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
 
-    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+    #x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
     #x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-    x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-    x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
+    #x = Activation('relu')(x)
+    #x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+    #x = BatchNormalization()(x)
+    #x = Activation('relu')(x)
+    #x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
     # (batch_size, 16, 32, 512)
 
     # row encoder

@@ -5,7 +5,7 @@ from utilities import parse_arg
 from numpy.random import seed
 import numpy as np
 from datetime import datetime
-from os import path
+from os import path, mkdir
 from graphics import augment
 from xainano_graphics import postprocessor
 
@@ -34,6 +34,10 @@ start_epoch = int(parse_arg('--start-epoch', 0))
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/data')
 model_checkpoint_dir = parse_arg('--model-dir', data_base_dir)
 background_dir = parse_arg('--background-dir', data_base_dir)
+base_dir = path.join(model_checkpoint_dir, folder_str)
+if not path.exists(base_dir):
+    mkdir(base_dir)
+
 model_architecture_file = path.join(model_checkpoint_dir, folder_str, architecture_fname)
 model_weights_file = path.join(model_checkpoint_dir, folder_str, weights_fname)
 results_file = path.join(model_checkpoint_dir, folder_str, result_fname)
