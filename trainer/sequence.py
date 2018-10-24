@@ -14,11 +14,21 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
         max_height = int(0)
         max_seq_len = int(0)
         for index in range(batch_size):
-            tokens = []
-            generator.generate_formula(tokens, config)
-            image = parser.parse(tokens, post_processor)
-            image = augmentor.size_changing_augment(image)
-
+            image = None
+            tries = 0
+            while image is None and tries < 10:
+                try:
+                    tries += 1
+                    tokens = []
+                    generator.generate_formula(tokens, config)
+                    image = parser.parse(tokens, post_processor)
+                    image = augmentor.size_changing_augment(image)
+                except:
+                    image = None
+                    print("Unexpected error while parsing image, retry no: " + str(tries))
+            
+            if image is None:
+                raise ValueError
             input_sequence = list(tokens)
             input_sequence.insert(0, "<start>")
             tokens.append("<end>")
