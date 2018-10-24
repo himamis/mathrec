@@ -51,6 +51,9 @@ def read_img(url):
 def file_exists(path):
     return os.path.exists(path)
 
+def write_string(path, text):
+    with open(path, 'w') as out:
+        out.write(text)
 
 def list_files(path):
     return [os.path.join(path, fname) for fname in next(os.walk(path))[2]]
