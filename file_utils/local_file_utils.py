@@ -10,9 +10,9 @@ def read_pkl(file):
     return content
 
 
-def write_pkl(file, object):
+def write_pkl(file, obj):
     with open(file, 'wb') as output:
-        pickle.dump(object, output, 2)  # 2 = protocol version that works with python 2.7
+        pickle.dump(obj, output)  # 2 = protocol version that works with python 2.7
 
 
 def read_tar(file):
