@@ -1,6 +1,6 @@
 import cv2
 import numpy as np
-from .utils import resize, sub_image, w, h
+from graphics.utils import resize, sub_image, w, h
 
 
 def _should_minimize(token):
@@ -25,4 +25,4 @@ class Preprocessor:
             new_width = 20
             image = sub_image(image, round((w(image) - new_width) / 2), 0, 20, h(image))
 
-        return image
+        return cv2.blur(image, (3,3))

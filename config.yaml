@@ -1,3 +1,4 @@
 trainingInput:
     scaleTier: CUSTOM
     masterType: standard_gpu
+    pythonVersion: "3.5"

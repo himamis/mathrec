@@ -8,13 +8,15 @@ REQUIRED_PACKAGES = ['Keras==2.1.6',
                      'google-cloud-storage>=1.10',
                      'numpy>=1.9.1',
                      'opencv-python>=3.4.2',
-                     'tensorflow==1.9']
+                     'tensorflow==1.9',
+                     'gitpython==2.1.11',
+                     'pypng==0.0.18']
 
 setup(
     name='trainer',
     version='0.2',
     install_requires=REQUIRED_PACKAGES,
-    packages=find_packages(),
+    packages=find_packages(exclude=("backgrounds",)),
     include_package_data=True,
     description='Keras trainer application'
 )

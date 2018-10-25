@@ -1,6 +1,6 @@
 import sys
 
-
+from .common import *
 if '--gcs' in sys.argv:
     print('Image2Latex: use google cloud storage')
     from .gcs_file_utils import *

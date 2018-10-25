@@ -410,7 +410,12 @@ def random_long_expression():
     return RandomGenerator(generators)
 
 
+def random_square_root():
+    simple = random_simple_expression()
+    return CommandGenerator("\\sqrt", [simple])
+
+
 def random_generator():
     generators = [random_simple_expression(), random_polynomial(), random_coord(),
-                  random_fraction(), random_long_expression(), random_long_expression_no_frac()]
+                  random_fraction(), random_long_expression_no_frac(), random_square_root()]
     return RandomGenerator(generators)

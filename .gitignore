@@ -1,4 +1,8 @@
+trainer.egg-info
+dist
+build
 .idea
 .DS_Store
 __pycache__
 *.pyc
+**/Thumbs.db

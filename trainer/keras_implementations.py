@@ -64,40 +64,40 @@ class AttentionDecoderLSTMCell(Layer):
         call method
     '''
 
-    def __init__(self, V = 0, D = 0, E = 0, free_run=True, **kwargs):
+    def __init__(self, V = 0, D = 0, E = 0, kernel_initializer='glorot_normal', bias_initializer='zeros', **kwargs):
         self.D = D
         self.E = E
         self.V = V
-        self.state_size = (V, self.D, self.D, self.D) # (y, out, h, c)
-        self.free_run = free_run
+        self.state_size = (self.D, self.D) # (out, c)
+        self.kernel_initializer = kernel_initializer
+        self.bias_initializer = bias_initializer
         super(AttentionDecoderLSTMCell, self).__init__(**kwargs)
 
     def build(self, input_shape):
         # generating weights. In future one maybe implements biases for W_e, W_out, W_y...
-        self.W_f = self.add_weight(name='W_f', shape=(self.D + self.V, self.D), initializer='uniform', trainable=True)
-        self.W_g = self.add_weight(name='W_g', shape=(self.D + self.V, self.D), initializer='uniform', trainable=True)
-        self.W_i = self.add_weight(name='W_i', shape=(self.D + self.V, self.D), initializer='uniform', trainable=True)
-        self.W_o = self.add_weight(name='W_o', shape=(self.D + self.V, self.D), initializer='uniform', trainable=True)
-        self.b_f = self.add_weight(name='b_f', shape=(self.D,), initializer='uniform', trainable=True)
-        self.b_g = self.add_weight(name='b_g', shape=(self.D,), initializer='uniform', trainable=True)
-        self.b_i = self.add_weight(name='b_i', shape=(self.D,), initializer='uniform', trainable=True)
-        self.b_o = self.add_weight(name='b_o', shape=(self.D,), initializer='uniform', trainable=True)
-        self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer='uniform', trainable=True)
-        self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer='uniform', trainable=True)
-        self.W_y = self.add_weight(name='W_y', shape=(self.D, self.V), initializer='uniform', trainable=True)
-        self.built = True # important!!
-        # super([Layer], self).build()
+        self.W_f = self.add_weight(name='W_f', shape=(self.D + self.V, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.W_g = self.add_weight(name='W_g', shape=(self.D + self.V, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.W_i = self.add_weight(name='W_i', shape=(self.D + self.V, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.W_o = self.add_weight(name='W_o', shape=(self.D + self.V, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.b_f = self.add_weight(name='b_f', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
+        self.b_g = self.add_weight(name='b_g', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
+        self.b_i = self.add_weight(name='b_i', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
+        self.b_o = self.add_weight(name='b_o', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
+        self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer=self.bias_initializer)
+        self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer=self.bias_initializer)
+        #self.W_y = self.add_weight(name='W_y', shape=(self.D, self.V), initializer='uniform', trainable=True)
+        #self.b_y = self.add_weight(name='b_y', shape=(self.V,), initializer='uniform', trainable=True)
+        #self.built = True # important!!
+        super(AttentionDecoderLSTMCell, self).build(input_shape)
+
 
     def call(self, inputs, states, constants=None):
-        featureGrid = constants[0]
+        feature_grid = constants[0]
         # Input
-        if self.free_run:
-            _input = K.argmax(states[0]) # (batch_size)
-        else:
-            _input = inputs
-            #_input = K.cast(inputs[:, 0], 'int32') # (batch_size)
-        #_input = K.one_hot(_input, self.V) # (batch_size, V)
-        x = K.concatenate((_input, states[1])) # (batch_size, V + D)
+        _input = inputs
+        x = K.concatenate((_input, states[0])) # (batch_size, V + D)
 
         # LSTM
         x = K.expand_dims(x, 1) # (batch_size, 1, V + D)
@@ -105,25 +105,26 @@ class AttentionDecoderLSTMCell(Layer):
         i = K.sigmoid(K.dot(x, self.W_i) + self.b_i)[:,0] # (batch_size, D)
         g = K.tanh(K.dot(x, self.W_g) + self.b_g)[:,0] # (batch_size, D)
         o = K.sigmoid(K.dot(x, self.W_o) + self.b_o)[:,0] # (batch_size, D)
-        c = states[3] * f + i * g # (batch_size, D)
+        c = states[1] * f + i * g # (batch_size, D)
         h = K.tanh(c) * o # (batch_size, D)
 
         # Attention
-        b = K.dot(K.expand_dims(h, 1), self.W_e)[:,0] # (batch_size, D)
+        b = K.dot(K.expand_dims(h, 1), self.W_e)[:,0] + self.b_e # (batch_size, D)
         b = K.expand_dims(b) # (batch_size, D, 1)
-        e = K.batch_dot(featureGrid, b)[:,:,0] # (batch_size, L)
+        e = K.batch_dot(feature_grid, b)[:,:,0] # (batch_size, L)
         a = K.softmax(e) # (batch_size, L)
         a = K.expand_dims(a, 1) # (batch_size, 1, L)
-        z = K.batch_dot(a, featureGrid)[:,0] # (batch_size, D)
+        z = K.batch_dot(a, feature_grid)[:,0] # (batch_size, D)
 
         # Output
         hz = K.concatenate((h, z)) # (batch_size, 2D,)
         hz = K.expand_dims(hz, 1) # (batch_size, 1, 2D)
-        out = K.tanh(K.dot(hz, self.W_out)) # (batch_size, 1, D)
-        y = K.softmax(K.dot(out, self.W_y)[:,0]) # (batch_size, V)
-        out = out[:,0] # (batch_size, D)
+        out = K.tanh(K.dot(hz, self.W_out) + self.b_out) # (batch_size, 1, D)
+        out = out[:, 0]  # (batch_size, D)
+        #y = K.softmax(K.dot(out, self.W_y)[:,0] + self.b_y) # (batch_size, V)
 
-        return y, [y, out, h, c]
+        return out, [out, c]
+
 
     # if you want sometimes to save the model architecture
     def get_config(self):
@@ -361,7 +362,7 @@ class SequenceGenerator:
                     traceback.print_stack()
                     img = None
             if img is None:
-                raise Exception('Image2Latex: unfähig', n, i)
+                raise Exception('Image2Latex: unfaehig', n, i)
             # before appending img has dimension [height,width,3(YCbCr)], after [height, width, 1]
             x_imgs.append(img[:, :, 0][:, :, None])
         # since the whole sequence looks like: <st> ... <et> we have to create two different
