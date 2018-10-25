@@ -145,4 +145,5 @@ print(losses)
 log += 'losses:\n'
 log += str(losses)
 utils.write_string(results_file, log)
+del history.model
 utils.write_pkl(history_file, history)
