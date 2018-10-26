@@ -18,23 +18,23 @@ class InkML:
 
     @property
     def truth(self):
-        return self.annotations['truth']
+        return self.annotations.get('truth')
 
     @property
     def writer(self):
-        return self.annotations['writer']
+        return self.annotations.get('writer')
 
     @property
     def age(self):
-        return self.annotations['age']
+        return self.annotations.get('age')
 
     @property
     def gender(self):
-        return self.annotations['gender']
+        return self.annotations.get('gender')
 
     @property
     def hand(self):
-        return self.annotations['hand']
+        return self.annotations.get('hand')
 
     def _findall_node(self, xpath, node):
         return node.findall(xpath, self.ns)
@@ -43,7 +43,12 @@ class InkML:
         return self._findall_node(xpath, self.root)
 
     def _extract_root_annotation(self, annotation):
-        self.annotations[annotation.attrib['type']] = annotation.text
+        type = annotation.attrib.get('type')
+        if type is None:
+            type = annotation.attrib.get('typx')
+        if type is None:
+            raise ValueError("Annotation has no attrib type")
+        self.annotations[type] = annotation.text
 
     def _extract_channel(self, channel):
         self.format.append((channel.attrib['name'], channel.attrib['type']))
@@ -56,17 +61,18 @@ class InkML:
         point_array = []
         for points in trace.text.split(","):
             point = points.strip().split(" ")
-            point_array.append(np.array((float(point[0]), float(point[1])), dtype=np.float32))
+            point = [float(pt) for pt in point]
+            point_array.append(point)
 
-        self.symbols[identifier] = np.array(point_array, dtype=np.float32)
+        self.symbols[identifier] = point_array
 
     def _extract_trace_groups(self, trace_group):
         references = []
         truths = []
 
-        for trace_view in self._findall_node("./traceView", trace_group):
+        for trace_view in self._findall_node("./inkml:traceView", trace_group):
             references.append(trace_view.attrib["traceDataRef"])
-        for annotation in self._findall_node("./annotation[@type='truth']", trace_group):
+        for annotation in self._findall_node("./inkml:annotation[@type='truth']", trace_group):
             truths.append(annotation.text)
 
         if len(references) > 0:
@@ -80,11 +86,11 @@ class InkML:
                 self.trace_groups.append((truths[0],references))
 
     def extract_data(self):
-        for annotation in self._findall("./annotation"):
+        for annotation in self._findall("./inkml:annotation"):
             self._extract_root_annotation(annotation)
-        for channel in self._findall("./traceFormat/channel"):
+        for channel in self._findall("./inkml:traceFormat/inkml:channel"):
             self._extract_channel(channel)
-        for trace in self._findall("./trace"):
+        for trace in self._findall("./inkml:trace"):
             self._extract_trace(trace)
-        for trace_group in self._findall("./traceGroup"): # Trace groups that have at least one traceView
+        for trace_group in self._findall(".//inkml:traceGroup"): # Trace groups that have at least one traceView
             self._extract_trace_groups(trace_group)
