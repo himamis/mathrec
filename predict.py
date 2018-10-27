@@ -3,61 +3,73 @@ from trainer.defaults import *
 from trainer.sequence import create_default_sequence_generator
 import file_utils as utils
 import numpy as np
-import cv2
-from functools import reduce
-from numpy.random import seed
-from tensorflow import set_random_seed
 from utilities import parse_arg
 
-seed(1336)
-set_random_seed(1336)
+data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university')
+weights_file = parse_arg('--weights', "/Users/balazs/university/mathrec/weights_15.h5")
+#if weights_file is None:
+#    print('Enter base dir:')
+#    weights_file = input()
 
-data_base_dir = parse_arg('--data-base-dir', None)
-if data_base_dir is None:
-    print('Enter base dir:')
-    data_base_dir = input()
 
-vocabulary_set = create_vocabulary()
-weights_file = data_base_dir + 'model/weights_{epoch}.h5'
-encoder_vocabulary, decoder_vocabulary = create_vocabulary_maps(vocabulary_set)
 generator = create_generator()
-
 token_parser = create_token_parser(data_base_dir)
-sequence = create_default_sequence_generator(token_parser, batch_size=1)
+config = create_config()
+vocabulary = create_vocabulary(generator, config)
+vocabulary_maps = create_vocabulary_maps(vocabulary)
 
-print('Vocabulary read. Size is', len(encoder_vocabulary))
 print('Start creating model')
-model, encoder, decoder = model.create_default(len(encoder_vocabulary))
+model, encoder, decoder = model.create_default(len(vocabulary))
 print('Model created')
-for epoch in reversed(range(10)):
-    file = weights_file.format(epoch=epoch + 1)
-    if utils.file_exists(file):
-        print('Start loading weights', epoch + 1)
-        weights = utils.read_npy(file)
-        model.set_weights(weights)
-        print('Weights loaded and set')
-        break
+if utils.file_exists(weights_file):
+    print('Start loading weights')
+    weights = utils.read_npy(weights_file)
+    model.set_weights(weights)
+    print('Weights loaded and set')
+else:
+    print("Weights file does not exist")
+    exit()
 
+max_length = 100
 
-for inputs, output in sequence:
-    inp = inputs[0]
-    image = inp[0:1, :]
+def evaluate(image):
+    print("Testing model")
+    print("Encoding data")
+    input_image = np.expand_dims(image, 0)
+    feature_grid = encoder.predict(input_image)
 
-    #s = reduce((lambda a, b: a + " " + b), inputs[1])
-    #print("Token sequence is: " + s)
-    cv2.imshow('image', image[0])
+    #print("Expected target")
+    #target_sentence = [vocabulary_maps[1][np.argmax(char)] for char in predy[0]]
+    #print(target_sentence)
+    #print("\n")
 
-    encoded_image = encoder.predict(image)
+    print("Decoding target")
+    sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
+    sequence[0, 0, vocabulary_maps[0]["<start>"]] = 1.
 
-    seq = np.array([[encoder_vocabulary['<start>']]])
+    h = np.zeros((1, 256 * 2), dtype="float32")
+    c = np.zeros((1, 256 * 2), dtype="float32")
+    states = [h, c]
 
+    decoded_sentence = ""
     while True:
-        y = decoder.predict([seq, encoded_image])
-        max = np.argmax(y)
-        token = decoder_vocabulary[max]
-        print(decoder_vocabulary[np.argmax(y)])
-        if token == '<end>':
+        output, h, c = decoder.predict([feature_grid, sequence] + states)
+
+        # Sample token
+        sampled_token_index = np.argmax(output[0, -1, :])
+        sampled_char = vocabulary_maps[1][sampled_token_index]
+        decoded_sentence += sampled_char
+
+        # Exit condition: hit max length, or find stop character
+        if sampled_char == "<end>" or len(decoded_sentence) > max_length:
             break
-        seq = np.array([[max]])
-    print('')
-    cv2.destroyAllWindows()
+
+        # Update sequence
+        sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
+        sequence[0, 0, sampled_token_index] = 1.
+
+        states = [h, c]
+
+    print("Prediction")
+    print(decoded_sentence)
+    print("\n")

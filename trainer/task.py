@@ -81,55 +81,6 @@ if start_epoch != 0 and utils.file_exists(model_weights_file.format(epoch=start_
 
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
-
-# Function to display the target and prediciton
-def testmodel(epoch, logs):
-    #predx, predy = next(callback_data)
-    predx, predy = (None, None)
-    print("Testing model")
-    print("Encoding data")
-    feature_grid = encoder.predict(predx[0])
-
-    print("Expected target")
-    target_sentence = [vocabulary_maps[1][np.argmax(char)] for char in predy[0]]
-    print(target_sentence)
-    print("\n")
-
-    print("Decoding target")
-    sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
-    sequence[0, 0, vocabulary_maps[0]["<start>"]] = 1.
-
-    h = np.zeros((1, 256 * 2), dtype="float32")
-    c = np.zeros((1, 256 * 2), dtype="float32")
-    states = [h, c]
-
-    decoded_sentence = ""
-    while True:
-        output, h, c = decoder.predict([feature_grid, sequence] + states)
-
-        # Sample token
-        sampled_token_index = np.argmax(output[0, -1, :])
-        sampled_char = vocabulary_maps[1][sampled_token_index]
-        decoded_sentence += sampled_char
-
-        # Exit condition: hit max length, or find stop character
-        if sampled_char == "<end>" or len(decoded_sentence) > max_length:
-            break
-
-        # Update sequence
-        sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
-        sequence[0, 0, sampled_token_index] = 1.
-
-        states = [h, c]
-
-    print("Prediction")
-    print(decoded_sentence)
-    print("\n")
-
-
-# Callback to display the target and prediciton
-#testmodelcb = LambdaCallback(on_epoch_end=testmodel)
-
 print("Image2Latex:", "Start training...")
 history = model.fit_generator(training_data, 100, epochs=10, verbose=2,
                               validation_data=validation_data, validation_steps=100,
