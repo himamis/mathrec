@@ -30,7 +30,7 @@ _images = ['!', '1', '8', 'H', '[', 'd', 'gamma', 'j', 'log', 'pi', 'sqrt', 'w',
 class Images:
 
     def __init__(self, base, preprocessor):
-        self.base = os.path.join(base, 'xainano_images')
+        self.base = base
         self.directories = _images
         self.images = {}
         self.preprocessor = preprocessor

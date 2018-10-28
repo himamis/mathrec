@@ -3,7 +3,6 @@ from trainer import ModelCheckpointer
 from trainer import model
 from utilities import parse_arg
 from numpy.random import seed
-import numpy as np
 from datetime import datetime
 from os import path, mkdir
 from graphics import augment
@@ -37,6 +36,7 @@ background_dir = parse_arg('--background-dir', data_base_dir)
 base_dir = path.join(model_checkpoint_dir, folder_str)
 if not path.exists(base_dir):
     mkdir(base_dir)
+data_base_dir = path.join(data_base_dir, 'xainano_images')
 
 model_architecture_file = path.join(model_checkpoint_dir, folder_str, architecture_fname)
 model_weights_file = path.join(model_checkpoint_dir, folder_str, weights_fname)
@@ -54,15 +54,14 @@ generator = create_generator()
 config = create_config()
 vocabulary = create_vocabulary(generator, config)
 vocabulary_maps = create_vocabulary_maps(vocabulary)
-token_parser = create_token_parser(data_base_dir)
+train_token_parser = create_token_parser(path.join(data_base_dir, 'training'))
+validation_token_parser = create_token_parser(path.join(data_base_dir, 'validation'))
 
 # generate data generators
 augmentor = augment.Augmentor(background_dir)
 post_processor = postprocessor.Postprocessor()
-training_data = create_default_sequence_generator(token_parser, augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
-validation_data = create_default_sequence_generator(token_parser, augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
-testing_data = create_default_sequence_generator(token_parser, augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
-callback_data = create_default_sequence_generator(token_parser, augmentor, post_processor, generator, config, 1, vocabulary_maps)
+training_data = create_default_sequence_generator(train_token_parser, augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
+validation_data = create_default_sequence_generator(validation_token_parser, augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
 
 
 print("Image2Latex:", "Start create model:", datetime.now().time())
@@ -90,11 +89,11 @@ log += 'end time:\t\t\t' + str(end_time) + '\n'
 print("Image2Latex:", history.epoch)
 print("Image2Latex:", history.history)
 print("Image2Latex:", "Start evaluating...")
-losses = model.evaluate_generator(testing_data, 1000)
+#losses = model.evaluate_generator(testing_data, 1000)
+#print(losses)
 print(model.metrics_names)
-print(losses)
-log += 'losses:\n'
-log += str(losses)
-utils.write_string(results_file, log)
+#log += 'losses:\n'
+#log += str(losses)
+#utils.write_string(results_file, log)
 del history.model
 utils.write_pkl(history_file, history)
