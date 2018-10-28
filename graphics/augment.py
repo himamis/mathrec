@@ -31,9 +31,11 @@ class Augmentor:
     def __init__(self, base):
         self.background_files = [x for x in file_utils.list_files(base) if x.endswith(".png")]
 
-    def augment(self, img):
-        new_image = self._background(img)
-        return self._blur(new_image)
+    def augment(self, image):
+        image = self._background(image)
+        image = self._blur(image)
+        image = self._grayscale(image)
+        return image
 
     def size_changing_augment(self, img):
         return self._rotate(img)
@@ -70,3 +72,6 @@ class Augmentor:
         paste(bckgrd_cropped, img, 0, 0)
 
         return bckgrd_cropped
+
+    def _grayscale(self, image):
+        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)

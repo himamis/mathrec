@@ -13,7 +13,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     kernel_init = 'glorot_normal'
     bias_init = 'zeros'
 
-    encoder_input_imgs = Input(shape=(None, None, 3), dtype='float32', name='encoder_input_images')  # (batch_size, imgH, imgW, 1)
+    encoder_input_imgs = Input(shape=(None, None, 1), dtype='float32', name='encoder_input_images')  # (batch_size, imgH, imgW, 1)
     decoder_input = Input(shape=(None, vocabulary_size), dtype='float32', name='decoder_input_sequences')  # (batch_size, seq_len)
 
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
