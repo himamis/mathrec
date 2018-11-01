@@ -1,15 +1,13 @@
 from trainer import model
 from trainer.defaults import *
-from trainer.sequence import create_default_sequence_generator
 import file_utils as utils
 import numpy as np
 from utilities import parse_arg
+import os
 
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university')
+data_base_dir = os.path.join(data_base_dir, 'xainano_images')
 weights_file = parse_arg('--weights', "/Users/balazs/university/mathrec/weights_15.h5")
-#if weights_file is None:
-#    print('Enter base dir:')
-#    weights_file = input()
 
 
 generator = create_generator()
