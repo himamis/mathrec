@@ -56,7 +56,9 @@ def write_string(path, text):
         out.write(text)
 
 def list_files(path):
+    print("Listing files in: " + path)
     return [os.path.join(path, fname) for fname in next(os.walk(path))[2]]
 
 def list_dirs(path):
+    print("Listing dirs in: " + path)
     return [os.path.join(path, fname) for fname in next(os.walk(path))[1]]

@@ -58,10 +58,11 @@ train_token_parser = create_token_parser(path.join(data_base_dir, 'training'))
 validation_token_parser = create_token_parser(path.join(data_base_dir, 'validation'))
 
 # generate data generators
-augmentor = augment.Augmentor(background_dir)
+train_augmentor = augment.Augmentor(path.join(background_dir, 'training/backgrounds'), path.join(background_dir, 'training/grids'))
+validation_augmentor = augment.Augmentor(path.join(background_dir, 'validation/backgrounds'), path.join(background_dir, 'validation/grids'))
 post_processor = postprocessor.Postprocessor()
-training_data = create_default_sequence_generator(train_token_parser, augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
-validation_data = create_default_sequence_generator(validation_token_parser, augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
+training_data = create_default_sequence_generator(train_token_parser, train_augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
+validation_data = create_default_sequence_generator(validation_token_parser, validation_augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
 
 
 print("Image2Latex:", "Start create model:", datetime.now().time())
