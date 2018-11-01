@@ -7,7 +7,7 @@ from shutil import copy
 base_dir = parse_arg('--data-base-dir', required=True)
 out_dir = parse_arg('--output-dir', required=True)
 
-xainano_images_dir = os.path.join(base_dir, 'xainano_images')
+xainano_images_dir = os.path.join(base_dir)
 
 if not os.path.exists(xainano_images_dir):
     print("Path does not exist: " + xainano_images_dir)
