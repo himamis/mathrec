@@ -1,4 +1,5 @@
 from graphics.utils import *
+import math
 
 kernel = np.ones((3, 3), np.uint8)
 
@@ -12,6 +13,8 @@ class Graphics:
 
     def expression(self, expression):
         image = self.image_loader.image(expression)
+        xs, ys = np.random.uniform(0.85, 1.15, 2)
+        image = resize(image, int(w(image) * xs + 0.5), int(h(image) * ys + 0.5))
         self._add_image(image)
 
     def fraction(self, numerator_graphics, denominator_graphics):
@@ -75,8 +78,11 @@ class Graphics:
     def _concat_images(self):
         width = 0
         height = 0
+        paddings = []
         for image, y_center in self.images:
-            width += w(image)
+            padding = np.random.randint(0, 15)
+            paddings.append(padding)
+            width += w(image) + padding
             top_missing = abs(min(round(height / 2) - y_center, 0))
             bottom_missing = max(round(height / 2) + (h(image) - y_center) - height, 0)
             missing = max(top_missing, bottom_missing)
@@ -85,7 +91,7 @@ class Graphics:
         concat_image = new_image(width, height)
 
         offset = 0
-        for image, y_center in self.images:
+        for i, (image, y_center) in enumerate(self.images):
             paste(concat_image, image, offset, round(abs(h(concat_image) / 2 - y_center)))
-            offset += w(image)
+            offset += w(image) + paddings[i]
         return concat_image

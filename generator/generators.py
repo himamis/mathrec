@@ -417,5 +417,5 @@ def random_square_root():
 
 def random_generator():
     generators = [random_simple_expression(), random_polynomial(), random_coord(),
-                  random_fraction(), random_long_expression_no_frac(), random_square_root()]
+                  random_fraction(), random_long_expression_no_frac()]
     return RandomGenerator(generators)
