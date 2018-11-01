@@ -31,8 +31,8 @@ def _rotate_bound(image, angle):
 class Augmentor:
 
     def __init__(self, background_images, grid_images):
-        self.background_files = [x for x in file_utils.list_files(background_images) if x.endswith(".jpg")]
-        self.grid_images = [x for x in file_utils.list_files(grid_images) if x.endswith(".jpg")]
+        self.background_files = [x for x in file_utils.list_files(background_images) if x.lower().endswith(".jpg") or x.lower().endswith(".jpeg")]
+        self.grid_images = [x for x in file_utils.list_files(grid_images) if x.lower().endswith(".jpg") or x.lower().endswith('jpeg')]
         self.grid_percentage = 0.7
         self.shadow_percentage = 0.5
         self.pers = aa.PerspectiveTransform(scale=(0.01, 0.1))
