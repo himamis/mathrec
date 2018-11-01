@@ -120,7 +120,7 @@ class Augmentor:
         return self.noise.augment_image(image)
 
     def _grayscale(self, image):
-        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        return np.expand_dims(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 2)
 
     def _perspective(self, image):
         return self.pers.augment_image(image)
