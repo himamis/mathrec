@@ -30,9 +30,9 @@ result_fname = 'result_log.txt'
 history_fname = 'history.pkl'
 
 start_epoch = int(parse_arg('--start-epoch', 0))
-data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/data')
-model_checkpoint_dir = parse_arg('--model-dir', data_base_dir)
-background_dir = parse_arg('--background-dir', data_base_dir)
+data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/split')
+model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/model')
+background_dir = parse_arg('--background-dir', '/Volumes/SDCard/split_backgrounds_dir')
 base_dir = path.join(model_checkpoint_dir, folder_str)
 if not path.exists(base_dir):
     mkdir(base_dir)

@@ -4,7 +4,7 @@ from xainano_graphics import create_graphics_factory
 
 
 def create_config():
-    return Config(".", c(["\\times"]), None)
+    return Config(".", c(["a", "b", "c", "d", "e", "f", "g", "x", "y", "z"]), c(["\\times"]))
 
 
 def create_generator():
@@ -12,7 +12,7 @@ def create_generator():
 
 
 def create_vocabulary(generator=create_generator(), config=create_config()):
-    return generator.vocabulary(config) | {"<start>", "<end>"}
+    return generator.vocabulary(config) | {"<start>", "<end>"} | config.vocabulary()
 
 
 def create_vocabulary_maps(vocabulary=create_vocabulary()):

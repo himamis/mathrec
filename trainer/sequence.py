@@ -60,7 +60,6 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
 
         yield [np.stack(inputs), to_categorical(input_sequences, vocabulary_size)], \
             to_categorical(targets, vocabulary_size)
-        #yield [np.stack(inputs), np.array(input_sequences)], to_categorical(targets, vocabulary_size)
 
 
 def create_default_sequence_generator(token_parser, augmentor, post_processor, generator=create_generator(), config=create_config(), batch_size=1,

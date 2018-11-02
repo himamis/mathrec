@@ -20,7 +20,7 @@ class Config:
         self.multiplier = multiplier
 
     def vocabulary(self):
-        return self.variables.all() | {self.separator, self.multiplier}
+        return self.variables.all() | self.multiplier.all() | {self.separator}
 
 
 class TokenGenerator:
@@ -184,7 +184,7 @@ class VariableGenerator:
         if self.scale_generator is not None:
             self.scale_generator.generate_formula(tokens, config)
             if config.multiplier is not None:
-                tokens += [config.multiplier]
+                tokens += [config.multiplier.get()]
         if self.variable_wrapper is not None:
             self.variable_wrapper.generator = TokenGenerator(config.variables.get())
             self.variable_wrapper.generate_formula(tokens, config)

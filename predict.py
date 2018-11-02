@@ -1,20 +1,18 @@
-from trainer import model
+from trainer import model, predictor
 from trainer.defaults import *
 import file_utils as utils
 import numpy as np
 from utilities import parse_arg
-import os
+import cv2
 
-data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university')
-data_base_dir = os.path.join(data_base_dir, 'xainano_images')
-weights_file = parse_arg('--weights', "/Users/balazs/university/mathrec/weights_15.h5")
-
+data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/xainano_images')
+weights_file = parse_arg('--weights', "/Users/balazs/university/weights_19.h5")
 
 generator = create_generator()
 token_parser = create_token_parser(data_base_dir)
 config = create_config()
 vocabulary = create_vocabulary(generator, config)
-vocabulary_maps = create_vocabulary_maps(vocabulary)
+encoding_vb, decoding_vb = create_vocabulary_maps(vocabulary)
 
 print('Start creating model')
 model, encoder, decoder = model.create_default(len(vocabulary))
@@ -28,46 +26,14 @@ else:
     print("Weights file does not exist")
     exit()
 
-max_length = 100
+predict = predictor.create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb)
 
-def evaluate(image):
-    print("Testing model")
-    print("Encoding data")
-    input_image = np.expand_dims(image, 0)
-    feature_grid = encoder.predict(input_image)
-
-    #print("Expected target")
-    #target_sentence = [vocabulary_maps[1][np.argmax(char)] for char in predy[0]]
-    #print(target_sentence)
-    #print("\n")
-
-    print("Decoding target")
-    sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
-    sequence[0, 0, vocabulary_maps[0]["<start>"]] = 1.
-
-    h = np.zeros((1, 256 * 2), dtype="float32")
-    c = np.zeros((1, 256 * 2), dtype="float32")
-    states = [h, c]
-
-    decoded_sentence = ""
-    while True:
-        output, h, c = decoder.predict([feature_grid, sequence] + states)
-
-        # Sample token
-        sampled_token_index = np.argmax(output[0, -1, :])
-        sampled_char = vocabulary_maps[1][sampled_token_index]
-        decoded_sentence += sampled_char
-
-        # Exit condition: hit max length, or find stop character
-        if sampled_char == "<end>" or len(decoded_sentence) > max_length:
-            break
-
-        # Update sequence
-        sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
-        sequence[0, 0, sampled_token_index] = 1.
-
-        states = [h, c]
-
-    print("Prediction")
-    print(decoded_sentence)
-    print("\n")
+while True:
+    print("Image path: \n")
+    input_image = input()
+    image = utils.read_img(input_image)
+    image = np.expand_dims(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 2)
+    cv2.imshow("Image", image)
+    prediction = predict(image)
+    print("Prediction: " + prediction + "\n")
+    cv2.waitKey(0)

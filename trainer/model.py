@@ -17,7 +17,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     decoder_input = Input(shape=(None, vocabulary_size), dtype='float32', name='decoder_input_sequences')  # (batch_size, seq_len)
 
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
-    x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 3) - normalize to [-1, +1)
+    x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 1) - normalize to [-1, +1)
     
     filter_sizes = [32, 64, 128, 256, 512]
     for filter_size in filter_sizes:
@@ -27,7 +27,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
         x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
         x = BatchNormalization()(x)
         x = Activation('relu')(x)
-        x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
+        x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)
 
     
 
