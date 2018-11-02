@@ -7,6 +7,7 @@ from datetime import datetime
 from os import path, mkdir
 from graphics import augment
 from xainano_graphics import postprocessor
+from trainer.callbacks import EvaluateModel
 
 from tensorflow import set_random_seed
 from trainer.sequence import create_default_sequence_generator
@@ -47,7 +48,7 @@ start_time = datetime.now()
 log = "git hash:\t\t\t'" + parse_arg('--git-hexsha', 'NAN') + "'\n"
 log += 'start time:\t\t\t' + str(start_time) + '\n'
 
-batch_size = 32
+batch_size = 3
 max_length = 200
 
 generator = create_generator()
@@ -79,12 +80,13 @@ if start_epoch != 0 and utils.file_exists(model_weights_file.format(epoch=start_
     model.set_weights(weights)
     print("Image2Latex:", "Weights set to model")
 
+eval = EvaluateModel(encoder, decoder, vocabulary, vocabulary_maps[0], vocabulary_maps[1], validation_data)
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
 print("Image2Latex:", "Start training...")
 history = model.fit_generator(training_data, 100, epochs=10, verbose=2,
                               validation_data=validation_data, validation_steps=100,
-                              callbacks=[checkpointer, logger], initial_epoch=start_epoch)
+                              callbacks=[checkpointer, logger, eval], initial_epoch=start_epoch)
 end_time = datetime.now()
 log += 'end time:\t\t\t' + str(end_time) + '\n'
 print("Image2Latex:", history.epoch)

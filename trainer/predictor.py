@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_cv, max_length = 100):
+def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb, max_length = 100):
 
     def predict(image):
         input_image = np.expand_dims(image, 0)
@@ -20,7 +20,7 @@ def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_cv, max
 
             # Sample token
             sampled_token_index = np.argmax(output[0, -1, :])
-            sampled_char = decoding_cv[sampled_token_index]
+            sampled_char = decoding_vb[sampled_token_index]
             decoded_sentence += sampled_char
 
             # Exit condition: hit max length, or find stop character
