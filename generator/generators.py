@@ -196,7 +196,7 @@ class VariableGenerator:
         if self.scale_generator is not None:
             vocab = vocab | self.scale_generator.vocabulary(config)
             if config.multiplier is not None:
-                vocab.add(config.multiplier)
+                vocab = vocab | config.multiplier.all()
         if self.variable_wrapper is not None:
             vocab = vocab | self.variable_wrapper.vocabulary(config)
             vocab = vocab | config.variables.all()

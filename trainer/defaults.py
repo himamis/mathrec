@@ -12,13 +12,13 @@ def create_generator():
 
 
 def create_vocabulary(generator=create_generator(), config=create_config()):
-    return generator.vocabulary(config) | {"<start>", "<end>"} | config.vocabulary()
+    return sorted(generator.vocabulary(config) | {"<start>", "<end>"})
 
 
 def create_vocabulary_maps(vocabulary=create_vocabulary()):
     encoder = {val: idx for idx, val in enumerate(vocabulary)}
     decoder = {idx: val for idx, val in enumerate(vocabulary)}
-    return encoder, decoder
+    return sorted(encoder), sorted(decoder)
 
 
 def create_token_parser(data_base_dir):
