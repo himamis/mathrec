@@ -18,7 +18,7 @@ def create_vocabulary(generator=create_generator(), config=create_config()):
 def create_vocabulary_maps(vocabulary=create_vocabulary()):
     encoder = {val: idx for idx, val in enumerate(vocabulary)}
     decoder = {idx: val for idx, val in enumerate(vocabulary)}
-    return sorted(encoder), sorted(decoder)
+    return encoder, decoder
 
 
 def create_token_parser(data_base_dir):
