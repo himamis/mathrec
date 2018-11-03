@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb, max_length = 100):
 
     def predict(image):

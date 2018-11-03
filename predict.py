@@ -8,10 +8,17 @@ from graphics import augment
 from os import path
 from trainer.sequence import create_default_sequence_generator
 from xainano_graphics import postprocessor
+from numpy.random import seed
+from tensorflow import set_random_seed
+
+
+seed(1337)
+set_random_seed(1337)
+
 
 
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/xainano_images')
-weights_file = parse_arg('--weights', "/Users/balazs/university/weights_9.h5")
+weights_file = parse_arg('--weights', "/Users/balazs/university/weights_10.h5")
 background_dir = '/Volumes/SDCard/split_backgrounds_dir'
 
 generator = create_generator()
@@ -37,7 +44,7 @@ else:
     exit()
 
 predict = predictor.create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb)
-custom_images = False
+custom_images = True
 
 while True:
     if custom_images:
