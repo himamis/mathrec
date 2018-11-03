@@ -7,6 +7,8 @@ class Collection:
         self.values = values
 
     def get(self):
+        if len(self.values) == 0:
+            return None
         return np.random.choice(self.values)
 
     def all(self):

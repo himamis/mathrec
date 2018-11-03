@@ -68,7 +68,7 @@ class NumberGenerator:
 
 class ExpressionGenerator:
 
-    def __init__(self, generators=[], operators=c([])):
+    def __init__(self, generators=[], operators=[c([])]):
         self.generators = generators
         self.operators = operators
         self.randomize_order = False
@@ -288,6 +288,44 @@ class RandomGenerator:
         return vocab
 
 
+class GibberishGenerator:
+
+    def __init__(self, min_length=4, max_length=20, brckt_p=0.2):
+        self.min_length = min_length
+        self.max_length = max_length
+        self.brckt_p = brckt_p
+        self.tokens = []
+        for rep in range(0, 4):
+            for char in range(0, 9):
+                self.tokens += str(char)
+        for operators in ['=', '+', '-']:
+            self.tokens += operators
+        for char in range(ord('a'), ord('z') + 1):
+            self.tokens += chr(char)
+
+    def generate_formula(self, tokens, config):
+        length = np.random.randint(self.min_length, self.max_length)
+        if length > 3 and np.random.uniform() < self.brckt_p:
+            opening_bracket = np.random.randint(0, length - 2)
+            closing_bracket = np.random.randint(opening_bracket, length - 1)
+        else:
+            opening_bracket = -2
+            closing_bracket = -2
+
+        for i in range(0, length):
+            if i == opening_bracket:
+                tokens += '('
+            elif i == closing_bracket:
+                tokens += ')'
+            else:
+                tokens += np.random.choice(self.tokens)
+
+    def vocabulary(self, config):
+        return set(self.tokens) | {'(', ')'}
+
+
+
+
 square_brackets = ("[", "]")
 round_brackets = ("(", ")")
 curly_brackets = ("{", "}")
@@ -417,5 +455,22 @@ def random_square_root():
 
 def random_generator():
     generators = [random_simple_expression(), random_polynomial(), random_coord(),
-                  random_fraction(), random_long_expression_no_frac()]
+                  random_fraction(), random_long_expression_no_frac(), almost_absolutely_random_generator(),
+                  almost_absolutely_random_generator()]
     return RandomGenerator(generators)
+
+
+def almost_absolutely_random_generator():
+    long_random_generator = GibberishGenerator()
+    short_random_generator = GibberishGenerator(2, 5)
+    very_short_generator = GibberishGenerator(1, 2)
+    bs_frac_generator = fraction_generator(short_random_generator, short_random_generator)
+    random_frac_or_nofrac = RandomGenerator([short_random_generator, bs_frac_generator])
+    relation_generator = RelationGenerator(generators=[random_frac_or_nofrac, random_frac_or_nofrac])
+    power_generator = PowerGenerator(short_random_generator, very_short_generator)
+    longer_power = ExpressionGenerator(generators=[power_generator, very_short_generator])
+    power_relation = RelationGenerator(generators=[random_frac_or_nofrac, longer_power])
+    generators = [long_random_generator, bs_frac_generator, short_random_generator, bs_frac_generator,
+                  relation_generator, power_generator, longer_power, power_relation]
+    return RandomGenerator(generators)
+
