@@ -34,6 +34,7 @@ start_epoch = int(parse_arg('--start-epoch', 0))
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/split')
 model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/model')
 background_dir = parse_arg('--background-dir', '/Volumes/SDCard/split_backgrounds_dir')
+cont_file = parse_arg('--continue', default=None, required=False)
 base_dir = path.join(model_checkpoint_dir, folder_str)
 if not path.exists(base_dir):
     mkdir(base_dir)
@@ -72,13 +73,12 @@ model, encoder, decoder = model.create_default(len(vocabulary))
 # utils.write_string(model_architecture_file, model.to_json())
 print("Image2Latex:", "End create model:", datetime.now().time())
 # utils.write_npy(model_weights_file.format(epoch=0), model.get_weights())
-
-if start_epoch != 0 and utils.file_exists(model_weights_file.format(epoch=start_epoch)):
-    print("Image2Latex:", "Start loading weights of epoch", start_epoch)
-    weights = utils.read_npy(model_weights_file.format(epoch=start_epoch))
-    print("Image2Latex:", "Weights loaded")
+if utils.file_exists(cont_file):
+    print('Start loading weights')
+    weights = utils.read_npy(cont_file)
     model.set_weights(weights)
-    print("Image2Latex:", "Weights set to model")
+    print('Weights loaded')
+
 
 eval = EvaluateModel(encoder, decoder, vocabulary, vocabulary_maps[0], vocabulary_maps[1], validation_data)
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
