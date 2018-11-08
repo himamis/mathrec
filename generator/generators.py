@@ -474,3 +474,14 @@ def almost_absolutely_random_generator():
                   relation_generator, power_generator, longer_power, power_relation]
     return RandomGenerator(generators)
 
+
+def single_token_generator():
+    generators = []
+    for char in range(0, 9):
+        generators.append(TokenGenerator(str(char)))
+    for operators in ['=', '+', '-', '.', '\\times', '(', ')', ',']:
+        generators.append(TokenGenerator(operators))
+    for char in range(ord('a'), ord('z') + 1):
+        generators.append(TokenGenerator(chr(char)))
+
+    return RandomGenerator(generators)

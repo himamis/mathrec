@@ -4,7 +4,7 @@ from keras.utils import to_categorical
 from file_utils import *
 
 
-def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary_map, augmentor, post_processor):
+def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary_map, augmentor, post_processor, single):
     vocabulary_size = len(vocabulary_map)
     while True:
         inputs = []
@@ -29,9 +29,12 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
             
             if image is None:
                 raise ValueError
+            if single and len(tokens) > 1:
+                raise ValueError
             input_sequence = list(tokens)
             input_sequence.insert(0, "<start>")
-            tokens.append("<end>")
+            if not single:
+                tokens.append("<end>")
 
             inputs.append(image)
             input_sequences.append(np.array(input_sequence))
@@ -50,21 +53,25 @@ def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary
             inputs[index] = augmentor.augment(padded_image)
 
             # Resize sequence
-            seq = input_sequences[index]
-            input_sequences[index] = np.append(seq, np.repeat('<end>', max_seq_len - len(seq)))
-            input_sequences[index] = [vocabulary_map[token] for token in input_sequences[index]]
+            if not single:
+                seq = input_sequences[index]
+                input_sequences[index] = np.append(seq, np.repeat('<end>', max_seq_len - len(seq)))
+                input_sequences[index] = [vocabulary_map[token] for token in input_sequences[index]]
 
-            t_seq = targets[index]
-            targets[index] = np.append(t_seq, np.repeat('<end>', max_seq_len - len(t_seq)))
+                t_seq = targets[index]
+                targets[index] = np.append(t_seq, np.repeat('<end>', max_seq_len - len(t_seq)))
             targets[index] = [vocabulary_map[token] for token in targets[index]]
-
-        yield [np.stack(inputs), to_categorical(input_sequences, vocabulary_size)], \
-            to_categorical(targets, vocabulary_size)
+        if single:
+            yield np.stack(inputs), \
+                  to_categorical(targets, vocabulary_size)
+        else:
+            yield [np.stack(inputs), to_categorical(input_sequences, vocabulary_size)], \
+                to_categorical(targets, vocabulary_size)
 
 
 def create_default_sequence_generator(token_parser, augmentor, post_processor, generator=create_generator(), config=create_config(), batch_size=1,
-                                      vocabulary_map=create_vocabulary_maps()):
-    return xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map[0], augmentor, post_processor)
+                                      vocabulary_map=create_vocabulary_maps(), single=False):
+    return xainano_sequence_generator(generator, config, token_parser, batch_size, vocabulary_map[0], augmentor, post_processor, single)
 
 def image_sequencer(batch_size, image_map, base, vocabulary_map, augmentor, split=(0, 80)):
     vocabulary_size = len(vocabulary_map)
