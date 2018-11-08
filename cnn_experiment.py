@@ -13,6 +13,7 @@ from generator import single_token_generator
 from keras.layers import Dense, Reshape, Flatten, GlobalMaxPooling2D
 from keras import Model
 from datetime import datetime
+from os import mkdir
 
 
 seed(1337)
@@ -28,6 +29,9 @@ background_dir = parse_arg('--background-dir', '/Users/balazs/university/split_b
 experiment_dir = parse_arg('--experiment_dir', '/Users/balazs/university/cnn_experiment')
 
 output_dir = path.join(experiment_dir, folder_str)
+if not path.exists(output_dir):
+    mkdir(output_dir)
+
 history_file = path.join(output_dir, "history.pkl")
 
 
