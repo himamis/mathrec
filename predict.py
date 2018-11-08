@@ -18,8 +18,8 @@ set_random_seed(1337)
 
 
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/xainano_images')
-weights_file = parse_arg('--weights', "/Users/balazs/university/weights_10.h5")
-background_dir = '/Volumes/SDCard/split_backgrounds_dir'
+weights_file = parse_arg('--weights', "/Users/balazs/university/weights_20.h5")
+background_dir = '/Users/balazs/university/split_backgrounds_dir'
 
 generator = create_generator()
 token_parser = create_token_parser(data_base_dir)
@@ -44,7 +44,7 @@ else:
     exit()
 
 predict = predictor.create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb)
-custom_images = True
+custom_images = False
 
 while True:
     if custom_images:

@@ -59,9 +59,6 @@ class AttentionDecoderLSTMCell(Layer):
         V - vocabulary size
         D - number of hidden states
         E - embedding size; currently not used
-        free_run - False is normally training and evaluation and True is normally used for predicting. If True, 
-        it uses the previous generated token to generate the next one. If False, it uses the inputs param in the 
-        call method
     '''
 
     def __init__(self, V = 0, D = 0, E = 0, kernel_initializer='glorot_normal', bias_initializer='zeros', **kwargs):
@@ -87,9 +84,6 @@ class AttentionDecoderLSTMCell(Layer):
         self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer=self.bias_initializer)
         self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer=self.kernel_initializer, trainable=True)
         self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer=self.bias_initializer)
-        #self.W_y = self.add_weight(name='W_y', shape=(self.D, self.V), initializer='uniform', trainable=True)
-        #self.b_y = self.add_weight(name='b_y', shape=(self.V,), initializer='uniform', trainable=True)
-        #self.built = True # important!!
         super(AttentionDecoderLSTMCell, self).build(input_shape)
 
 
@@ -121,7 +115,6 @@ class AttentionDecoderLSTMCell(Layer):
         hz = K.expand_dims(hz, 1) # (batch_size, 1, 2D)
         out = K.tanh(K.dot(hz, self.W_out) + self.b_out) # (batch_size, 1, D)
         out = out[:, 0]  # (batch_size, D)
-        #y = K.softmax(K.dot(out, self.W_y)[:,0] + self.b_y) # (batch_size, V)
 
         return out, [out, c]
 
