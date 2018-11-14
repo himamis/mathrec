@@ -4,6 +4,37 @@ from keras.utils import to_categorical
 from file_utils import *
 
 
+def sequence_generator(generator, config, batch_size, vocabulary_map):
+    vocabulary_size = len(vocabulary_map)
+    while True:
+        input_sequences = []
+        targets = []
+        max_seq_len = int(0)
+        for index in range(batch_size):
+            tokens = []
+            generator.generate_formula(tokens, config)
+            input_sequence = list(tokens)
+            input_sequence.insert(0, "<start>")
+            tokens.append("<end>")
+
+            input_sequences.append(np.array(input_sequence))
+            targets.append(np.array(tokens))
+
+            max_seq_len = max(max_seq_len, len(tokens))
+
+        for index in range(batch_size):
+            # Resize sequence
+            seq = input_sequences[index]
+            input_sequences[index] = np.append(seq, np.repeat('<end>', max_seq_len - len(seq)))
+            input_sequences[index] = [vocabulary_map[token] for token in input_sequences[index]]
+
+            t_seq = targets[index]
+            targets[index] = np.append(t_seq, np.repeat('<end>', max_seq_len - len(t_seq)))
+            targets[index] = [vocabulary_map[token] for token in targets[index]]
+
+        yield to_categorical(input_sequences, vocabulary_size), to_categorical(targets, vocabulary_size)
+
+
 def xainano_sequence_generator(generator, config, parser, batch_size, vocabulary_map, augmentor, post_processor, single):
     vocabulary_size = len(vocabulary_map)
     while True:
