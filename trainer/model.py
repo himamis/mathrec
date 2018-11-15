@@ -6,9 +6,11 @@ from keras.layers import Input, RNN, Conv2D, MaxPooling2D, BatchNormalization, A
 from trainer import AttentionDecoderLSTMCell
 from trainer.defaults import create_vocabulary
 from keras.optimizers import  RMSprop
+from trainer.metrics import *
+import numpy as np
 
 
-def create(vocabulary_size, encoder_size, internal_embedding=512):
+def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     # Weight initializers
     kernel_init = 'glorot_normal'
     bias_init = 'zeros'
@@ -73,8 +75,13 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     decoder_dense = Dense(vocabulary_size, activation="softmax", kernel_initializer=kernel_init, bias_initializer=bias_init)
     decoder_output = decoder_dense(decoder_output)
 
+    metrics = ['accuracy']
+    if mask is not None:
+        masked = get_masked_categorical_accuracy(mask)
+        metrics.append(masked)
+
     model = Model(inputs=[encoder_input_imgs, decoder_input], outputs=decoder_output)
-    model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=metrics)
 
     encoder_model = Model(encoder_input_imgs, encoder)
 
@@ -89,7 +96,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512):
     return model, encoder_model, decoder_model
 
 
-def create_default(vocabulary_size=len(create_vocabulary())):
+def create_default(vocabulary_size=len(create_vocabulary()), mask=None):
     encoder_size = 256
     internal_embedding = 512
-    return create(vocabulary_size, encoder_size, internal_embedding)
+    return create(vocabulary_size, encoder_size, internal_embedding, mask)

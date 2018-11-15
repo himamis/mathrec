@@ -13,9 +13,7 @@ from tensorflow import set_random_seed
 from trainer.sequence import create_default_sequence_generator
 from trainer.logger import NBatchLogger
 from trainer.defaults import *
-
-from trainer.metrics import *
-
+import numpy as np
 
 # set seeds so that every trainingsprocess is starting with same weights.
 # it is also needed when creating the model and setting weights from a file,
@@ -68,9 +66,12 @@ post_processor = postprocessor.Postprocessor()
 training_data = create_default_sequence_generator(train_token_parser, train_augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
 validation_data = create_default_sequence_generator(validation_token_parser, validation_augmentor, post_processor, generator, config, batch_size, vocabulary_maps)
 
+mask = np.zeros(len(vocabulary))
+mask[vocabulary_maps[0]['<end>']] = 1
+
 
 print("Image2Latex:", "Start create model:", datetime.now().time())
-model, encoder, decoder = model.create_default(len(vocabulary))
+model, encoder, decoder = model.create_default(len(vocabulary), mask)
 # I don't do this, because I think there are some bugs, when saving RNN with constants
 # utils.write_string(model_architecture_file, model.to_json())
 print("Image2Latex:", "End create model:", datetime.now().time())
@@ -83,7 +84,6 @@ if continue_dir is not None and start_epoch != 0 and utils.file_exists(continue_
         weights = utils.read_npy(weigths_file)
         model.set_weights(weights)
         print('Weights loaded')
-
 
 eval = EvaluateModel(encoder, decoder, vocabulary, vocabulary_maps[0], vocabulary_maps[1], validation_data)
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
