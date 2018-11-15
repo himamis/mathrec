@@ -14,6 +14,8 @@ from trainer.sequence import create_default_sequence_generator
 from trainer.logger import NBatchLogger
 from trainer.defaults import *
 
+from trainer.metrics import *
+
 
 # set seeds so that every trainingsprocess is starting with same weights.
 # it is also needed when creating the model and setting weights from a file,
