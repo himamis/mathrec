@@ -57,6 +57,7 @@ while True:
         image = next(data)[0][0][0]
 
     cv2.imshow("Image", image)
+    print(image.shape)
     prediction = predict(image)
     print("Prediction: " + prediction + "\n")
     cv2.waitKey(0)

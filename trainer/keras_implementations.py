@@ -10,7 +10,7 @@ import sys
 import inspect
 from keras.engine.topology import Layer
 from keras.engine.topology import InputSpec
-
+import tensorflow as tf
 
 class AttentionLSTMDecoderCell(LSTMCell):
 
@@ -107,6 +107,7 @@ class AttentionDecoderLSTMCell(Layer):
         b = K.expand_dims(b) # (batch_size, D, 1)
         e = K.batch_dot(feature_grid, b)[:,:,0] # (batch_size, L)
         a = K.softmax(e) # (batch_size, L)
+        a = tf.Print(a, [tf.shape(a), a], summarize=999999)
         a = K.expand_dims(a, 1) # (batch_size, 1, L)
         z = K.batch_dot(a, feature_grid)[:,0] # (batch_size, D)
 
