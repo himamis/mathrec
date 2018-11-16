@@ -18,7 +18,7 @@ set_random_seed(1337)
 
 
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/xainano_images')
-weights_file = parse_arg('--weights', "/Users/balazs/university/weights_20.h5")
+weights_file = parse_arg('--weights', "/Users/balazs/university/2/weights_20.h5")
 background_dir = '/Users/balazs/university/split_backgrounds_dir'
 
 generator = create_generator()
