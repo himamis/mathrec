@@ -111,7 +111,7 @@ class AttentionDecoderLSTMCell(Layer):
         # Tanh layer missing from previous implementation (needed??)
         b = K.tanh(b)
         # New layer
-        b = K.dot(K.expand_dims(b, 1), self.W_e_2)[:, 0] + self.W_e_2  # (batch_size, D)
+        b = K.dot(K.expand_dims(b, 1), self.W_e_2)[:, 0] + self.b_e_2  # (batch_size, D)
         b = K.tanh(b)
 
         b = K.expand_dims(b) # (batch_size, D, 1)

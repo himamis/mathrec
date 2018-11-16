@@ -89,7 +89,7 @@ eval = EvaluateModel(encoder, decoder, vocabulary, vocabulary_maps[0], vocabular
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
 print("Image2Latex:", "Start training...")
-history = model.fit_generator(training_data, 300, epochs=20, verbose=2,
+history = model.fit_generator(training_data, 350, epochs=20, verbose=2,
                               validation_data=validation_data, validation_steps=100,
                               callbacks=[checkpointer, logger, eval], initial_epoch=start_epoch)
 end_time = datetime.now()
