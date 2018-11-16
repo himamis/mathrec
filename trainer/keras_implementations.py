@@ -82,6 +82,8 @@ class AttentionDecoderLSTMCell(Layer):
         self.b_o = self.add_weight(name='b_o', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
         self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer=self.kernel_initializer, trainable=True)
         self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer=self.bias_initializer)
+        self.W_e_2 = self.add_weight(name='W_e_2', shape=(self.D, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.b_e_2 = self.add_weight(name='b_e_2', shape=(self.D,), initializer=self.bias_initializer)
         self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer=self.kernel_initializer, trainable=True)
         self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer=self.bias_initializer)
         super(AttentionDecoderLSTMCell, self).build(input_shape)
@@ -104,6 +106,14 @@ class AttentionDecoderLSTMCell(Layer):
 
         # Attention
         b = K.dot(K.expand_dims(h, 1), self.W_e)[:,0] + self.b_e # (batch_size, D)
+
+        # Addition new layers
+        # Tanh layer missing from previous implementation (needed??)
+        b = K.tanh(b)
+        # New layer
+        b = K.dot(K.expand_dims(b, 1), self.W_e_2)[:, 0] + self.W_e_2  # (batch_size, D)
+        b = K.tanh(b)
+
         b = K.expand_dims(b) # (batch_size, D, 1)
         e = K.batch_dot(feature_grid, b)[:,:,0] # (batch_size, L)
         a = K.softmax(e) # (batch_size, L)
