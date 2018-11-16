@@ -49,7 +49,7 @@ start_time = datetime.now()
 log = "git hash:\t\t\t'" + parse_arg('--git-hexsha', 'NAN') + "'\n"
 log += 'start time:\t\t\t' + str(start_time) + '\n'
 
-batch_size = 32
+batch_size = 8
 max_length = 200
 
 generator = create_generator()
@@ -89,7 +89,7 @@ eval = EvaluateModel(encoder, decoder, vocabulary, vocabulary_maps[0], vocabular
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
 print("Image2Latex:", "Start training...")
-history = model.fit_generator(training_data, 100, epochs=20, verbose=2,
+history = model.fit_generator(training_data, 300, epochs=20, verbose=2,
                               validation_data=validation_data, validation_steps=100,
                               callbacks=[checkpointer, logger, eval], initial_epoch=start_epoch)
 end_time = datetime.now()
