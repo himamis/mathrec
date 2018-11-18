@@ -61,8 +61,9 @@ class AttentionDecoderLSTMCell(Layer):
         E - embedding size; currently not used
     '''
 
-    def __init__(self, V = 0, D = 0, E = 0, kernel_initializer='glorot_normal', bias_initializer='zeros', **kwargs):
+    def __init__(self, V = 0, D = 0, D2=0, E = 0, kernel_initializer='glorot_normal', bias_initializer='zeros', **kwargs):
         self.D = D
+        self.D2 = D2
         self.E = E
         self.V = V
         self.state_size = (self.D, self.D) # (out, c)
@@ -82,15 +83,16 @@ class AttentionDecoderLSTMCell(Layer):
         self.b_o = self.add_weight(name='b_o', shape=(self.D,), initializer=self.bias_initializer, trainable=True)
         self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer=self.kernel_initializer, trainable=True)
         self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer=self.bias_initializer)
-        self.W_e_2 = self.add_weight(name='W_e_2', shape=(self.D, self.D), initializer=self.kernel_initializer, trainable=True)
-        self.b_e_2 = self.add_weight(name='b_e_2', shape=(self.D,), initializer=self.bias_initializer)
-        self.W_out = self.add_weight(name='W_out', shape=(2*self.D, self.D), initializer=self.kernel_initializer, trainable=True)
+        self.W_e_2 = self.add_weight(name='W_e_2', shape=(self.D, self.D2), initializer=self.kernel_initializer,trainable=True)
+        self.b_e_2 = self.add_weight(name='b_e_2', shape=(self.D2,), initializer=self.bias_initializer)
+        self.W_out = self.add_weight(name='W_out', shape=(2*self.D + self.D2, self.D), initializer=self.kernel_initializer, trainable=True)
         self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer=self.bias_initializer)
         super(AttentionDecoderLSTMCell, self).build(input_shape)
 
 
     def call(self, inputs, states, constants=None):
         feature_grid = constants[0]
+        feature_grid_2 = constants[1]
         # Input
         _input = inputs
         x = K.concatenate((_input, states[0])) # (batch_size, V + D)
@@ -105,25 +107,26 @@ class AttentionDecoderLSTMCell(Layer):
         h = K.tanh(c) * o # (batch_size, D)
 
         # Attention
-        b = K.dot(K.expand_dims(h, 1), self.W_e)[:,0] + self.b_e # (batch_size, D)
+        b = K.dot(K.expand_dims(h, 1), self.W_e)[:, 0] + self.b_e  # (batch_size, D)
+        b = K.expand_dims(b)  # (batch_size, D, 1)
+        e = K.batch_dot(feature_grid, b)[:, :, 0]  # (batch_size, L)
+        a = K.softmax(e)  # (batch_size, L)
+        # a = tf.Print(a, [tf.shape(a), a], summarize=999999)
+        a = K.expand_dims(a, 1)  # (batch_size, 1, L)
+        z = K.batch_dot(a, feature_grid)[:, 0]  # (batch_size, D)
 
-        # Addition new layers
-        # Tanh layer missing from previous implementation (needed??)
-        b = K.tanh(b)
-        # New layer
-        b = K.dot(K.expand_dims(b, 1), self.W_e_2)[:, 0] + self.b_e_2  # (batch_size, D)
-        b = K.tanh(b)
-
-        b = K.expand_dims(b) # (batch_size, D, 1)
-        e = K.batch_dot(feature_grid, b)[:,:,0] # (batch_size, L)
-        a = K.softmax(e) # (batch_size, L)
-        #a = tf.Print(a, [tf.shape(a), a], summarize=999999)
-        a = K.expand_dims(a, 1) # (batch_size, 1, L)
-        z = K.batch_dot(a, feature_grid)[:,0] # (batch_size, D)
+        # Attention2
+        b = K.dot(K.expand_dims(h, 1), self.W_e_2)[:, 0] + self.b_e_2  # (batch_size, D/2)
+        b = K.expand_dims(b)  # (batch_size, D/2, 1)
+        e = K.batch_dot(feature_grid_2, b)[:, :, 0]  # (batch_size, L')
+        a = K.softmax(e)  # (batch_size, L')
+        # a = tf.Print(a, [tf.shape(a), a], summarize=999999)
+        a = K.expand_dims(a, 1)  # (batch_size, 1, L')
+        z_2 = K.batch_dot(a, feature_grid_2)[:, 0]  # (batch_size, D/2)
 
         # Output
-        hz = K.concatenate((h, z)) # (batch_size, 2D,)
-        hz = K.expand_dims(hz, 1) # (batch_size, 1, 2D)
+        hz = K.concatenate((h, z, z_2)) # (batch_size, 2D + D/2,)
+        hz = K.expand_dims(hz, 1) # (batch_size, 1, 2D + D/2)
         out = K.tanh(K.dot(hz, self.W_out) + self.b_out) # (batch_size, 1, D)
         out = out[:, 0]  # (batch_size, D)
 

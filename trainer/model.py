@@ -10,6 +10,20 @@ from trainer.metrics import *
 import numpy as np
 
 
+def row_encoder(encoder_size, kernel_init, bias_init, name, x):
+    # row encoder
+    row = Bidirectional(LSTM(encoder_size, return_sequences=True, name=name, kernel_initializer=kernel_init,
+                             bias_initializer=bias_init), merge_mode='concat')
+
+    def step_foo(input_t, state):  # input_t: (batch_size, W, D), state doesn't matter
+        return row(input_t), state  # (batch_size, W, 2 * encoder_size) 2 times encoder_size because of BiLSTM and concat
+
+    l = Lambda(lambda x: K.rnn(step_foo, x, [])[1])(x)  # (batch_size, H, W, 2 * encoder_size)
+    e = Reshape((-1, 2 * encoder_size))(l)
+
+    return e
+
+
 def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     # Weight initializers
     kernel_init = 'glorot_normal'
@@ -22,6 +36,8 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 1) - normalize to [-1, +1)
     
     filter_sizes = [64, 128, 256, 512]
+
+    scales = []
     for filter_size in filter_sizes:
         # conv net
         x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
@@ -30,21 +46,16 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
         x = BatchNormalization()(x)
         x = Activation('relu')(x)
         x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)
+        scales.append(x)
 
-    # row encoder
-    row = Bidirectional(LSTM(encoder_size, return_sequences=True, name="encoder", kernel_initializer=kernel_init, bias_initializer=bias_init), merge_mode='concat')
 
-    def step_foo(input_t, state):  # input_t: (batch_size, W, D), state doesn't matter
-        return row(input_t), state  # (batch_size, W, 2 * encoder_size) 2 times encoder_size because of BiLSTM and concat
-
-    # Important to use a lambda outside a layer
-    x = Lambda(lambda x: K.rnn(step_foo, x, [])[1])(x)  # (batch_size, H, W, 2 * encoder_size)
-    encoder = Reshape((-1, 2 * encoder_size))(x)  # (batch_size, H * W, 2 * encoder_size) H * W = L in AttentionDecoderLSTMCell
+    encoder_large = row_encoder(encoder_size, kernel_init, bias_init, "encoder_large", scales[len(scales) - 1])
+    encoder_small = row_encoder(encoder_size, kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
 
     # decoder
-    cell = AttentionDecoderLSTMCell(vocabulary_size, encoder_size * 2, internal_embedding)
+    cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size * 2, D2= encoder_size*2, E=internal_embedding)
     decoder = RNN(cell, return_sequences=True, return_state=True, name="decoder")
-    decoder_output, _, _ = decoder(decoder_input, constants=[encoder])  # (batch_size, seq_len, encoder_size*2)
+    decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large, encoder_small])  # (batch_size, seq_len, encoder_size*2)
     decoder_dense = Dense(vocabulary_size, activation="softmax", kernel_initializer=kernel_init, bias_initializer=bias_init)
     decoder_output = decoder_dense(decoder_output)
 
@@ -56,15 +67,16 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     model = Model(inputs=[encoder_input_imgs, decoder_input], outputs=decoder_output)
     model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=metrics)
 
-    encoder_model = Model(encoder_input_imgs, encoder)
+    encoder_model = Model(encoder_input_imgs, [encoder_large, encoder_small])
 
     feature_grid_input = Input(shape=(None, 2 * encoder_size), dtype='float32', name='feature_grid')
+    feature_grid_input_2 = Input(shape=(None, 2 * encoder_size), dtype='float32', name='feature_grid_2')
     decoder_state_h = Input(shape=(encoder_size * 2,))
     decoder_state_c = Input(shape=(encoder_size * 2,))
-    decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input],
+    decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input, feature_grid_input_2],
                                                initial_state=[decoder_state_h, decoder_state_c])
     decoder_output = decoder_dense(decoder_output)
-    decoder_model = Model([feature_grid_input, decoder_input, decoder_state_h, decoder_state_c], [decoder_output, state_h, state_c])
+    decoder_model = Model([feature_grid_input, feature_grid_input_2, decoder_input, decoder_state_h, decoder_state_c], [decoder_output, state_h, state_c])
 
     return model, encoder_model, decoder_model
 
