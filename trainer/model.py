@@ -31,33 +31,6 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
         x = Activation('relu')(x)
         x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)
 
-    
-
-    #x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    #x = BatchNormalization()(x)
-    #x = Activation('relu')(x)
-    #x = Conv2D(filters=128, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    #x = BatchNormalization()(x)
-    #x = Activation('relu')(x)
-    #x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
-
-    #x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    #x = BatchNormalization()(x)
-    #x = Activation('relu')(x)
-    #x = Conv2D(filters=256, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    #x = BatchNormalization()(x)
-    #x = Activation('relu')(x)
-    #x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
-
-    #x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    #x = BatchNormalization()(x)
-    #x = Activation('relu')(x)
-    #x = Conv2D(filters=512, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
-    #x = BatchNormalization()(x)
-    #x = Activation('relu')(x)
-    #x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)  # (batch_size, imgH/2, imgW/2, 64)
-    # (batch_size, 16, 32, 512)
-
     # row encoder
     row = Bidirectional(LSTM(encoder_size, return_sequences=True, name="encoder", kernel_initializer=kernel_init, bias_initializer=bias_init), merge_mode='concat')
 
