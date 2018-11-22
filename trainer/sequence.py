@@ -2,6 +2,7 @@ from graphics import utils
 from trainer.defaults import *
 from keras.utils import to_categorical
 from file_utils import *
+from graphics import augment
 
 
 def sequence_generator(generator, config, batch_size, vocabulary_map):
@@ -220,3 +221,75 @@ def tar_image_sequencer(batch_size, tar_file, image_map, vocabulary_map, augment
 
         yield [np.stack(inputs), to_categorical(input_sequences, vocabulary_size)], \
               to_categorical(targets, vocabulary_size)
+
+
+def create_parser(vocabulary):
+    from parsy import string, alt
+    vocab = reversed(sorted(vocabulary | {" "}))
+    parser = alt(*map(string, vocab))
+    return parser.many()
+
+
+def predefined_image_sequence_generator(x_train, y_train, encoder_vb, data_generator, batch_size):
+    keys = encoder_vb.keys()
+    parser = create_parser(keys)
+    l = len(x_train)
+    vocabulary_size = len(encoder_vb)
+    index = 0
+    augmentor = augment.Augmentor()
+    #import time
+    while True:
+        #start = time.time()
+        inputs = []
+        input_sequences = []
+        targets = []
+        max_width = int(0)
+        max_height = int(0)
+        max_seq_len = int(0)
+        for index in range(batch_size):
+            if index == l:
+                index = 0
+
+            image = x_train[index]
+            output = y_train[index]
+            try:
+                tokens = parser.parse(output)
+            except:
+                print(output)
+            tokens = list(filter(lambda a: a != " ", tokens))
+            index += 1
+            input_sequence = list(tokens)
+            input_sequence.insert(0, "<start>")
+            tokens.append("<end>")
+
+            inputs.append(image)
+            input_sequences.append(np.array(input_sequence))
+            targets.append(np.array(tokens))
+
+            max_width = max(utils.w(image), max_width)
+            max_height = max(utils.h(image), max_height)
+            max_seq_len = max(max_seq_len, len(tokens))
+
+        for index in range(batch_size):
+            # Resize image
+            image = inputs[index]
+            rw, rh = max_width - utils.w(image), max_height - utils.h(image)
+            left, top = int(rw / 2), int(rh / 2)
+            image = utils.pad_image(image, top, left, rh - top, rw - left)
+            if data_generator is not None:
+                image = data_generator.random_transform(image)
+            image = augmentor.grayscale(image)
+            inputs[index] = image
+
+            # Resize sequence
+            seq = input_sequences[index]
+            input_sequences[index] = np.append(seq, np.repeat('<end>', max_seq_len - len(seq)))
+            input_sequences[index] = [encoder_vb[token] for token in input_sequences[index]]
+
+            t_seq = targets[index]
+            targets[index] = np.append(t_seq, np.repeat('<end>', max_seq_len - len(t_seq)))
+            targets[index] = [encoder_vb[token] for token in targets[index]]
+
+        # print("--- %s seconds --- " % str(time.time() - start))
+        yield [np.stack(inputs), to_categorical(input_sequences, vocabulary_size)], \
+               to_categorical(targets, vocabulary_size)
