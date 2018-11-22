@@ -15,7 +15,7 @@ def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb, max
 
         decoded_sentence = ""
         while True:
-            output, h, c = decoder.predict([feature_grid, sequence] + states)
+            output, h, c = decoder.predict(feature_grid + [sequence] + states)
 
             # Sample token
             sampled_token_index = np.argmax(output[0, -1, :])
