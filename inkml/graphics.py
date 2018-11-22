@@ -13,11 +13,12 @@ def normalize_points(inkml):
     mean_distance = 0.0
     total_points = 0
 
-    for k in range(len(inkml.symbols)):
-        symbol = inkml.symbols[k]
+    for k in range(len(inkml)):
+        symbol = inkml[k]
         trace_length = 0
         for j in range(len(symbol)):
-            x, y = symbol[j]
+            x = symbol[j][0]
+            y = symbol[j][1]
             if j != 0:
                 if x == symbol[j-1][0] and y == symbol[j-1][1]:
                     continue
@@ -46,11 +47,12 @@ def normalize_points(inkml):
     height = size_y * scale + 20
 
 
-    for k in range(len(inkml.symbols)):
-        symbol = inkml.symbols[k]
+    for k in range(len(inkml)):
+        symbol = inkml[k]
 
         for j in range(len(symbol)):
-            x, y = symbol[j]
+            x = symbol[j][0]
+            y = symbol[j][1]
 
             x = (x + trans_x) * scale + 10
             y = (y + trans_y) * scale + 10
@@ -67,7 +69,7 @@ class Graphics:
         image = new_image(int(width + 1), int(height + 1))
 
         #pts = [line - point_min for line in inkml.symbols]
-        pts = [np.rint(line) for line in inkml.symbols]
+        pts = [np.rint(line) for line in inkml]
         pts = [np.asarray(line, dtype=np.int32) for line in pts]
         pts = [np.reshape(np.array(line), (-1, 1, 2)) for line in pts]
         cv2.polylines(image, pts, False, (0, 0, 0), 2, lineType=cv2.LINE_AA)

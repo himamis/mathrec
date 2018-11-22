@@ -150,3 +150,8 @@ def rollback():
 def close():
     conn.close()
     cur.close()
+
+def query(string):
+    cur.execute(string)
+    rows = cur.fetchall()
+    return rows
