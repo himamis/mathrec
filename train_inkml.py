@@ -48,7 +48,7 @@ start_time = datetime.now()
 log = "git hash:\t\t\t'" + parse_arg('--git-hexsha', 'NAN') + "'\n"
 log += 'start time:\t\t\t' + str(start_time) + '\n'
 
-batch_size = 32
+batch_size = 8
 max_length = 200
 
 vocabulary = pickle.load(open(path.join(data_base_dir, "vocabulary.pkl"), "rb"))
@@ -81,8 +81,8 @@ print("Image2Latex:", "End create model:", datetime.now().time())
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
 print("Image2Latex:", "Start training...")
-history = model.fit_generator(training_data, len(x_train), epochs=10, verbose=2,
-                              validation_data=validation_data, validation_steps=len(x_valid),
+history = model.fit_generator(training_data, int(len(x_train)/batch_size), epochs=10, verbose=2,
+                              validation_data=validation_data, validation_steps=int(len(x_valid)/batch_size),
                               callbacks=[checkpointer, logger], initial_epoch=start_epoch)
 end_time = datetime.now()
 log += 'end time:\t\t\t' + str(end_time) + '\n'
