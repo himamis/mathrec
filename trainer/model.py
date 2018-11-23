@@ -8,6 +8,7 @@ from trainer.defaults import create_vocabulary
 from keras.optimizers import  RMSprop
 from trainer.metrics import *
 import numpy as np
+from keras.regularizers import l1, l1_l2, l2
 
 
 def row_encoder(encoder_size, kernel_init, bias_init, name, x):
@@ -49,11 +50,12 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
         scales.append(x)
 
 
-    encoder_large = row_encoder(encoder_size, kernel_init, bias_init, "encoder_large", scales[len(scales) - 1])
-    encoder_small = row_encoder(encoder_size, kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
+    encoder_large = row_encoder(256, kernel_init, bias_init, "encoder_large", scales[len(scales) - 1])
+    encoder_small = row_encoder(128, kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
 
     # decoder
-    cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size * 2, D2= encoder_size*2, E=internal_embedding)
+    regularization = l1_l2(0.01)
+    cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size * 2, D2= encoder_size, E=internal_embedding, regularizers=regularization)
     decoder = RNN(cell, return_sequences=True, return_state=True, name="decoder")
     decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large, encoder_small])  # (batch_size, seq_len, encoder_size*2)
     decoder_dense = Dense(vocabulary_size, activation="softmax", kernel_initializer=kernel_init, bias_initializer=bias_init)
@@ -70,7 +72,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     encoder_model = Model(encoder_input_imgs, [encoder_large, encoder_small])
 
     feature_grid_input = Input(shape=(None, 2 * encoder_size), dtype='float32', name='feature_grid')
-    feature_grid_input_2 = Input(shape=(None, 2 * encoder_size), dtype='float32', name='feature_grid_2')
+    feature_grid_input_2 = Input(shape=(None, encoder_size), dtype='float32', name='feature_grid_2')
     decoder_state_h = Input(shape=(encoder_size * 2,))
     decoder_state_c = Input(shape=(encoder_size * 2,))
     decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input, feature_grid_input_2],
