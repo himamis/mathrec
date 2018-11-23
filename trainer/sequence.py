@@ -235,7 +235,7 @@ def predefined_image_sequence_generator(x_train, y_train, encoder_vb, data_gener
     parser = create_parser(keys)
     l = len(x_train)
     vocabulary_size = len(encoder_vb)
-    index = 0
+    i = 0
     augmentor = augment.Augmentor()
     #import time
     while True:
@@ -247,17 +247,17 @@ def predefined_image_sequence_generator(x_train, y_train, encoder_vb, data_gener
         max_height = int(0)
         max_seq_len = int(0)
         for index in range(batch_size):
-            if index == l:
-                index = 0
+            if i == l:
+                i = 0
 
-            image = x_train[index]
-            output = y_train[index]
+            image = x_train[i]
+            output = y_train[i]
             try:
                 tokens = parser.parse(output)
             except:
                 print(output)
             tokens = list(filter(lambda a: a != " ", tokens))
-            index += 1
+            i += 1
             input_sequence = list(tokens)
             input_sequence.insert(0, "<start>")
             tokens.append("<end>")
