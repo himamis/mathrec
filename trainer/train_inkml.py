@@ -6,18 +6,12 @@ from numpy.random import seed
 from datetime import datetime
 from os import path, mkdir
 from sklearn.model_selection import train_test_split
-from graphics import augment
-from xainano_graphics import postprocessor
-from trainer.callbacks import EvaluateModel
-from keras.utils import to_categorical
-from keras.preprocessing.image import ImageDataGenerator
 
 from tensorflow import set_random_seed
 from trainer.sequence import predefined_image_sequence_generator
 from trainer.logger import NBatchLogger
 from trainer.defaults import *
 import numpy as np
-import pickle
 
 seed(1337)
 set_random_seed(1337)
@@ -51,13 +45,13 @@ log += 'start time:\t\t\t' + str(start_time) + '\n'
 batch_size = 8
 max_length = 200
 
-vocabulary = pickle.load(open(path.join(data_base_dir, "vocabulary.pkl"), "rb"))
+vocabulary = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 vocabulary = vocabulary | {"<start>", "<end>", "^", "_", "\\frac", "{", "}", "\\mbox", "\\to", "\\left"} \
                         | {"\\right", "\\cdots"}
 vocabulary = sorted(vocabulary)
 vocabulary_maps = create_vocabulary_maps(vocabulary)
 
-images = pickle.load(open(path.join(data_base_dir, "images_train.pkl"), "rb"))
+images = utils.read_pkl(path.join(data_base_dir, "images_train.pkl"))
 x, y = zip(*images)
 
 x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=0.2)

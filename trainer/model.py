@@ -1,13 +1,10 @@
-from keras import backend as K
 from keras.models import Model
 from keras.layers import Input, RNN, Conv2D, MaxPooling2D, BatchNormalization, Activation, \
     Bidirectional, LSTM, Lambda, Dense, Reshape
 # if you use sometimes a current keras implementation, you don't need RNN and Reshape anymore and you can use it from keras
 from trainer import AttentionDecoderLSTMCell
 from trainer.defaults import create_vocabulary
-from keras.optimizers import  RMSprop
 from trainer.metrics import *
-import numpy as np
 from keras.regularizers import l1, l1_l2, l2
 
 
