@@ -51,7 +51,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     encoder_small = row_encoder(128, kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
 
     # decoder
-    regularization = l1_l2(0.01)
+    regularization = None
     cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size * 2, D2= encoder_size, E=internal_embedding, regularizers=regularization)
     decoder = RNN(cell, return_sequences=True, return_state=True, name="decoder")
     decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large, encoder_small])  # (batch_size, seq_len, encoder_size*2)
