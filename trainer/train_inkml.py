@@ -44,7 +44,7 @@ start_time = datetime.now()
 log = "git hash:\t\t\t'" + parse_arg('--git-hexsha', 'NAN') + "'\n"
 log += 'start time:\t\t\t' + str(start_time) + '\n'
 
-batch_size = 32
+batch_size = 2
 max_length = 200
 
 vocabulary = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
@@ -84,8 +84,8 @@ checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
 logging.debug("Image2Latex Start training...")
 
-train_len = 100 #int(len(x_train)/batch_size)
-val_len = 50 #int(len(x_valid)/batch_size)
+train_len = 20 #int(len(x_train)/batch_size)
+val_len = 10 #int(len(x_valid)/batch_size)
 epochs = 1 #10
 history = model.fit_generator(training_data, train_len, epochs=epochs, verbose=2,
                               validation_data=validation_data, validation_steps=val_len,
