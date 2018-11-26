@@ -51,3 +51,28 @@ class NBatchLogger(Callback):
                                               self.params['steps'],
                                               metrics_log))
             self.metric_cache.clear()
+
+
+class NumbersHistory(Callback):
+
+    def __init__(self, date_str, git_hexsha):
+        self.date_str = date_str
+        self.git_hexsha = git_hexsha
+
+    def on_train_begin(self, logs={}):
+        self.losses = []
+        self.accuracy = []
+        self.accuracy_masked = []
+        self.val_losses = []
+        self.val_accuracy = []
+        self.val_accuracy_masked = []
+
+    def on_batch_end(self, batch, logs={}):
+        self.losses.append(logs.get('loss'))
+        self.accuracy.append(logs.get('acc'))
+        self.accuracy_masked.append(logs.get('masked'))
+
+    def on_epoch_end(self, epoch, logs={}):
+        self.val_losses.append(logs.get('val_loss'))
+        self.val_accuracy.append(logs.get('val_acc'))
+        self.val_accuracy_masked.append(logs.get('val_masked'))

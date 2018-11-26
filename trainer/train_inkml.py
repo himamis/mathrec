@@ -14,6 +14,7 @@ from trainer.sequence import predefined_image_sequence_generator
 from trainer.logger import NBatchLogger
 from trainer.defaults import *
 import numpy as np
+from trainer.callbacks import NumbersHistory
 
 seed(1337)
 set_random_seed(1337)
@@ -22,11 +23,12 @@ date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 folder_str = 'model-inkml-' + date_str
 architecture_fname = 'architecture.json'
 weights_fname = 'weights_{epoch}.h5'
-result_fname = 'result_log.txt'
+#result_fname = 'result_log.txt'
 history_fname = 'history.pkl'
+results_fname = 'results.pkl'
 
 start_epoch = int(parse_arg('--start-epoch', 0))
-data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/')
+data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/real_data')
 model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/model')
 #background_dir = parse_arg('--background-dir', '/Volumes/SDCard/split_backgrounds_dir')
 #continue_dir = parse_arg('--continue', default=None, required=False)
@@ -37,11 +39,12 @@ base_dir = path.join(model_checkpoint_dir, folder_str)
 
 model_architecture_file = path.join(model_checkpoint_dir, folder_str, architecture_fname)
 model_weights_file = path.join(model_checkpoint_dir, folder_str, weights_fname)
-results_file = path.join(model_checkpoint_dir, folder_str, result_fname)
+results_file = path.join(model_checkpoint_dir, folder_str, results_fname)
 history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
 
 start_time = datetime.now()
-log = "git hash:\t\t\t'" + parse_arg('--git-hexsha', 'NAN') + "'\n"
+git_hexsha = parse_arg('--git-hexsha', 'NAN')
+log = "git hash:\t\t\t'" + git_hexsha + "'\n"
 log += 'start time:\t\t\t' + str(start_time) + '\n'
 
 batch_size = 2
@@ -81,6 +84,7 @@ logging.debug("Image2Latex: End create model:", datetime.now().time())
 
 #eval = EvaluateModel(encoder, decoder, vocabulary, vocabulary_maps[0], vocabulary_maps[1], validation_data)
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
+numbers = NumbersHistory(date_str, git_hexsha=git_hexsha)
 logger = NBatchLogger(1)
 logging.debug("Image2Latex Start training...")
 
@@ -89,7 +93,7 @@ val_len = 10 #int(len(x_valid)/batch_size)
 epochs = 1 #10
 history = model.fit_generator(training_data, train_len, epochs=epochs, verbose=2,
                               validation_data=validation_data, validation_steps=val_len,
-                              callbacks=[checkpointer, logger], initial_epoch=start_epoch)
+                              callbacks=[checkpointer, logger, numbers], initial_epoch=start_epoch)
 end_time = datetime.now()
 log += 'end time:\t\t\t' + str(end_time) + '\n'
 #losses = model.evaluate_generator(testing_data, 1000)
@@ -100,3 +104,4 @@ logging.debug(model.metrics_names)
 #utils.write_string(results_file, log)
 del history.model
 utils.write_pkl(history_file, history)
+utils.write_pkl(results_file, numbers)
