@@ -5,7 +5,7 @@ import pickle
 from inkml import graphics as g
 import cv2
 
-formulas = query("SELECT * FROM public.formula")
+formulas = query("select formula.id, formula.writerid, formula.formula FROM public.database, public.writer, public.formula WHERE public.formula.writerid = public.writer.id AND public.writer.databaseid = public.database.id AND public.database.name LIKE '%CROHME2013_data/TrainINKML%';")
 graphics = g.Graphics()
 vocabulary = set()
 
@@ -23,6 +23,8 @@ for formula in formulas:
             inkml_traces.append(trace[2])
 
     image = graphics.create_image(inkml_traces)
+    cv2.imshow("image", image)
+    cv2.waitKey(0)
     truth = formula[2]
     if truth[0] == "$":
         truth = truth[1:]
@@ -31,5 +33,5 @@ for formula in formulas:
     result.append((image, truth))
 
 
-pickle.dump(result, open('/Users/balazs/images.pkl', 'wb'))
-pickle.dump(vocabulary, open('/Users/balazs/vocabulary.pkl', 'wb'))
+#pickle.dump(result, open('/Users/balazs/images.pkl', 'wb'))
+#pickle.dump(vocabulary, open('/Users/balazs/vocabulary.pkl', 'wb'))
