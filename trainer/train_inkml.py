@@ -4,8 +4,10 @@ from trainer import model
 from utilities import parse_arg
 from numpy.random import seed
 from datetime import datetime
-from os import path, mkdir
+from os import path
 from sklearn.model_selection import train_test_split
+import logging
+import tensorflow as tf
 
 from tensorflow import set_random_seed
 from trainer.sequence import predefined_image_sequence_generator
@@ -29,8 +31,8 @@ model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/model'
 #background_dir = parse_arg('--background-dir', '/Volumes/SDCard/split_backgrounds_dir')
 #continue_dir = parse_arg('--continue', default=None, required=False)
 base_dir = path.join(model_checkpoint_dir, folder_str)
-if not path.exists(base_dir):
-    mkdir(base_dir)
+#if not path.exists(base_dir):
+#    mkdir(base_dir)
 #data_base_dir = path.join(data_base_dir, 'xainano_images')
 
 model_architecture_file = path.join(model_checkpoint_dir, folder_str, architecture_fname)
@@ -42,7 +44,7 @@ start_time = datetime.now()
 log = "git hash:\t\t\t'" + parse_arg('--git-hexsha', 'NAN') + "'\n"
 log += 'start time:\t\t\t' + str(start_time) + '\n'
 
-batch_size = 8
+batch_size = 32
 max_length = 200
 
 vocabulary = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
@@ -51,7 +53,7 @@ vocabulary = vocabulary | {"<start>", "<end>", "^", "_", "\\frac", "{", "}", "\\
 vocabulary = sorted(vocabulary)
 vocabulary_maps = create_vocabulary_maps(vocabulary)
 
-images = utils.read_pkl(path.join(data_base_dir, "images_train.pkl"))
+images = utils.read_pkl(path.join(data_base_dir, "images_train_clean.pkl"))
 x, y = zip(*images)
 
 x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=0.2)
@@ -66,26 +68,25 @@ mask = np.zeros(len(vocabulary))
 mask[vocabulary_maps[0]['<end>']] = 1
 
 
-print("Image2Latex:", "Start create model:", datetime.now().time())
-model, encoder, decoder = model.create_default(len(vocabulary), mask)
+logging.debug("Image2Latex: Start create model:", datetime.now().time())
+with tf.device('/gpu:0'):
+    model, encoder, decoder = model.create_default(len(vocabulary), mask)
+
 # I don't do this, because I think there are some bugs, when saving RNN with constants
-print("Image2Latex:", "End create model:", datetime.now().time())
+logging.debug("Image2Latex: End create model:", datetime.now().time())
 
 #eval = EvaluateModel(encoder, decoder, vocabulary, vocabulary_maps[0], vocabulary_maps[1], validation_data)
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
-print("Image2Latex:", "Start training...")
+logging.debug("Image2Latex Start training...")
 history = model.fit_generator(training_data, int(len(x_train)/batch_size), epochs=10, verbose=2,
                               validation_data=validation_data, validation_steps=int(len(x_valid)/batch_size),
                               callbacks=[checkpointer, logger], initial_epoch=start_epoch)
 end_time = datetime.now()
 log += 'end time:\t\t\t' + str(end_time) + '\n'
-print("Image2Latex:", history.epoch)
-print("Image2Latex:", history.history)
-print("Image2Latex:", "Start evaluating...")
 #losses = model.evaluate_generator(testing_data, 1000)
 #print(losses)
-print(model.metrics_names)
+logging.debug(model.metrics_names)
 #log += 'losses:\n'
 #log += str(losses)
 #utils.write_string(results_file, log)

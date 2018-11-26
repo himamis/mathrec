@@ -8,10 +8,12 @@ REQUIRED_PACKAGES = ['Keras==2.1.6',
                      'google-cloud-storage>=1.10',
                      'numpy>=1.9.1',
                      'opencv-python>=3.4.2',
-                     'tensorflow==1.9',
+                     'tensorflow-gpu==1.9',
                      'gitpython==2.1.11',
                      'pypng==0.0.18',
-                     'imgaug==0.2.6']
+                     'imgaug==0.2.6',
+                     'parsy==1.2.0',
+                     'google-cloud-logging==1.8.0']
 
 setup(
     name='trainer',
