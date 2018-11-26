@@ -53,10 +53,14 @@ vocabulary = vocabulary | {"<start>", "<end>", "^", "_", "\\frac", "{", "}", "\\
 vocabulary = sorted(vocabulary)
 vocabulary_maps = create_vocabulary_maps(vocabulary)
 
-images = utils.read_pkl(path.join(data_base_dir, "images_train_clean.pkl"))
-x, y = zip(*images)
+images = utils.read_pkl(path.join(data_base_dir, "data_training.pkl"))
+x_train, y_train = zip(*images)
 
-x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=0.2)
+images = utils.read_pkl(path.join(data_base_dir, "data_validation.pkl"))
+x_valid, y_valid = zip(*images)
+
+
+#x_train, x_valid, y_train, y_valid = train_test_split(x, y, test_size=0.2)
 
 
 # generate data generators
@@ -69,8 +73,8 @@ mask[vocabulary_maps[0]['<end>']] = 1
 
 
 logging.debug("Image2Latex: Start create model:", datetime.now().time())
-with tf.device('/gpu:0'):
-    model, encoder, decoder = model.create_default(len(vocabulary), mask)
+#with tf.device('/gpu:0'):
+model, encoder, decoder = model.create_default(len(vocabulary), mask)
 
 # I don't do this, because I think there are some bugs, when saving RNN with constants
 logging.debug("Image2Latex: End create model:", datetime.now().time())
@@ -79,8 +83,12 @@ logging.debug("Image2Latex: End create model:", datetime.now().time())
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 logger = NBatchLogger(1)
 logging.debug("Image2Latex Start training...")
-history = model.fit_generator(training_data, int(len(x_train)/batch_size), epochs=10, verbose=2,
-                              validation_data=validation_data, validation_steps=int(len(x_valid)/batch_size),
+
+train_len = 100 #int(len(x_train)/batch_size)
+val_len = 50 #int(len(x_valid)/batch_size)
+epochs = 1 #10
+history = model.fit_generator(training_data, train_len, epochs=epochs, verbose=2,
+                              validation_data=validation_data, validation_steps=val_len,
                               callbacks=[checkpointer, logger], initial_epoch=start_epoch)
 end_time = datetime.now()
 log += 'end time:\t\t\t' + str(end_time) + '\n'

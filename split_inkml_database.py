@@ -4,17 +4,17 @@ import os
 from random import shuffle
 import pickle
 
-data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/')
-pkl_file = os.path.join(data_base_dir, "images.pkl")
+data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/real_data')
+pkl_file = os.path.join(data_base_dir, "data_trainingvalidation.pkl")
 
 if not file_exists(pkl_file):
     print("file does not exist" + pkl_file)
     exit(1)
 
-train_f_p = os.path.join(data_base_dir, "images_train.pkl")
+train_f_p = os.path.join(data_base_dir, "data_training.pkl")
 train_f = open(train_f_p, "wb")
 
-test_f_p = os.path.join(data_base_dir, "images_test.pkl")
+test_f_p = os.path.join(data_base_dir, "data_validation.pkl")
 test_f = open(test_f_p, "wb")
 
 
