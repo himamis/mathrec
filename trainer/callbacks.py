@@ -52,7 +52,6 @@ class NBatchLogger(Callback):
                                               metrics_log))
             self.metric_cache.clear()
 
-
 class NumbersHistory(Callback):
 
     def __init__(self, date_str, git_hexsha):

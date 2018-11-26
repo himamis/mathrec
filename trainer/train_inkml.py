@@ -4,10 +4,9 @@ from trainer import model
 from utilities import parse_arg
 from numpy.random import seed
 from datetime import datetime
-from os import path
+from os import path, mkdir
 from sklearn.model_selection import train_test_split
 import logging
-import tensorflow as tf
 
 from tensorflow import set_random_seed
 from trainer.sequence import predefined_image_sequence_generator
@@ -23,19 +22,16 @@ date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 folder_str = 'model-inkml-' + date_str
 architecture_fname = 'architecture.json'
 weights_fname = 'weights_{epoch}.h5'
-#result_fname = 'result_log.txt'
 history_fname = 'history.pkl'
 results_fname = 'results.pkl'
 
 start_epoch = int(parse_arg('--start-epoch', 0))
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/real_data')
 model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/model')
-#background_dir = parse_arg('--background-dir', '/Volumes/SDCard/split_backgrounds_dir')
 #continue_dir = parse_arg('--continue', default=None, required=False)
 base_dir = path.join(model_checkpoint_dir, folder_str)
-#if not path.exists(base_dir):
-#    mkdir(base_dir)
-#data_base_dir = path.join(data_base_dir, 'xainano_images')
+if not path.exists(base_dir):
+    mkdir(base_dir)
 
 model_architecture_file = path.join(model_checkpoint_dir, folder_str, architecture_fname)
 model_weights_file = path.join(model_checkpoint_dir, folder_str, weights_fname)
@@ -82,7 +78,6 @@ model, encoder, decoder = model.create_default(len(vocabulary), mask)
 # I don't do this, because I think there are some bugs, when saving RNN with constants
 logging.debug("Image2Latex: End create model:", datetime.now().time())
 
-#eval = EvaluateModel(encoder, decoder, vocabulary, vocabulary_maps[0], vocabulary_maps[1], validation_data)
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 numbers = NumbersHistory(date_str, git_hexsha=git_hexsha)
 logger = NBatchLogger(1)
@@ -96,12 +91,8 @@ history = model.fit_generator(training_data, train_len, epochs=epochs, verbose=2
                               callbacks=[checkpointer, logger, numbers], initial_epoch=start_epoch)
 end_time = datetime.now()
 log += 'end time:\t\t\t' + str(end_time) + '\n'
-#losses = model.evaluate_generator(testing_data, 1000)
-#print(losses)
 logging.debug(model.metrics_names)
-#log += 'losses:\n'
-#log += str(losses)
-#utils.write_string(results_file, log)
 del history.model
 utils.write_pkl(history_file, history)
+del numbers.model
 utils.write_pkl(results_file, numbers)
