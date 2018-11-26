@@ -6,6 +6,7 @@ from trainer import AttentionDecoderLSTMCell
 from trainer.defaults import create_vocabulary
 from trainer.metrics import *
 from keras.regularizers import l1, l1_l2, l2
+from trainer.optimizer import PrintAdadelta
 
 
 def row_encoder(encoder_size, kernel_init, bias_init, name, x):
@@ -64,7 +65,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
         metrics.append(masked)
 
     model = Model(inputs=[encoder_input_imgs, decoder_input], outputs=decoder_output)
-    model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=metrics)
+    model.compile(optimizer=PrintAdadelta(), loss='categorical_crossentropy', metrics=metrics)
 
     encoder_model = Model(encoder_input_imgs, [encoder_large, encoder_small])
 
