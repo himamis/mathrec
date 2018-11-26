@@ -7,7 +7,7 @@ from file_utils import common
 import tarfile
 
 storage_client = storage.Client()
-bucket_name = 'image2latex-mlengine'
+bucket_name = 'image2latex'
 bucket = storage_client.bucket(bucket_name)
 #bucket.blob('file').download
 
