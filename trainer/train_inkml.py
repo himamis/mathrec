@@ -20,7 +20,6 @@ set_random_seed(1337)
 
 date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 folder_str = 'model-inkml-' + date_str
-architecture_fname = 'architecture.json'
 weights_fname = 'weights_{epoch}.h5'
 history_fname = 'history.pkl'
 results_fname = 'results.pkl'
@@ -32,7 +31,6 @@ base_dir = path.join(model_checkpoint_dir, folder_str)
 #if not path.exists(base_dir):
 #    mkdir(base_dir)
 
-model_architecture_file = path.join(model_checkpoint_dir, folder_str, architecture_fname)
 model_weights_file = path.join(model_checkpoint_dir, folder_str, weights_fname)
 results_file = path.join(model_checkpoint_dir, folder_str, results_fname)
 history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
