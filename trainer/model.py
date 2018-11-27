@@ -34,11 +34,13 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
     x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 1) - normalize to [-1, +1)
     
-    filter_sizes = [32, 64, 128, 256, 512]
+    filter_sizes = [32, 64, 128, 256]
 
     scales = []
     for filter_size in filter_sizes:
         # conv net
+        x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+        x = Activation('relu')(x)
         x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
         x = Activation('relu')(x)
         x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
@@ -48,8 +50,8 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
         scales.append(x)
 
 
-    encoder_large = row_encoder(256, kernel_init, bias_init, "encoder_large", scales[len(scales) - 1])
-    encoder_small = row_encoder(128, kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
+    encoder_large = row_encoder(encoder_size, kernel_init, bias_init, "encoder_large", scales[len(scales) - 1])
+    encoder_small = row_encoder(int(encoder_size / 2), kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
 
     # decoder
     regularization = None
@@ -82,6 +84,6 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
 
 
 def create_default(vocabulary_size=len(create_vocabulary()), mask=None):
-    encoder_size = 256
+    encoder_size = 128
     internal_embedding = 512
     return create(vocabulary_size, encoder_size, internal_embedding, mask)

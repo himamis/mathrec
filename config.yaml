@@ -1,3 +1,4 @@
 trainingInput:
-    scaleTier: BASIC
+    scaleTier: CUSTOM
+    masterType: standard_v100
     pythonVersion: "3.5"

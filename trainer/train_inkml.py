@@ -14,6 +14,7 @@ from trainer.defaults import *
 import numpy as np
 from trainer.callbacks import NumbersHistory
 from keras.callbacks import EarlyStopping
+import tensorflow as tf
 
 seed(1337)
 set_random_seed(1337)
@@ -61,7 +62,8 @@ mask[vocabulary_maps[0]['<end>']] = 1
 
 
 logging.debug("Image2Latex: Start create model:", datetime.now().time())
-model, encoder, decoder = model.create_default(len(vocabulary), mask)
+with tf.device('/gpu:0'):
+    model, encoder, decoder = model.create_default(len(vocabulary), mask)
 
 # I don't do this, because I think there are some bugs, when saving RNN with constants
 logging.debug("Image2Latex: End create model:", datetime.now().time())
