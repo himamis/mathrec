@@ -14,6 +14,7 @@ from trainer.logger import NBatchLogger
 from trainer.defaults import *
 import numpy as np
 from trainer.callbacks import NumbersHistory
+from keras.callbacks import EarlyStopping
 
 seed(1337)
 set_random_seed(1337)
@@ -81,14 +82,15 @@ logging.debug("Image2Latex: End create model:", datetime.now().time())
 checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
 numbers = NumbersHistory(date_str, git_hexsha=git_hexsha)
 logger = NBatchLogger(1)
+stopping = EarlyStopping(patience=2)
 logging.debug("Image2Latex Start training...")
 
-train_len = 20 #int(len(x_train)/batch_size)
-val_len = 10 #int(len(x_valid)/batch_size)
-epochs = 1 #10
+train_len = int(len(x_train)/batch_size)
+val_len = int(len(x_valid)/batch_size)
+epochs = 20
 history = model.fit_generator(training_data, train_len, epochs=epochs, verbose=2,
                               validation_data=validation_data, validation_steps=val_len,
-                              callbacks=[checkpointer, logger, numbers], initial_epoch=start_epoch)
+                              callbacks=[checkpointer, logger, numbers, stopping], initial_epoch=start_epoch)
 end_time = datetime.now()
 log += 'end time:\t\t\t' + str(end_time) + '\n'
 logging.debug(model.metrics_names)
