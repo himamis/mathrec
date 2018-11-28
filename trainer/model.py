@@ -35,7 +35,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
     x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 1) - normalize to [-1, +1)
     
-    filter_sizes = [32, 64, 128, 256, 512]
+    filter_sizes = [64, 128, 256, 512]
 
     scales = []
     for filter_size in filter_sizes:
