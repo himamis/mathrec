@@ -10,8 +10,8 @@ def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb, max
         sequence = np.zeros((1, 1, len(vocabulary)), dtype="float32")
         sequence[0, 0, encoding_vb["<start>"]] = 1.
 
-        h = np.zeros((1, 256), dtype="float32")
-        c = np.zeros((1, 256), dtype="float32")
+        h = np.zeros((1, 512), dtype="float32")
+        c = np.zeros((1, 512), dtype="float32")
         states = [h, c]
 
         decoded_output = ""
