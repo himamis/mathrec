@@ -76,7 +76,9 @@ def read_npy(url):
 
 
 def write_npy(url, arr):
-    return None
+    data_string = arr.tobytes()
+    blob = bucket.blob(url)
+    blob.upload_from_string(data_string)
     #with _gcs.open(url, 'wb') as output:
     #    arr = np.save(output, arr)
 
