@@ -11,16 +11,16 @@ from trainer.optimizer import PrintAdadelta
 
 def row_encoder(encoder_size, kernel_init, bias_init, name, x):
     # row encoder
-    row = Bidirectional(LSTM(encoder_size, return_sequences=True, name=name, kernel_initializer=kernel_init,
-                             bias_initializer=bias_init), merge_mode='concat')
-    #row = LSTM(encoder_size, return_sequences=True, name=name, kernel_initializer=kernel_init, bias_initializer=bias_init)
+    #row = Bidirectional(LSTM(encoder_size, return_sequences=True, name=name, kernel_initializer=kernel_init,
+    #                         bias_initializer=bias_init), merge_mode='concat')
+    row = LSTM(encoder_size, return_sequences=True, name=name, kernel_initializer=kernel_init, bias_initializer=bias_init)
 
     def step_foo(input_t, state):  # input_t: (batch_size, W, D), state doesn't matter
         return row(input_t), state  # (batch_size, W, 2 * encoder_size) 2 times encoder_size because of BiLSTM and concat
 
     l = Lambda(lambda x: K.rnn(step_foo, x, [])[1])(x)  # (batch_size, H, W, 2 * encoder_size)
-    e = Reshape((-1, 2*encoder_size))(l)
-    #e = Reshape((-1, encoder_size))(l)
+    #e = Reshape((-1, 2*encoder_size))(l)
+    e = Reshape((-1, encoder_size))(l)
 
     return e
 
@@ -36,7 +36,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
     x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 1) - normalize to [-1, +1)
     
-    filter_sizes = [64, 128, 256, 512]
+    filter_sizes = [32, 64, 128, 256, 512]
 
     scales = []
     for filter_size in filter_sizes:
@@ -55,8 +55,8 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
 
     # decoder
     regularization = None
-    cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size*2, D2=encoder_size, E=internal_embedding,regularizers=regularization)
-    #cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size, D2=int(encoder_size/2), E=internal_embedding, regularizers=regularization)
+    #cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size*2, D2=encoder_size, E=internal_embedding,regularizers=regularization)
+    cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size, D2=int(encoder_size/2), E=internal_embedding, regularizers=regularization)
     decoder = RNN(cell, return_sequences=True, return_state=True, name="decoder")
     #decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large, encoder_small])  # (batch_size, seq_len, encoder_size*2)
     decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large])  # (batch_size, seq_len, encoder_size*2)
@@ -74,13 +74,13 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     #encoder_model = Model(encoder_input_imgs, [encoder_large, encoder_small])
     encoder_model = Model(encoder_input_imgs, [encoder_large])
 
-    feature_grid_input = Input(shape=(None, 2 * encoder_size), dtype='float32', name='feature_grid')
-    #feature_grid_input = Input(shape=(None, encoder_size), dtype='float32', name='feature_grid')
+    #feature_grid_input = Input(shape=(None, 2 * encoder_size), dtype='float32', name='feature_grid')
+    feature_grid_input = Input(shape=(None, encoder_size), dtype='float32', name='feature_grid')
     #feature_grid_input_2 = Input(shape=(None, int(encoder_size/2)), dtype='float32', name='feature_grid_2')
-    decoder_state_h = Input(shape=(encoder_size * 2,))
-    decoder_state_c = Input(shape=(encoder_size * 2,))
-    #decoder_state_h = Input(shape=(encoder_size,))
-    #decoder_state_c = Input(shape=(encoder_size,))
+    #decoder_state_h = Input(shape=(encoder_size * 2,))
+    #decoder_state_c = Input(shape=(encoder_size * 2,))
+    decoder_state_h = Input(shape=(encoder_size,))
+    decoder_state_c = Input(shape=(encoder_size,))
 
     #decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input, feature_grid_input_2],
     #                                           initial_state=[decoder_state_h, decoder_state_c])
