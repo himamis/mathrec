@@ -6,6 +6,7 @@ from os import path
 from graphics import augment
 import numpy as np
 from keras.utils import to_categorical
+from sklearn.metrics import accuracy_score
 
 from tensorflow import set_random_seed
 from trainer.sequence import predefined_image_sequence_generator
@@ -16,7 +17,7 @@ from trainer.sequence import create_parser
 seed(1337)
 set_random_seed(1337)
 
-weights_fname = parse_arg('--weights', 'weights_20.h5')
+weights_fname = parse_arg('--weights', '/Users/balazs/university/models/model-att1-conv64-rowlstm/weights_19.h5')
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/university/model')
 
 max_length = 200
@@ -37,11 +38,7 @@ if not utils.file_exists(weights_fname):
 weights = utils.read_npy(weights_fname)
 model.set_weights(weights)
 
-
 images = utils.read_pkl(path.join(data_base_dir, "data_test_2014.pkl"))
-#x_test, y_test = zip(*images)
-
-#test_data = predefined_image_sequence_generator(x_test, y_test, vocabulary_maps[0], None, 1)
 
 predict = create_predictor(encoder, decoder, vocabulary, vocabulary_maps[0], vocabulary_maps[1], max_length)
 augmentor = augment.Augmentor()
@@ -95,37 +92,38 @@ def wer(r, h):
 
     return d[len(r)][len(h)]
 
+def exp_rate(truth, predicted):
+    if len(truth) > len(predicted):
+        predicted = np.append(predicted, np.repeat("<end>", len(truth) - len(predicted)))
+    elif len(predicted) > len(truth):
+        truth = np.append(truth, np.repeat("<end>", len(predicted) - len(truth)))
+
+    predicted = np.array(predicted)
+    truth = np.array(truth)
+    score = accuracy_score(predicted, truth)
+
+    return score
+
+num = 0
+total_wer = 0
+total_exp_rate = 0
+
 for image, truth in images:
     grayscale_image = augmentor.grayscale(image)
 
-    predicted, encoded_predicted = predict(grayscale_image)
-    if len(predicted) == max_length:
-        predicted = predicted[:len(truth) + 5]
-        encoded_predicted = encoded_predicted[:len(truth) + 5]
-    encoded_predicted = np.array(encoded_predicted)
+    predicted, predicted_parsed = predict(grayscale_image)
+    if len(predicted_parsed) >= max_length:
+        predicted_parsed = predicted_parsed[:len(truth) + 5]
 
     truth = parser.parse(truth)
     truth = list(filter(lambda a: a != " ", truth))
-    predicted = parser.parse(predicted)
 
-    encoded_input = np.zeros((len(truth), len(vocabulary)), dtype="float32")
-    encoded_input = [vocabulary_maps[0][tok] for tok in truth]
-    encoded_input = to_categorical(encoded_input, len(vocabulary))
+    total_wer += wer(truth, predicted_parsed)
+    total_exp_rate += exp_rate(truth, predicted_parsed)
+    num += 1
 
-#    max_len = max(enco)
-    max_len = max(encoded_predicted.shape[0], encoded_input.shape[0])
+avg_wer = total_wer / num
+avg_exp_rate = total_exp_rate / num
 
-    encoded_input = np.append(encoded_input, np.repeat(np.zeros((1, len(vocabulary))), max_len - encoded_input.shape[0]))
-    encoded_predicted = np.append(encoded_predicted, np.repeat(np.zeros((1, len(vocabulary))), max_len - encoded_predicted.shape[0]))
-
-    print(truth)
-    print(predicted)
-    print(wer(truth, predicted))
-
-    tolerance = 1e-10
-    accuracy = (np.abs(encoded_predicted - encoded_input) < tolerance).all(axis=(0, 2)).mean()
-    print(accuracy)
-
-
-    ## SIMPLIFYYYYYY
-    ## JUST USE THE CHARS THAT MATCH!!!!
+print(avg_wer)
+print(avg_exp_rate)
