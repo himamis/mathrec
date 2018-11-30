@@ -7,6 +7,7 @@ from trainer.defaults import create_vocabulary
 from trainer.metrics import *
 from keras.regularizers import l1, l1_l2, l2
 from trainer.optimizer import PrintAdadelta
+from keras.initializers import Orthogonal
 
 
 def row_encoder(encoder_size, kernel_init, bias_init, name, x):
@@ -27,7 +28,9 @@ def row_encoder(encoder_size, kernel_init, bias_init, name, x):
 
 def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     # Weight initializers
-    kernel_init = 'glorot_normal'
+    rnn_kernel_init = Orthogonal()
+    cnn_kernel_init = 'he_normal'
+    dense_init = 'glorot_normal'
     bias_init = 'zeros'
 
     encoder_input_imgs = Input(shape=(None, None, 1), dtype='float32', name='encoder_input_images')  # (batch_size, imgH, imgW, 1)
@@ -41,26 +44,26 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     scales = []
     for filter_size in filter_sizes:
         # conv net
-        x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+        x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=cnn_kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
         x = Activation('relu')(x)
-        x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
+        x = Conv2D(filters=filter_size, kernel_size=3, strides=1, padding='same', kernel_initializer=cnn_kernel_init, bias_initializer=bias_init)(x)  # (batch_size, imgH, imgW, 64)
         x = BatchNormalization()(x)
         x = Activation('relu')(x)
         x = MaxPooling2D(pool_size=2, strides=2, padding='valid')(x)
         scales.append(x)
 
 
-    encoder_large = row_encoder(encoder_size, kernel_init, bias_init, "encoder_large", scales[len(scales) - 1])
-    #encoder_small = row_encoder(int(encoder_size / 2), kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
+    encoder_large = row_encoder(encoder_size, rnn_kernel_init, bias_init, "encoder_large", scales[len(scales) - 1])
+    #encoder_small = row_encoder(int(encoder_size / 2), rnn_kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
 
     # decoder
     regularization = None
-    #cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size*2, D2=encoder_size, E=internal_embedding,regularizers=regularization)
-    cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size, D2=int(encoder_size/2), E=internal_embedding, regularizers=regularization)
+    #cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size*2, D2=encoder_size, E=internal_embedding,regularizers=regularization,dense_initializer=dense_init,kernel_initializer=rnn_kernel_init,bias_initializer=bias_init)
+    cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size, D2=int(encoder_size/2), E=internal_embedding, regularizers=regularization,dense_initializer=dense_init,kernel_initializer=rnn_kernel_init,bias_initializer=bias_init)
     decoder = RNN(cell, return_sequences=True, return_state=True, name="decoder")
     #decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large, encoder_small])  # (batch_size, seq_len, encoder_size*2)
     decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large])  # (batch_size, seq_len, encoder_size*2)
-    decoder_dense = Dense(vocabulary_size, activation="softmax", kernel_initializer=kernel_init, bias_initializer=bias_init)
+    decoder_dense = Dense(vocabulary_size, activation="softmax", kernel_initializer=dense_init, bias_initializer=bias_init)
     decoder_output = decoder_dense(decoder_output)
 
     metrics = ['accuracy']

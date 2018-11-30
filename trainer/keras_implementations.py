@@ -61,7 +61,8 @@ class AttentionDecoderLSTMCell(Layer):
         E - embedding size; currently not used
     '''
 
-    def __init__(self, V = 0, D = 0, D2=0, E = 0, kernel_initializer='glorot_normal',
+    def __init__(self, V = 0, D = 0, D2=0, E = 0, kernel_initializer='he_normal',
+                 dense_initializer="glorot_normal",
                  bias_initializer='zeros', regularizers=None, **kwargs):
         self.D = D
         self.D2 = D2
@@ -70,6 +71,7 @@ class AttentionDecoderLSTMCell(Layer):
         self.state_size = (self.D, self.D) # (out, c)
         self.kernel_initializer = kernel_initializer
         self.bias_initializer = bias_initializer
+        self.dense_initializer = dense_initializer
         self.regularizers = regularizers
         super(AttentionDecoderLSTMCell, self).__init__(**kwargs)
 
@@ -83,12 +85,12 @@ class AttentionDecoderLSTMCell(Layer):
         self.b_g = self.add_weight(name='b_g', shape=(self.D,), initializer=self.bias_initializer, regularizer=self.regularizers)
         self.b_i = self.add_weight(name='b_i', shape=(self.D,), initializer=self.bias_initializer, regularizer=self.regularizers)
         self.b_o = self.add_weight(name='b_o', shape=(self.D,), initializer=self.bias_initializer, regularizer=self.regularizers)
-        self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer=self.kernel_initializer, regularizer=self.regularizers)
+        self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer=self.dense_initializer, regularizer=self.regularizers)
         self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer=self.bias_initializer, regularizer=self.regularizers)
-        #self.W_e_2 = self.add_weight(name='W_e_2', shape=(self.D, self.D2), initializer=self.kernel_initializer, regularizer=self.regularizers)
+        #self.W_e_2 = self.add_weight(name='W_e_2', shape=(self.D, self.D2), initializer=self.dense_initializer, regularizer=self.regularizers)
         #self.b_e_2 = self.add_weight(name='b_e_2', shape=(self.D2,), initializer=self.bias_initializer, regularizer=self.regularizers)
-        #self.W_out = self.add_weight(name='W_out', shape=(2*self.D + self.D2, self.D), initializer=self.kernel_initializer, regularizer=self.regularizers)
-        self.W_out = self.add_weight(name='W_out', shape=(2 * self.D, self.D), initializer=self.kernel_initializer, regularizer=self.regularizers)
+        #self.W_out = self.add_weight(name='W_out', shape=(2*self.D + self.D2, self.D), initializer=self.dense_initializer, regularizer=self.regularizers)
+        self.W_out = self.add_weight(name='W_out', shape=(2 * self.D, self.D), initializer=self.dense_initializer, regularizer=self.regularizers)
         self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer=self.bias_initializer, regularizer=self.regularizers)
         super(AttentionDecoderLSTMCell, self).build(input_shape)
 
