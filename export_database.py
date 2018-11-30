@@ -31,6 +31,7 @@ for index, formula in enumerate(formulas):
             inkml_traces.append(trace[2])
 
     image = graphics.create_image(inkml_traces)
+
     truth = formula[2]
     fixed = truth.strip()
     if fixed.endswith("\\!"):
