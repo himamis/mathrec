@@ -87,17 +87,17 @@ class AttentionDecoderLSTMCell(Layer):
         self.b_o = self.add_weight(name='b_o', shape=(self.D,), initializer=self.bias_initializer, regularizer=self.regularizers)
         self.W_e = self.add_weight(name='W_e', shape=(self.D, self.D), initializer=self.dense_initializer, regularizer=self.regularizers)
         self.b_e = self.add_weight(name='b_e', shape=(self.D,), initializer=self.bias_initializer, regularizer=self.regularizers)
-        #self.W_e_2 = self.add_weight(name='W_e_2', shape=(self.D, self.D2), initializer=self.dense_initializer, regularizer=self.regularizers)
-        #self.b_e_2 = self.add_weight(name='b_e_2', shape=(self.D2,), initializer=self.bias_initializer, regularizer=self.regularizers)
-        #self.W_out = self.add_weight(name='W_out', shape=(2*self.D + self.D2, self.D), initializer=self.dense_initializer, regularizer=self.regularizers)
-        self.W_out = self.add_weight(name='W_out', shape=(2 * self.D, self.D), initializer=self.dense_initializer, regularizer=self.regularizers)
+        self.W_e_2 = self.add_weight(name='W_e_2', shape=(self.D, self.D2), initializer=self.dense_initializer, regularizer=self.regularizers)
+        self.b_e_2 = self.add_weight(name='b_e_2', shape=(self.D2,), initializer=self.bias_initializer, regularizer=self.regularizers)
+        self.W_out = self.add_weight(name='W_out', shape=(2*self.D + self.D2, self.D), initializer=self.dense_initializer, regularizer=self.regularizers)
+        #self.W_out = self.add_weight(name='W_out', shape=(2 * self.D, self.D), initializer=self.dense_initializer, regularizer=self.regularizers)
         self.b_out = self.add_weight(name='b_out', shape=(self.D,), initializer=self.bias_initializer, regularizer=self.regularizers)
         super(AttentionDecoderLSTMCell, self).build(input_shape)
 
 
     def call(self, inputs, states, constants=None):
         feature_grid = constants[0]
-        #feature_grid_2 = constants[1]
+        feature_grid_2 = constants[1]
         # Input
         _input = inputs
         x = K.concatenate((_input, states[0])) # (batch_size, V + D)
@@ -121,17 +121,17 @@ class AttentionDecoderLSTMCell(Layer):
         z = K.batch_dot(a, feature_grid)[:, 0]  # (batch_size, D)
 
         # Attention2
-        #b = K.dot(K.expand_dims(h, 1), self.W_e_2)[:, 0] + self.b_e_2  # (batch_size, D/2)
-        #b = K.expand_dims(b)  # (batch_size, D/2, 1)
-        #e = K.batch_dot(feature_grid_2, b)[:, :, 0]  # (batch_size, L')
-        #a = K.softmax(e)  # (batch_size, L')
+        b = K.dot(K.expand_dims(h, 1), self.W_e_2)[:, 0] + self.b_e_2  # (batch_size, D/2)
+        b = K.expand_dims(b)  # (batch_size, D/2, 1)
+        e = K.batch_dot(feature_grid_2, b)[:, :, 0]  # (batch_size, L')
+        a = K.softmax(e)  # (batch_size, L')
         # a = tf.Print(a, [tf.shape(a), a], summarize=999999)
-        #a = K.expand_dims(a, 1)  # (batch_size, 1, L')
-        #z_2 = K.batch_dot(a, feature_grid_2)[:, 0]  # (batch_size, D/2)
+        a = K.expand_dims(a, 1)  # (batch_size, 1, L')
+        z_2 = K.batch_dot(a, feature_grid_2)[:, 0]  # (batch_size, D/2)
 
         # Output
-        #hz = K.concatenate((h, z, z_2)) # (batch_size, 2D + D/2,)
-        hz = K.concatenate((h, z))  # (batch_size, 2D,)
+        hz = K.concatenate((h, z, z_2)) # (batch_size, 2D + D/2,)
+        #hz = K.concatenate((h, z))  # (batch_size, 2D,)
         hz = K.expand_dims(hz, 1) # (batch_size, 1, 2D)
         out = K.tanh(K.dot(hz, self.W_out) + self.b_out) # (batch_size, 1, D)
         out = out[:, 0]  # (batch_size, D)

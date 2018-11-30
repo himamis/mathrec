@@ -39,7 +39,7 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     # always use lambda if you want to change the tensor, otherwise you get a keras excption
     x = Lambda(lambda a: (a - 128) / 128)(encoder_input_imgs)  # (batch_size, imgH, imgW, 1) - normalize to [-1, +1)
     
-    filter_sizes = [64, 128, 256, 512]
+    filter_sizes = [32, 64, 128, 256, 512]
 
     scales = []
     for filter_size in filter_sizes:
@@ -54,15 +54,15 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
 
 
     encoder_large = row_encoder(encoder_size, rnn_kernel_init, bias_init, "encoder_large", scales[len(scales) - 1])
-    #encoder_small = row_encoder(int(encoder_size / 2), rnn_kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
+    encoder_small = row_encoder(int(encoder_size / 2), rnn_kernel_init, bias_init, "encoder_small", scales[len(scales) - 2])
 
     # decoder
     regularization = None
     cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size*2, D2=encoder_size, E=internal_embedding,regularizers=regularization,dense_initializer=dense_init,kernel_initializer=rnn_kernel_init,bias_initializer=bias_init)
     #cell = AttentionDecoderLSTMCell(V=vocabulary_size, D=encoder_size, D2=int(encoder_size/2), E=internal_embedding, regularizers=regularization,dense_initializer=dense_init,kernel_initializer=rnn_kernel_init,bias_initializer=bias_init)
     decoder = RNN(cell, return_sequences=True, return_state=True, name="decoder")
-    #decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large, encoder_small])  # (batch_size, seq_len, encoder_size*2)
-    decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large])  # (batch_size, seq_len, encoder_size*2)
+    decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large, encoder_small])  # (batch_size, seq_len, encoder_size*2)
+    #decoder_output, _, _ = decoder(decoder_input, constants=[encoder_large])  # (batch_size, seq_len, encoder_size*2)
     decoder_dense = Dense(vocabulary_size, activation="softmax", kernel_initializer=dense_init, bias_initializer=bias_init)
     decoder_output = decoder_dense(decoder_output)
 
@@ -74,10 +74,11 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     model = Model(inputs=[encoder_input_imgs, decoder_input], outputs=decoder_output)
     model.compile(optimizer=PrintAdadelta(), loss='categorical_crossentropy', metrics=metrics)
 
-    #encoder_model = Model(encoder_input_imgs, [encoder_large, encoder_small])
-    encoder_model = Model(encoder_input_imgs, [encoder_large])
+    encoder_model = Model(encoder_input_imgs, [encoder_large, encoder_small])
+    #encoder_model = Model(encoder_input_imgs, [encoder_large])
 
     feature_grid_input = Input(shape=(None, 2 * encoder_size), dtype='float32', name='feature_grid')
+    feature_grid_input_2 = Input(shape=(None, encoder_size), dtype='float32', name='feature_grid_2')
     #feature_grid_input = Input(shape=(None, encoder_size), dtype='float32', name='feature_grid')
     #feature_grid_input_2 = Input(shape=(None, int(encoder_size/2)), dtype='float32', name='feature_grid_2')
     decoder_state_h = Input(shape=(encoder_size * 2,))
@@ -85,12 +86,13 @@ def create(vocabulary_size, encoder_size, internal_embedding=512, mask=None):
     #decoder_state_h = Input(shape=(encoder_size,))
     #decoder_state_c = Input(shape=(encoder_size,))
 
-    #decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input, feature_grid_input_2],
-    #                                           initial_state=[decoder_state_h, decoder_state_c])
-    decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input],
+    decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input, feature_grid_input_2],
                                                initial_state=[decoder_state_h, decoder_state_c])
+    #decoder_output, state_h, state_c = decoder(decoder_input, constants=[feature_grid_input],
+    #                                           initial_state=[decoder_state_h, decoder_state_c])
     decoder_output = decoder_dense(decoder_output)
-    decoder_model = Model([feature_grid_input, decoder_input, decoder_state_h, decoder_state_c], [decoder_output, state_h, state_c])
+    #decoder_model = Model([feature_grid_input, decoder_input, decoder_state_h, decoder_state_c], [decoder_output, state_h, state_c])
+    decoder_model = Model([feature_grid_input, feature_grid_input_2, decoder_input, decoder_state_h, decoder_state_c], [decoder_output, state_h, state_c])
 
     return model, encoder_model, decoder_model
 
