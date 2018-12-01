@@ -7,6 +7,7 @@ from graphics import augment
 import numpy as np
 from keras.utils import to_categorical
 from sklearn.metrics import accuracy_score
+from utilities import progress_bar
 
 from tensorflow import set_random_seed
 from trainer.sequence import predefined_image_sequence_generator
@@ -108,19 +109,27 @@ num = 0
 total_wer = 0
 total_exp_rate = 0
 
-for image, truth in images:
+for index, im in enumerate(images):
+    #progress_bar("Evaluating images", index, len(images))
+    image, truth = im
     grayscale_image = augmentor.grayscale(image)
 
-    predicted, predicted_parsed = predict(grayscale_image)
+    predicted_parsed = predict(grayscale_image)
     if len(predicted_parsed) >= max_length:
         predicted_parsed = predicted_parsed[:len(truth) + 5]
 
     truth = parser.parse(truth)
     truth = list(filter(lambda a: a != " ", truth))
 
-    total_wer += wer(truth, predicted_parsed)
-    total_exp_rate += exp_rate(truth, predicted_parsed)
+    w = wer(truth, predicted_parsed)
+    er = exp_rate(truth, predicted_parsed)
+    total_wer += w
+    total_exp_rate += er
     num += 1
+
+    print(str(w) + " " + str(er))
+    print(truth)
+    print(predicted_parsed)
 
 avg_wer = total_wer / num
 avg_exp_rate = total_exp_rate / num

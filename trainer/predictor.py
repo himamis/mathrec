@@ -1,6 +1,7 @@
 import numpy as np
 
-def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb, max_length = 300, k=10):
+def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb, max_length = 300,
+                     k=100, alpha=0.1):
 
     def predict(image):
         input_image = np.expand_dims(image, 0)
@@ -48,28 +49,31 @@ def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb, max
         c = np.zeros((1, 256), dtype="float32")
         state = [h, c]
 
-        sequences = [[list(sequence), state, 0.0]]
+        sequences = [[[sequence], state, 0.0]]
         finished = [False]
 
         should_continue = True
         while should_continue:
             candidates = []
-            for i in range(sequences):
-                seq, state, score = sequences[i]
+            for i, seqs in enumerate(sequences):
+                seq, state, score = seqs
                 if finished[i]:
                     candidates.append([seq, state, score])
                     continue
                 last = seq[-1]
                 inp = np.reshape(last, (1, 1, -1))
                 output, h, c = decoder.predict([feature_grid] + [inp] + state)
-                top_n_indices = np.argpartition(output, -k)[-k:]
+                top_n_indices = np.argpartition(output[0, 0, :], -k)[-k:]
                 for j in range(k):
                     index = top_n_indices[j]
                     sequence = np.zeros((len(vocabulary),), dtype="float32")
                     sequence[index] = 1.0
-                    candidates.append([seq + [sequence], [h, c], score + -np.log(output[index])])
-            ordered = sorted(candidates, key=lambda a:a[2])
-            sequences = ordered[:k]
+                    sc = np.log(output[0, 0, index])
+                    candidates.append([seq + [sequence], [h, c], score + sc])
+            def ke(a):
+                return a[2] / np.power(len(a[0]), alpha)
+            ordered = sorted(candidates, key=ke)
+            sequences = ordered[-k:]
             finished = []
             for i in range(k):
                 seq, state, score = sequences[i]
@@ -78,7 +82,7 @@ def create_predictor(encoder, decoder, vocabulary, encoding_vb, decoding_vb, max
             should_continue = not np.all(finished)
 
         sequence = sequences[-1]
-        ret = [decoding_vb[s] for s in sequence]
+        ret = [decoding_vb[np.argmax(s)] for s in sequence[0][1:-1]]
         return ret
 
     return predict_beam_search
