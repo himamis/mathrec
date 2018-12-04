@@ -263,6 +263,3 @@ class Model:
 
         # [init_h, init_c], [state_h, state_c, output]
         return init, states + [output]
-
-
-Model(10, multi_scale_attention=False)()
