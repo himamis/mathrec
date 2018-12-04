@@ -29,6 +29,7 @@ results_fname = 'results.pkl'
 start_epoch = int(parse_arg('--start-epoch', 0))
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/new_data')
 model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/tf_model')
+tensorboard_log_dir = parse_arg('--tb', None, required=False)
 base_dir = path.join(model_checkpoint_dir, folder_str)
 if not path.exists(base_dir):
     os.mkdir(base_dir)
@@ -92,8 +93,9 @@ init = tf.global_variables_initializer()
 
 logging.debug("Image2Latex Start training...")
 with tf.Session() as sess:
-    writer = tf.summary.FileWriter("/Users/balazs/university/graphs/5")
-    writer.add_graph(sess.graph)
+    if tensorboard_log_dir is not None:
+        writer = tf.summary.FileWriter(tensorboard_log_dir)
+        writer.add_graph(sess.graph)
     sess.run(init)
     for epoch in range(epochs):
         generator.reset()
@@ -105,9 +107,10 @@ with tf.Session() as sess:
                 lengts_tensor: lengths,
                 y_tensor: label
             }
-            if step % 2 == 0:
-                s = sess.run(merged_summary, dict)
-                writer.add_summary(s, step)
+            if writer is not None:
+                if step % 2 == 0:
+                    s = sess.run(merged_summary, dict)
+                    writer.add_summary(s, step)
             loss_val, _ = sess.run([loss, train], feed_dict=dict)
             print(loss_val)
 
