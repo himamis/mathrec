@@ -48,15 +48,27 @@ image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")
 
 generator = DataGenerator(image, truth, encoding_vb, batch_size)
 
+input_images = tf.placeholder(tf.float32, shape=(batch_size, None, None, 1), name="input_images")
+input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
+is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
+
+single_image = tf.placeholder(tf.float32, shape=(1, None, None, 1), name="single_input_image")
+single_character = tf.placeholder(tf.int32, shape=(1, 1))
+
 logging.debug("Image2Latex: Start create model:", datetime.now().time())
 with tf.device('/cpu:0'):
     model = tf_model.Model(len(encoding_vb),
                            encoder_size=256,
                            decoder_units=512,
                            attention_dim=512)
-    inputs, outputs, embedding = model(is_training=True, batch_size=batch_size)
+    # Training
+    training_output = model.training(input_images, input_characters)
 
-image_tensor, char_tensor, init_h, init_c = inputs
+    # Evaluating
+    feature_grid = model.feature_grid(single_image, False)
+    calculate_h0, calculate_c0 = model.calculate_decoder_init(feature_grid)
+    init_h, init_c = model.decoder_init(1)
+    state_h, state_c, output = model.decoder(feature_grid, single_character, init_h, init_c)
 
 logging.debug("Image2Latex: End create model:", datetime.now().time())
 
@@ -65,7 +77,7 @@ lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="length
 
 sequence_masks = tf.sequence_mask(lengts_tensor, dtype=tf.float32)
 
-loss = tf.contrib.seq2seq.sequence_loss(outputs[-1], y_tensor, sequence_masks)
+loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
 
 optimizer = tf.train.AdadeltaOptimizer()
 train = optimizer.minimize(loss)
@@ -78,13 +90,14 @@ with tf.Session() as sess:
         generator.reset()
         for step in range(int(len(image)/batch_size) + 1):
             image, label, observation, lengths = generator.next_batch()
-            val = sess.run(train, feed_dict={
-                image_tensor: image,
-                char_tensor: observation,
+
+            loss_val, _ = sess.run([loss, train], feed_dict={
+                input_images: image,
+                input_characters: observation,
                 lengts_tensor: lengths,
                 y_tensor: label
             })
-            print(val)
+            print(loss_val)
 
 
 #checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)

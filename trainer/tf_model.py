@@ -3,7 +3,6 @@ from trainer.metrics import *
 import tensorflow as tf
 import trainer.tf_initializers as tfi
 
-
 class CNNEncoder:
 
     def __init__(self,
@@ -18,7 +17,7 @@ class CNNEncoder:
         self.bias_init = bias_init
         self.activation = activation
 
-    def __call__(self, input_images, is_training=True):
+    def __call__(self, input_images, is_training):
         convolutions = []
         conv = (input_images - 128) / 128
         for index, filter_size in enumerate(self.filter_sizes):
@@ -37,7 +36,7 @@ class CNNEncoder:
                                            name="max_pooling_{}_filter_{}".format(index, filter_size))
             convolutions.append(conv)
 
-        return None, convolutions
+        return convolutions
 
 
 class RowEncoder:
@@ -82,13 +81,8 @@ class AttentionDecoder:
         self.dense_bias_initializer = dense_bias_initializer
         self.lstm_recurrent_kernel_initializer = lstm_recurrent_kernel_initializer
 
-    def __call__(self, feature_grids, inputs):
+    def __call__(self, feature_grids, inputs, init_h, init_c):
         feature_grid_dims = [feature_grid.shape[3] for feature_grid in feature_grids]
-        batch_size = feature_grids[0].shape[0]
-        h_init = tf.placeholder(shape=[batch_size, self.units], dtype=tf.float32,
-                                name='decoder_lstm_kernel_h_init_state')
-        c_init = tf.placeholder(shape=[batch_size, self.units], dtype=tf.float32,
-                                name='decoder_lstm_kernel_c_init_state')
         kernel = tf.get_variable(name="decoder_lstm_kernel_{}".format(self.units),
                                  initializer=self.lstm_kernel_initializer,
                                  shape=[self.embedding_dim, 4 * self.units])
@@ -178,14 +172,22 @@ class AttentionDecoder:
 
             return tf.stack([h, c])
 
-        states = tf.scan(step,
-                         tf.transpose(inputs, [1, 0, 2]),
-                         initializer=tf.stack([h_init, c_init]))
+        init = tf.stack([init_h, init_c])
+        shape = tf.shape(inputs)[1]
 
-        hs, cs = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
+        def cond_true():
+            states = step(init, tf.squeeze(inputs, axis=1))
+            h, c = tf.unstack(states)
 
-        return [h_init, c_init], [hs, cs]
+            return [tf.expand_dims(h, 0), tf.expand_dims(c, 0)]
+        def cond_false():
+            states = tf.scan(step,
+                             tf.transpose(inputs, [1, 0, 2]),
+                             initializer=init)
+            hs, cs = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
+            return [hs, cs]
 
+        return tf.cond(tf.equal(shape, tf.constant(1, dtype=tf.int32)), cond_true, cond_false)
 
 class Model:
 
@@ -210,25 +212,26 @@ class Model:
         self.multi_scale_attention = multi_scale_attention
         if filter_sizes is None:
             filter_sizes = [64, 128, 256, 512]
+        self.decoder_units = decoder_units
         self.embedding_dim = embedding_dim
-        self.encoder = CNNEncoder(
+        self._encoder = CNNEncoder(
             filter_sizes=filter_sizes,
             kernel_init=conv_kernel_init,
             bias_init=conv_bias_init,
             activation=conv_activation
         )
-        self.row_encoder = RowEncoder(
+        self._row_encoder = RowEncoder(
             encoder_size=encoder_size,
             kernel_init=encoder_kernel_init,
             bidirectional=bidirectional
         )
         if multi_scale_attention:
-            self.row_encoder_scale = RowEncoder(
+            self._row_encoder_scale = RowEncoder(
                 encoder_size=int(encoder_size / 2),
                 kernel_init=encoder_kernel_init,
                 bidirectional=bidirectional
             )
-        self.decoder = AttentionDecoder(
+        self._decoder = AttentionDecoder(
             vocabulary_size=vocabulary_size,
             units=decoder_units,
             att_dim=attention_dim,
@@ -239,35 +242,63 @@ class Model:
             lstm_recurrent_kernel_initializer=encoder_kernel_init
         )
 
-    def __call__(self, is_training=True, batch_size=32):
-        input_images = tf.placeholder(tf.float32, shape=(batch_size, None, None, 1), name="input_images")
-        input_characters = tf.placeholder(tf.int32, shape=(batch_size, None))
-
-        embedding = tf.get_variable(name="embedding",
-                                    initializer=tf.initializers.random_normal, dtype=tf.float32,
-                                    shape=[self.vocabulary_size, self.embedding_dim])
-        embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
+    def feature_grid(self, input_images, is_training):
+        with tf.variable_scope("convolutional_encoder", reuse=tf.AUTO_REUSE):
+            encoded_images = self._encoder(input_images=input_images, is_training=is_training)
 
         feature_grid = []
-        with tf.variable_scope("convolutional_encoder"):
-            _, encoded_images = self.encoder(input_images=input_images, is_training=is_training)
+        with tf.variable_scope("row_encoder", reuse=tf.AUTO_REUSE):
+            _, re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1])
 
-        with tf.variable_scope("row_encoder"):
-            _, re_encoded_images = self.row_encoder(feature_grid=encoded_images[-1])
-            feature_grid.append(re_encoded_images)
+        feature_grid.append(re_encoded_images)
 
         if self.multi_scale_attention:
-            with tf.variable_scope("multi_scale_row_encoder"):
-                _, re_encoded_images_scale = self.row_encoder_scale(feature_grid=encoded_images[-2])
-                feature_grid.append(re_encoded_images_scale)
+            with tf.variable_scope("multi_scale_row_encoder", reuse=tf.AUTO_REUSE):
+                _, re_encoded_images_scale = self._row_encoder_scale(feature_grid=encoded_images[-2])
+            feature_grid.append(re_encoded_images_scale)
 
-        with tf.variable_scope("attention_decoder"):
-            init, states = self.decoder(feature_grids=feature_grid, inputs=embedded_characters)
+        return feature_grid
 
-        state_h, _ = states
-        output = tf.layers.dense(state_h, units=self.vocabulary_size, activation=tf.nn.softmax, use_bias=True,
-                                 kernel_initializer=self.dense_init, bias_initializer=self.dense_bias_init,
-                                 name="output_dense_softmax")
+    def calculate_decoder_init(self, feature_grid):
+        # Mean of
+        # TODO masking * a_m[:, :, :, None]
+        encoded_mean = tf.reduce_sum(feature_grid[-1], axis=[1, 2])
+        with tf.variable_scope("initializers", reuse=tf.AUTO_REUSE):
+            calculate_h0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
+                                           units=self.decoder_units)
+            calculate_c0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
+                                           units=self.decoder_units)
 
-        # [init_h, init_c], [state_h, state_c, output]
-        return [input_images, input_characters] + init, states + [output], embedding
+        return calculate_h0, calculate_c0
+
+    def decoder_init(self, batch_size):
+        init_h = tf.placeholder(dtype=tf.float32, shape=(batch_size, self.decoder_units))
+        init_c = tf.placeholder(dtype=tf.float32, shape=(batch_size, self.decoder_units))
+
+        return init_h, init_c
+
+    def decoder(self, feature_grid, input_characters, init_h, init_c):
+        with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
+            embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal, dtype=tf.float32,
+                                        shape=[self.vocabulary_size, self.embedding_dim])
+            embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
+            states = self._decoder(feature_grids=feature_grid, inputs=embedded_characters,
+                                   init_h=init_h, init_c=init_c)
+
+            state_h, _ = states
+            output = tf.layers.dense(state_h, units=self.vocabulary_size, activation=tf.nn.softmax, use_bias=True,
+                                     kernel_initializer=self.dense_init, bias_initializer=self.dense_bias_init,
+                                     name="output_dense_softmax")
+
+        return states + [output]
+
+    def training(self, input_images, input_characters):
+        feature_grid = self.feature_grid(input_images, is_training=True)
+        calculate_h, calculate_c = self.calculate_decoder_init(feature_grid)
+        outputs = self.decoder(feature_grid, input_characters, calculate_h, calculate_c)
+
+        return outputs[-1]
+
+    def sample(self, feature_grid, previous_character, init_h, init_c):
+        outputs = self.decoder(feature_grid, previous_character, init_h, init_c)
+        return outputs
