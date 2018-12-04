@@ -301,7 +301,7 @@ class Model:
             b = tf.get_variable(name="output_b", initializer=self.dense_bias_init,
                                 shape=[self.vocabulary_size])
 
-            output = tf.nn.softmax(tf.tensordot(state_h, w, axes=1) + b)
+            output = tf.tensordot(state_h, w, axes=1) + b
 
         return states + [output]
 
