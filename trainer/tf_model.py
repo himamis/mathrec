@@ -255,11 +255,11 @@ class Model:
         with tf.variable_scope("convolutional_encoder", reuse=tf.AUTO_REUSE):
             encoded_images = self._encoder(input_images=input_images, is_training=is_training)
 
-        feature_grid = [encoded_images[-1]]
-        #with tf.variable_scope("row_encoder", reuse=tf.AUTO_REUSE):
-        #    re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1])
+        feature_grid = []
+        with tf.variable_scope("row_encoder", reuse=tf.AUTO_REUSE):
+            re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1])
 
-        #feature_grid.append(re_encoded_images)
+        feature_grid.append(re_encoded_images)
 
         #if self.multi_scale_attention:
         #    with tf.variable_scope("multi_scale_row_encoder", reuse=tf.AUTO_REUSE):
