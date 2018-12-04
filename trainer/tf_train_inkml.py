@@ -63,7 +63,7 @@ git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 logging.debug("Image2Latex: Start create model:", datetime.now().time())
 with tf.device('/gpu:0'):
-    model, encoder, decoder = tf_model._create(len(vocabulary), 512)
+    inputs, outputs = tf_model.Model(112, 512)
 
 # I don't do this, because I think there are some bugs, when saving RNN with constants
 logging.debug("Image2Latex: End create model:", datetime.now().time())
