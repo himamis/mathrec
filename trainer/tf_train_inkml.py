@@ -83,7 +83,8 @@ with tf.name_scope("loss"):
     tf.summary.scalar("loss", loss)
 
 with tf.name_scope("train"):
-    optimizer = tf.train.AdamOptimizer(learning_rate=0.1, epsilon=0.1)
+    #optimizer = tf.train.AdamOptimizer(learning_rate=0.1, epsilon=0.1)
+    optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
     train = optimizer.minimize(loss)
 
 tf.summary.image("input", input_images, 4)
