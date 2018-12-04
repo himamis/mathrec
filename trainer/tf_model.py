@@ -3,6 +3,7 @@ from trainer.metrics import *
 import tensorflow as tf
 import trainer.tf_initializers as tfi
 
+
 class CNNEncoder:
 
     def __init__(self,
@@ -20,21 +21,37 @@ class CNNEncoder:
     def __call__(self, input_images, is_training):
         convolutions = []
         conv = (input_images - 128) / 128
+        prev_size = 1
         for index, filter_size in enumerate(self.filter_sizes):
-            conv = tf.layers.conv2d(conv, filters=filter_size, kernel_size=3, strides=1, padding='same',
-                                    kernel_initializer=self.kernel_init, bias_initializer=self.bias_init,
-                                    activation=self.activation,
-                                    name="conv_block_{}_filter_{}_1".format(index, filter_size))
-            conv = tf.layers.conv2d(conv, filters=filter_size, kernel_size=3, strides=1, padding='same',
-                                    kernel_initializer=self.kernel_init, bias_initializer=self.bias_init,
-                                    activation=None,
-                                    name="conv_block_{}_filter_{}_2".format(index, filter_size))
-            conv = tf.layers.batch_normalization(conv, training=is_training,
-                                                 name="batch_norm_block_{}_filter_{}".format(index, filter_size))
-            conv = tf.nn.relu(conv, name="relu_block_{}_filter_{}".format(index, filter_size))
-            conv = tf.layers.max_pooling2d(conv, pool_size=2, strides=2, padding='valid',
-                                           name="max_pooling_{}_filter_{}".format(index, filter_size))
-            convolutions.append(conv)
+            with tf.variable_scope("conv_block_{}".format(filter_size)):
+                w_1 = tf.get_variable("kernel_1", shape=(3, 3, prev_size, filter_size),
+                                      initializer=self.kernel_init)
+                b_1 = tf.get_variable("bias_1", shape=[filter_size], initializer=self.bias_init)
+
+                w_2 = tf.get_variable("kernel_2", shape=(3, 3, filter_size, filter_size),
+                                      initializer=self.kernel_init)
+                b_2 = tf.get_variable("bias_2", shape=[filter_size], initializer=self.bias_init)
+                prev_size = filter_size
+
+                conv_1 = tf.nn.conv2d(conv, w_1, strides=[1, 1, 1, 1], padding='SAME') + b_1
+                act_1 = self.activation(conv_1)
+                conv_2 = tf.nn.conv2d(act_1, w_2, strides=[1, 1, 1, 1], padding='SAME') + b_2
+                bn = tf.layers.batch_normalization(conv_2 + b_2, training=is_training,
+                                                     name="batch_norm_{}".format(filter_size))
+                act_2 = self.activation(bn)
+                conv = tf.nn.max_pool(act_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
+                                      name='max_pool_{}'.format(filter_size))
+
+                tf.summary.histogram('weights_1', w_1)
+                tf.summary.histogram('weights_2', w_2)
+
+                tf.summary.histogram('biases_1', b_1)
+                tf.summary.histogram('biases_2', b_2)
+
+                tf.summary.histogram('activations_1', act_1)
+                tf.summary.histogram('activations_2', act_2)
+
+                convolutions.append(conv)
 
         return convolutions
 
@@ -47,10 +64,12 @@ class RowEncoder:
         self.bidirectional = bidirectional
 
     def __call__(self, feature_grid):
-        encoder = tf.keras.layers.LSTM(self.encoder_size, kernel_initializer=self.kernel_init,
-                                       return_sequences=True, name="row_encoder_lstm")
-        if self.bidirectional:
-            encoder = tf.keras.layers.Bidirectional(encoder)
+        with tf.name_scope("row_encoder"):
+            encoder = tf.keras.layers.LSTM(self.encoder_size, kernel_initializer=self.kernel_init,
+                                           return_sequences=True, name="row_encoder_lstm")
+            if self.bidirectional:
+                encoder = tf.keras.layers.Bidirectional(encoder)
+
 
         def step(x, _):
             output = encoder(x)
@@ -58,7 +77,7 @@ class RowEncoder:
 
         _, outputs, _ = K.rnn(step, feature_grid, [])
 
-        return None, outputs
+        return outputs
 
 
 class AttentionDecoder:
@@ -173,21 +192,11 @@ class AttentionDecoder:
             return tf.stack([h, c])
 
         init = tf.stack([init_h, init_c])
-        shape = tf.shape(inputs)[1]
-
-        def cond_true():
-            states = step(init, tf.squeeze(inputs, axis=1))
-            h, c = tf.unstack(states)
-
-            return [tf.expand_dims(h, 0), tf.expand_dims(c, 0)]
-        def cond_false():
-            states = tf.scan(step,
-                             tf.transpose(inputs, [1, 0, 2]),
-                             initializer=init)
-            hs, cs = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
-            return [hs, cs]
-
-        return tf.cond(tf.equal(shape, tf.constant(1, dtype=tf.int32)), cond_true, cond_false)
+        states = tf.scan(step,
+                         tf.transpose(inputs, [1, 0, 2]),
+                         initializer=init)
+        hs, cs = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
+        return [hs, cs]
 
 class Model:
 
@@ -246,24 +255,24 @@ class Model:
         with tf.variable_scope("convolutional_encoder", reuse=tf.AUTO_REUSE):
             encoded_images = self._encoder(input_images=input_images, is_training=is_training)
 
-        feature_grid = []
-        with tf.variable_scope("row_encoder", reuse=tf.AUTO_REUSE):
-            _, re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1])
+        feature_grid = [encoded_images[-1]]
+        #with tf.variable_scope("row_encoder", reuse=tf.AUTO_REUSE):
+        #    re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1])
 
-        feature_grid.append(re_encoded_images)
+        #feature_grid.append(re_encoded_images)
 
-        if self.multi_scale_attention:
-            with tf.variable_scope("multi_scale_row_encoder", reuse=tf.AUTO_REUSE):
-                _, re_encoded_images_scale = self._row_encoder_scale(feature_grid=encoded_images[-2])
-            feature_grid.append(re_encoded_images_scale)
+        #if self.multi_scale_attention:
+        #    with tf.variable_scope("multi_scale_row_encoder", reuse=tf.AUTO_REUSE):
+        #        re_encoded_images_scale = self._row_encoder_scale(feature_grid=encoded_images[-2])
+        #    feature_grid.append(re_encoded_images_scale)
 
         return feature_grid
 
     def calculate_decoder_init(self, feature_grid):
         # Mean of
         # TODO masking * a_m[:, :, :, None]
-        encoded_mean = tf.reduce_sum(feature_grid[-1], axis=[1, 2])
-        with tf.variable_scope("initializers", reuse=tf.AUTO_REUSE):
+        with tf.variable_scope("decoder_initializer", reuse=tf.AUTO_REUSE):
+            encoded_mean = tf.reduce_sum(feature_grid[-1], axis=[1, 2])
             calculate_h0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
                                            units=self.decoder_units)
             calculate_c0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
@@ -286,9 +295,13 @@ class Model:
                                    init_h=init_h, init_c=init_c)
 
             state_h, _ = states
-            output = tf.layers.dense(state_h, units=self.vocabulary_size, activation=tf.nn.softmax, use_bias=True,
-                                     kernel_initializer=self.dense_init, bias_initializer=self.dense_bias_init,
-                                     name="output_dense_softmax")
+
+            w = tf.get_variable(name="output_w", initializer=self.dense_init,
+                                shape=[self.decoder_units, self.vocabulary_size])
+            b = tf.get_variable(name="output_b", initializer=self.dense_bias_init,
+                                shape=[self.vocabulary_size])
+
+            output = tf.nn.softmax(tf.tensordot(state_h, w, axes=1) + b)
 
         return states + [output]
 

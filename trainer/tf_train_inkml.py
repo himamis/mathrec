@@ -40,7 +40,7 @@ history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 16
+batch_size = 4
 epochs = 30
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
@@ -65,38 +65,50 @@ with tf.device('/cpu:0'):
     training_output = model.training(input_images, input_characters)
 
     # Evaluating
-    feature_grid = model.feature_grid(single_image, False)
-    calculate_h0, calculate_c0 = model.calculate_decoder_init(feature_grid)
-    init_h, init_c = model.decoder_init(1)
-    state_h, state_c, output = model.decoder(feature_grid, single_character, init_h, init_c)
+    #feature_grid = model.feature_grid(single_image, False)
+    #calculate_h0, calculate_c0 = model.calculate_decoder_init(feature_grid)
+    #init_h, init_c = model.decoder_init(1)
+    #state_h, state_c, output = model.decoder(feature_grid, single_character, init_h, init_c)
 
 logging.debug("Image2Latex: End create model:", datetime.now().time())
 
 y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
 lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="lengths")
 
-sequence_masks = tf.sequence_mask(lengts_tensor, dtype=tf.float32)
 
-loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
+with tf.name_scope("loss"):
+    sequence_masks = tf.sequence_mask(lengts_tensor, dtype=tf.float32)
+    loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
+    tf.summary.scalar("loss", loss)
 
-optimizer = tf.train.AdadeltaOptimizer()
-train = optimizer.minimize(loss)
+with tf.name_scope("train"):
+    optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
+    train = optimizer.minimize(loss)
+
+tf.summary.image("input", input_images, 4)
+
+merged_summary = tf.summary.merge_all()
 init = tf.global_variables_initializer()
 
 logging.debug("Image2Latex Start training...")
 with tf.Session() as sess:
+    writer = tf.summary.FileWriter("/Users/balazs/university/graphs/5")
+    writer.add_graph(sess.graph)
     sess.run(init)
     for epoch in range(epochs):
         generator.reset()
         for step in range(int(len(image)/batch_size) + 1):
             image, label, observation, lengths = generator.next_batch()
-
-            loss_val, _ = sess.run([loss, train], feed_dict={
+            dict = {
                 input_images: image,
                 input_characters: observation,
                 lengts_tensor: lengths,
                 y_tensor: label
-            })
+            }
+            if step % 2 == 0:
+                s = sess.run(merged_summary, dict)
+                writer.add_summary(s, step)
+            loss_val, _ = sess.run([loss, train], feed_dict=dict)
             print(loss_val)
 
 
