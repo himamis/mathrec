@@ -1,5 +1,4 @@
 import file_utils as utils
-from trainer import ModelCheckpointer
 from trainer import tf_model
 from utilities import parse_arg
 from numpy.random import seed
@@ -7,14 +6,9 @@ from datetime import datetime
 from os import path
 import os
 import logging
-import random
 from trainer.tf_generator import DataGenerator
 
 from tensorflow import set_random_seed
-from trainer.logger import NBatchLogger
-import numpy as np
-from trainer.callbacks import NumbersHistory
-from keras.callbacks import EarlyStopping
 import tensorflow as tf
 
 seed(1337)
@@ -51,6 +45,7 @@ image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")
 generator = DataGenerator(image, truth, encoding_vb, batch_size)
 
 input_images = tf.placeholder(tf.float32, shape=(batch_size, None, None, 1), name="input_images")
+image_masks = tf.placeholder(tf.float32, shape=(batch_size, None, None, 1), name="input_image_masks")
 input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
 is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
 
@@ -64,7 +59,7 @@ with tf.device('/cpu:0'):
                            decoder_units=512,
                            attention_dim=512)
     # Training
-    training_output = model.training(input_images, input_characters)
+    training_output = model.training(input_images, image_masks, input_characters)
 
     # Evaluating
     #feature_grid = model.feature_grid(single_image, False)
@@ -84,7 +79,6 @@ with tf.name_scope("loss"):
     tf.summary.scalar("loss", loss)
 
 with tf.name_scope("train"):
-    #optimizer = tf.train.AdamOptimizer(learning_rate=0.1, epsilon=0.1)
     optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
     train = optimizer.minimize(loss)
 
@@ -103,11 +97,12 @@ with tf.Session() as sess:
     for epoch in range(epochs):
         generator.reset()
         for step in range(int(len(image)/batch_size) + 1):
-            image, label, observation, lengths = generator.next_batch()
+            image, label, observation, masks, lengths = generator.next_batch()
             dict = {
                 input_images: image,
                 input_characters: observation,
                 lengts_tensor: lengths,
+                image_masks: masks,
                 y_tensor: label
             }
             if writer is not None:
@@ -116,21 +111,3 @@ with tf.Session() as sess:
                     writer.add_summary(s, step)
             loss_val, _ = sess.run([loss, train], feed_dict=dict)
             print(loss_val)
-
-
-#checkpointer = ModelCheckpointer(filepath=model_weights_file, verbose=1)
-#numbers = NumbersHistory(date_str, git_hexsha=git_hexsha)
-#logger = NBatchLogger(1)
-#stopping = EarlyStopping(patience=2)
-
-#train_len = int(len(x_train)/batch_size)
-#val_len = int(len(x_valid)/batch_size)
-#epochs = 20
-#history = model.fit_generator(training_data, train_len, epochs=epochs, verbose=2,
-#                              validation_data=validation_data, validation_steps=val_len,
-#                              callbacks=[checkpointer, logger, numbers, stopping], initial_epoch=start_epoch)
-#logging.debug(model.metrics_names)
-#del history.model#
-#utils.write_pkl(history_file, history)
-#del numbers.model
-#utils.write_pkl(results_file, numbers)

@@ -18,7 +18,7 @@ class CNNEncoder:
         self.bias_init = bias_init
         self.activation = activation
 
-    def __call__(self, input_images, is_training):
+    def __call__(self, input_images, image_mask, is_training):
         convolutions = []
         conv = (input_images - 128) / 128
         prev_size = 1
@@ -41,6 +41,7 @@ class CNNEncoder:
                 act_2 = self.activation(bn)
                 conv = tf.nn.max_pool(act_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
                                       name='max_pool_{}'.format(filter_size))
+                image_mask = image_mask[:, 0::2, 0::2]
 
                 tf.summary.histogram('weights_1', w_1)
                 tf.summary.histogram('weights_2', w_2)
@@ -53,7 +54,7 @@ class CNNEncoder:
 
                 convolutions.append(conv)
 
-        return convolutions
+        return convolutions, image_mask
 
 
 class RowEncoder:
@@ -63,7 +64,7 @@ class RowEncoder:
         self.kernel_init = kernel_init
         self.bidirectional = bidirectional
 
-    def __call__(self, feature_grid):
+    def __call__(self, feature_grid, image_mask):
         with tf.name_scope("row_encoder"):
             encoder = tf.keras.layers.LSTM(self.encoder_size, kernel_initializer=self.kernel_init,
                                            return_sequences=True, name="row_encoder_lstm")
@@ -75,7 +76,7 @@ class RowEncoder:
             output = encoder(x)
             return output, []
 
-        _, outputs, _ = K.rnn(step, feature_grid, [])
+        _, outputs, _ = K.rnn(step, feature_grid * image_mask, [])
 
         return outputs
 
@@ -100,7 +101,7 @@ class AttentionDecoder:
         self.dense_bias_initializer = dense_bias_initializer
         self.lstm_recurrent_kernel_initializer = lstm_recurrent_kernel_initializer
 
-    def __call__(self, feature_grids, inputs, init_h, init_c):
+    def __call__(self, feature_grids, image_masks, inputs, init_h, init_c):
         feature_grid_dims = [feature_grid.shape[3] for feature_grid in feature_grids]
         kernel = tf.get_variable(name="decoder_lstm_kernel_{}".format(self.units),
                                  initializer=self.lstm_kernel_initializer,
@@ -171,7 +172,8 @@ class AttentionDecoder:
                 tanh_vector = tf.tanh(watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
                 e_ti = tf.tensordot(tanh_vector, attention_v_a, axes=1) + attention_v_a_b  # [batch, h, w, 1]
                 alpha = tf.exp(e_ti)
-                alpha = tf.squeeze(alpha, axis=3)
+                masked_alpha = alpha * image_masks
+                alpha = tf.squeeze(masked_alpha, axis=3)
                 alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
                 ctx = tf.reduce_sum(feature_grid * alpha[:, :, :, None], axis=[1, 2])
                 ctxs.append(ctx)
@@ -251,13 +253,14 @@ class Model:
             lstm_recurrent_kernel_initializer=encoder_kernel_init
         )
 
-    def feature_grid(self, input_images, is_training):
+    def feature_grid(self, input_images, input_image_masks, is_training):
         with tf.variable_scope("convolutional_encoder", reuse=tf.AUTO_REUSE):
-            encoded_images = self._encoder(input_images=input_images, is_training=is_training)
+            encoded_images, image_masks = self._encoder(input_images=input_images, image_mask=input_image_masks,
+                                           is_training=is_training)
 
         feature_grid = []
         with tf.variable_scope("row_encoder", reuse=tf.AUTO_REUSE):
-            re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1])
+            re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1], image_mask=image_masks)
 
         feature_grid.append(re_encoded_images)
 
@@ -266,13 +269,14 @@ class Model:
         #        re_encoded_images_scale = self._row_encoder_scale(feature_grid=encoded_images[-2])
         #    feature_grid.append(re_encoded_images_scale)
 
-        return feature_grid
+        return feature_grid, image_masks
 
-    def calculate_decoder_init(self, feature_grid):
+    def calculate_decoder_init(self, feature_grid, image_masks):
         # Mean of
         # TODO masking * a_m[:, :, :, None]
         with tf.variable_scope("decoder_initializer", reuse=tf.AUTO_REUSE):
-            encoded_mean = tf.reduce_sum(feature_grid[-1], axis=[1, 2])
+            encoded_mean = tf.reduce_sum(feature_grid[-1] * image_masks, axis=[1, 2]) / \
+                           tf.reduce_sum(image_masks, axis=[1, 2])
             calculate_h0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
                                            units=self.decoder_units)
             calculate_c0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
@@ -286,12 +290,12 @@ class Model:
 
         return init_h, init_c
 
-    def decoder(self, feature_grid, input_characters, init_h, init_c):
+    def decoder(self, feature_grid, image_masks, input_characters, init_h, init_c):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
             embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal, dtype=tf.float32,
                                         shape=[self.vocabulary_size, self.embedding_dim])
             embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
-            states = self._decoder(feature_grids=feature_grid, inputs=embedded_characters,
+            states = self._decoder(feature_grids=feature_grid, image_masks=image_masks, inputs=embedded_characters,
                                    init_h=init_h, init_c=init_c)
 
             state_h, _ = states
@@ -305,10 +309,10 @@ class Model:
 
         return states + [output]
 
-    def training(self, input_images, input_characters):
-        feature_grid = self.feature_grid(input_images, is_training=True)
-        calculate_h, calculate_c = self.calculate_decoder_init(feature_grid)
-        outputs = self.decoder(feature_grid, input_characters, calculate_h, calculate_c)
+    def training(self, input_images, input_image_masks, input_characters):
+        feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=True)
+        calculate_h, calculate_c = self.calculate_decoder_init(feature_grid, image_masks)
+        outputs = self.decoder(feature_grid, image_masks, input_characters, calculate_h, calculate_c)
 
         return outputs[-1]
 

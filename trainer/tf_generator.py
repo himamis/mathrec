@@ -1,5 +1,6 @@
 from graphics import utils
 from sklearn.utils import shuffle
+import numpy as np
 
 
 class DataGenerator:
@@ -39,15 +40,22 @@ class DataGenerator:
             self.data_index += 1
 
         lengths = [len(label) + 1 for label in labels]  # + 1 for end/start label
+        image_masks = []
 
         for i in range(self.batch_size):
             # Resize image
             image = images[i]
 
-            rw, rh = max_image_width - utils.w(image), max_image_height - utils.h(image)
+            h, w = utils.h(image), utils.w(image)
+            rw, rh = max_image_width - w, max_image_height - h
             left, top = int(rw / 2), int(rh / 2)
             image = utils.pad_image(image, top, left, rh - top, rw - left, 0, 1)
             images[i] = image
+
+            image_mask = np.zeros((max_image_height, max_image_width, 1), dtype=np.float32)
+            image_mask[top:(top + h), left:(left+w),:] = 1.0
+            image_masks.append(image_mask)
+
 
         # create labels and observations
         start_id = self.encoding_vb['<start>']
@@ -58,7 +66,7 @@ class DataGenerator:
         labels = [label + [end_id] * (max_label_length - len(label)) for label in labels]
         observations = [[start_id] + label + [end_id] * (max_label_length - len(label) - 1) for label in observations]
 
-        return images, labels, observations, lengths
+        return images, labels, observations, image_masks, lengths
 
     def reset(self):
         self.images, self.labels = shuffle(self.images, self.labels)
