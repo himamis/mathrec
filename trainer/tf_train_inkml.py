@@ -93,6 +93,7 @@ init = tf.global_variables_initializer()
 
 logging.debug("Image2Latex Start training...")
 with tf.Session() as sess:
+    writer = None
     if tensorboard_log_dir is not None:
         writer = tf.summary.FileWriter(tensorboard_log_dir)
         writer.add_graph(sess.graph)
