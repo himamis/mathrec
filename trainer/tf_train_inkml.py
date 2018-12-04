@@ -7,6 +7,7 @@ from os import path
 import os
 import logging
 from trainer.tf_generator import DataGenerator
+import trainer.tf_initializers as tfi
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -57,7 +58,16 @@ with tf.device('/cpu:0'):
     model = tf_model.Model(len(encoding_vb),
                            encoder_size=256,
                            decoder_units=512,
-                           attention_dim=512)
+                           attention_dim=512,
+                           conv_kernel_init=tf.contrib.layers.xavier_initializer(),
+                           conv_bias_init=tf.initializers.constant(0.01),
+                           conv_activation=tf.nn.relu,
+                           encoder_kernel_init="glorot_uniform",
+                           decoder_kernel_init=tf.contrib.layers.xavier_initializer(),
+                           decoder_bias_init=tf.initializers.constant(1/4),
+                           dense_init=tf.initializers.random_normal(stddev=0.1),
+                           dense_bias_init=tf.contrib.layers.xavier_initializer(),
+                           decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer())
     # Training
     training_output = model.training(input_images, image_masks, input_characters)
 

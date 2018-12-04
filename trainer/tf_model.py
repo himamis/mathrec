@@ -212,6 +212,7 @@ class Model:
                  conv_activation=tf.nn.relu,
                  encoder_kernel_init=tf.initializers.orthogonal(),
                  decoder_kernel_init=tf.initializers.orthogonal(),
+                 decoder_recurrent_kernel_init=tf.initializers.orthogonal(),
                  decoder_bias_init=tf.initializers.zeros(),
                  dense_init=tfi.glorot_normal(),
                  dense_bias_init=tf.initializers.zeros(),
@@ -250,7 +251,7 @@ class Model:
             lstm_bias_initializer=decoder_bias_init,
             dense_initializer=dense_init,
             dense_bias_initializer=dense_bias_init,
-            lstm_recurrent_kernel_initializer=encoder_kernel_init
+            lstm_recurrent_kernel_initializer=decoder_recurrent_kernel_init
         )
 
     def feature_grid(self, input_images, input_image_masks, is_training):
