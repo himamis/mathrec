@@ -13,7 +13,8 @@ REQUIRED_PACKAGES = ['Keras==2.1.6',
                      'pypng==0.0.18',
                      'imgaug==0.2.6',
                      'parsy==1.2.0',
-                     'google-cloud-logging==1.8.0']
+                     'google-cloud-logging==1.8.0',
+                     'sklearn==0.20.1']
 
 setup(
     name='trainer',

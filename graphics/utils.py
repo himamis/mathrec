@@ -16,18 +16,18 @@ def center(image1, image2, dim):
 
 def paste(destination, source, x, y):
     subarray = destination[y: y + source.shape[0], x: x + source.shape[1]]
-    cv2.bitwise_and(subarray, source, subarray)
+    cv2.bitwise_or(subarray, source, subarray)
 
 
 def insert(destination, source, x, y):
     destination[y: y + source.shape[0], x: x + source.shape[1]] = source
 
 
-def new_image(width, height, initial_value=255):
+def new_image(width, height, initial_value=255, channels=3):
     if initial_value is None:
-        return np.ndarray((height, width, 3), dtype=np.uint8)
+        return np.ndarray((height, width, channels), dtype=np.uint8)
     else:
-        return np.full((height, width, 3), initial_value, dtype=np.uint8)
+        return np.full((height, width, channels), initial_value, dtype=np.uint8)
 
 
 def resize(image, new_width, new_height):
@@ -41,8 +41,8 @@ def sub_image(image, x, y, width, height):
     return image[y: y + height, x: x + width]
 
 
-def pad_image(image, top, left, bottom, right, default_value = 255):
-    padded_image = new_image(w(image) + left + right, h(image) + top + bottom, default_value)
+def pad_image(image, top, left, bottom, right, default_value = 255, channels=3):
+    padded_image = new_image(w(image) + left + right, h(image) + top + bottom, default_value, channels)
     paste(padded_image, image, left, top)
     return padded_image
 
