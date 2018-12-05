@@ -248,6 +248,7 @@ class Model:
             vocabulary_size=vocabulary_size,
             units=decoder_units,
             att_dim=attention_dim,
+            embedding_dim=embedding_dim,
             lstm_kernel_initializer=decoder_kernel_init,
             lstm_bias_initializer=decoder_bias_init,
             dense_initializer=dense_init,
