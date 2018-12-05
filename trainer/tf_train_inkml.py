@@ -32,6 +32,10 @@ model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/tf_mod
 tensorboard_log_dir = parse_arg('--tb', None, required=False)
 tensorboard_name = parse_arg('--tbn', "adam", required=False)
 base_dir = path.join(model_checkpoint_dir, folder_str)
+save_dir = base_dir
+if gcs is not None:
+    save_dir = os.path.join("gs://{}".format(gcs), save_dir)
+
 #if not path.exists(base_dir):
 #    os.mkdir(base_dir)
 
@@ -42,7 +46,7 @@ history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 8
+batch_size = 16
 epochs = 50
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
@@ -66,10 +70,10 @@ device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
 with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
                            filter_sizes=[32, 64, 128, 256, 512],
-                           encoder_size=512,
+                           encoder_size=256,
                            decoder_units=512,
                            attention_dim=512,
-                           bidirectional=False,
+                           bidirectional=True,
                            conv_kernel_init=tf.contrib.layers.xavier_initializer(),
                            conv_bias_init=tf.initializers.constant(0.01),
                            conv_activation=tf.nn.relu,
@@ -126,6 +130,8 @@ init = tf.global_variables_initializer()
 logging.debug("Image2Latex Start training...")
 global_step = 0
 with tf.Session() as sess:
+    if start_epoch != 0:
+        saver.restore(sess, save_dir)
     predictor = create_predictor(sess, (single_image, single_image_mask, eval_init_h,
                                  eval_init_c, eval_feature_grid, eval_masking,
                                  single_character), (eval_feature_grid, eval_masking, eval_calculate_h0,
@@ -183,10 +189,7 @@ with tf.Session() as sess:
         if avg_wer < best_wer:
             best_wer = avg_wer
             bad_counter = 0
-            if gcs is not None:
-                saver.save(sess, os.path.join("gs://{}".format(gcs), model_checkpoint_dir, base_dir))
-            else:
-                saver.save(sess, base_dir)
+            saver.save(sess, save_dir)
         else:
             bad_counter += 1
         if bad_counter == patience:
