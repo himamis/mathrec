@@ -69,10 +69,11 @@ logging.debug("Image2Latex: Start create model: {}".format(str(datetime.now().ti
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
 with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
-                           filter_sizes=[32, 64],
-                           encoder_size=16,
-                           decoder_units=32,
-                           attention_dim=32,
+                           filter_sizes=[32, 64, 128],
+                           encoder_size=32,
+                           decoder_units=64,
+                           attention_dim=64,
+                           embedding_dim=64,
                            bidirectional=True,
                            conv_kernel_init=tf.contrib.layers.xavier_initializer(),
                            conv_bias_init=tf.initializers.constant(0.01),
