@@ -1,6 +1,7 @@
 DATE=`date '+%Y_%M_%d__%H_%m_%S'`
 JOB_NAME="image2latex_"$DATE
-CONTAINER="gs://image2latex4"
+BUCKET_NAME="image2latex4"
+CONTAINER="gs://"$BUCKET_NAME
 OUTPUT_PATH=$CONTAINER"/output"
 TB_PATH=$CONTAINER"/logdir"
 
@@ -11,17 +12,21 @@ REGION="us-west1"
 DATA_URL="new_data/"
 OUTPUT_URL="output"
 
+echo $OUTPUT_PATH
+
 gcloud ml-engine jobs submit training $JOB_NAME \
     --job-dir $OUTPUT_PATH \
     --runtime-version 1.9\
-    --module-name trainer.train_inkml \
+    --module-name trainer.tf_train_inkml \
     --package-path trainer/ \
     --region $REGION \
     --config config.yaml \
     -- \
-    --gcs $CONTAINER \
+    --gcs $BUCKET_NAME \
     --data-base-dir $DATA_URL \
     --model-dir $OUTPUT_URL \
     --start-epoch 0 \
     --git-hexsha `git rev-parse HEAD` \
-    --use-gpu t
+    --use-gpu t \
+    --tb $TB_PATH \
+    --tbn $JOB_NAME
