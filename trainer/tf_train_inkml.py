@@ -22,14 +22,15 @@ weights_fname = 'weights_{epoch}.h5'
 history_fname = 'history.pkl'
 results_fname = 'results.pkl'
 
+use_gpu = parse_arg('--gpu', default='n', required=False)
 start_epoch = int(parse_arg('--start-epoch', 0))
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/new_data')
 model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/tf_model')
 tensorboard_log_dir = parse_arg('--tb', None, required=False)
 tensorboard_name = parse_arg('--tbn', "adam", required=False)
 base_dir = path.join(model_checkpoint_dir, folder_str)
-if not path.exists(base_dir):
-    os.mkdir(base_dir)
+#if not path.exists(base_dir):
+#    os.mkdir(base_dir)
 
 model_weights_file = path.join(model_checkpoint_dir, folder_str, weights_fname)
 results_file = path.join(model_checkpoint_dir, folder_str, results_fname)
@@ -58,7 +59,8 @@ single_image_mask = tf.placeholder(tf.float32, shape=(1, None, None, 1), name="s
 single_character = tf.placeholder(tf.int32, shape=(1, 1), name="single_character")
 
 logging.debug("Image2Latex: Start create model:", datetime.now().time())
-with tf.device('/cpu:0'):
+device = '/gpu:0' if use_gpu == 't' else '/cpu:0'
+with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
                            encoder_size=256,
                            decoder_units=512,
