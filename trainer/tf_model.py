@@ -2,6 +2,7 @@ from trainer.metrics import *
 
 import tensorflow as tf
 import trainer.tf_initializers as tfi
+import trainer.default_type as t
 
 
 class CNNEncoder:
@@ -25,12 +26,14 @@ class CNNEncoder:
         for index, filter_size in enumerate(self.filter_sizes):
             with tf.variable_scope("conv_block_{}".format(filter_size)):
                 w_1 = tf.get_variable("kernel_1", shape=(3, 3, prev_size, filter_size),
-                                      initializer=self.kernel_init)
-                b_1 = tf.get_variable("bias_1", shape=[filter_size], initializer=self.bias_init)
+                                      initializer=self.kernel_init, dtype=t.my_tf_float)
+                b_1 = tf.get_variable("bias_1", shape=[filter_size], initializer=self.bias_init,
+                                      dtype=t.my_tf_float)
 
                 w_2 = tf.get_variable("kernel_2", shape=(3, 3, filter_size, filter_size),
-                                      initializer=self.kernel_init)
-                b_2 = tf.get_variable("bias_2", shape=[filter_size], initializer=self.bias_init)
+                                      initializer=self.kernel_init, dtype=t.my_tf_float)
+                b_2 = tf.get_variable("bias_2", shape=[filter_size], initializer=self.bias_init,
+                                      dtype=t.my_tf_float)
                 prev_size = filter_size
 
                 conv_1 = tf.nn.conv2d(conv, w_1, strides=[1, 1, 1, 1], padding='SAME') + b_1
@@ -59,26 +62,31 @@ class CNNEncoder:
 
 class RowEncoder:
 
-    def __init__(self, encoder_size=512, kernel_init=None, bidirectional=True):
+    def __init__(self, encoder_size=512, kernel_init=None, recurrent_init=None, bidirectional=True):
         self.encoder_size = encoder_size
         self.kernel_init = kernel_init
+        self.recurrent_init = recurrent_init
         self.bidirectional = bidirectional
 
     def __call__(self, feature_grid, image_mask):
         with tf.name_scope("row_encoder"):
-            encoder = tf.keras.layers.LSTM(self.encoder_size, kernel_initializer=self.kernel_init,
-                                           return_sequences=True, name="row_encoder_lstm")
-            if self.bidirectional:
-                encoder = tf.keras.layers.Bidirectional(encoder)
+            rnn_cell = tf.nn.rnn_cell.LSTMCell(self.encoder_size, initializer=self.kernel_init, dtype=t.my_tf_float)
 
+            masked_feature_grid = feature_grid * image_mask
 
-        def step(x, _):
-            output = encoder(x)
-            return output, []
+            def apply_fun(image_row):
+                if self.bidirectional:
+                    outputs, _ = tf.nn.bidirectional_dynamic_rnn(rnn_cell, rnn_cell, image_row, dtype=t.my_tf_float)
+                    outputs = tf.concat(outputs, 2)
+                else:
+                    outputs, _ = tf.nn.dynamic_rnn(rnn_cell, image_row, dtype=t.my_tf_float)
+                return outputs
 
-        _, outputs, _ = K.rnn(step, feature_grid * image_mask, [])
+            height_first = tf.transpose(masked_feature_grid, [1, 0, 2, 3])
+            output = tf.map_fn(apply_fun, height_first)
+            batch_first = tf.transpose(output, [1, 0, 2, 3])
 
-        return outputs
+        return batch_first
 
 
 class AttentionDecoder:
@@ -106,16 +114,20 @@ class AttentionDecoder:
         feature_grid_dims = [feature_grid.shape[3] for feature_grid in feature_grids]
         kernel = tf.get_variable(name="decoder_lstm_kernel_{}".format(self.units),
                                  initializer=self.lstm_kernel_initializer,
-                                 shape=[self.embedding_dim, 4 * self.units])
+                                 shape=[self.embedding_dim, 4 * self.units],
+                                 dtype=t.my_tf_float)
         recurrent_kernel = tf.get_variable(name="decoder_lstm_recurrent_kernel_{}".format(self.units),
                                            initializer=self.lstm_recurrent_kernel_initializer,
-                                           shape=[self.units, 4 * self.units])
+                                           shape=[self.units, 4 * self.units],
+                                           dtype=t.my_tf_float)
         context_kernel = tf.get_variable(name="decoder_lstm_context_kernel_{}".format(self.units),
                                          initializer=self.lstm_recurrent_kernel_initializer,
-                                         shape=[sum(feature_grid_dims), 4 * self.units])
+                                         shape=[sum(feature_grid_dims), 4 * self.units],
+                                         dtype=t.my_tf_float)
         bias = tf.get_variable(name="decoder_lstm_bias_{}".format(self.units),
                                initializer=self.lstm_bias_initializer,
-                               shape=[4 * self.units])
+                               shape=[4 * self.units],
+                               dtype=t.my_tf_float)
         attention_us = []
         attention_u_bs = []
         attention_v_as = []
@@ -124,17 +136,17 @@ class AttentionDecoder:
         for index, (feature_grid, feature_grid_dim) in enumerate(zip(feature_grids, feature_grid_dims)):
             attention_u = tf.get_variable(name="decoder_attention_u_scale_{}".format(index),
                                           initializer=self.dense_initializer,
-                                          shape=[feature_grid_dim, self.att_dim])
+                                          shape=[feature_grid_dim, self.att_dim], dtype=t.my_tf_float)
             attention_u_b = tf.get_variable(name="decoder_attention_u_b_scale_{}".format(index),
                                             initializer=self.dense_bias_initializer,
-                                            shape=[self.att_dim])
+                                            shape=[self.att_dim], dtype=t.my_tf_float)
 
             attention_v_a = tf.get_variable(name="decoder_attention_v_a_scale_{}".format(index),
                                             initializer=self.dense_initializer,
-                                            shape=[self.att_dim, 1])
+                                            shape=[self.att_dim, 1], dtype=t.my_tf_float)
             attention_v_a_b = tf.get_variable(name="decoder_attention_v_a_b_scale_{}".format(index),
                                               initializer=self.dense_bias_initializer,
-                                              shape=[1])
+                                              shape=[1], dtype=t.my_tf_float)
 
             # Can be precomputed
             watch_vector = tf.tensordot(feature_grid, attention_u, axes=1) + attention_u_b  # [batch, h, w, dim_attend]
@@ -147,10 +159,10 @@ class AttentionDecoder:
 
         attention_w = tf.get_variable(name="decoder_attention_w",
                                       initializer=self.dense_initializer,
-                                      shape=[self.units, self.att_dim])
+                                      shape=[self.units, self.att_dim], dtype=t.my_tf_float)
         attention_w_b = tf.get_variable(name="decoder_attention_w_b",
                                         initializer=self.dense_bias_initializer,
-                                        shape=[self.att_dim])
+                                        shape=[self.att_dim], dtype=t.my_tf_float)
 
         def step(state, input):
             h_tm1, c_tm1 = tf.unstack(state)
@@ -208,15 +220,15 @@ class Model:
                  decoder_units=512,
                  attention_dim=512,
                  embedding_dim=256,
-                 conv_kernel_init=tfi.he_normal(),
-                 conv_bias_init=tf.initializers.zeros(),
+                 conv_kernel_init=tfi.he_normal(dtype=t.my_tf_float),
+                 conv_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
                  conv_activation=tf.nn.relu,
-                 encoder_kernel_init=tf.initializers.orthogonal(),
-                 decoder_kernel_init=tf.initializers.orthogonal(),
-                 decoder_recurrent_kernel_init=tf.initializers.orthogonal(),
-                 decoder_bias_init=tf.initializers.zeros(),
-                 dense_init=tfi.glorot_normal(),
-                 dense_bias_init=tf.initializers.zeros(),
+                 encoder_kernel_init=tf.initializers.orthogonal(dtype=t.my_tf_float),
+                 decoder_kernel_init=tf.initializers.orthogonal(dtype=t.my_tf_float),
+                 decoder_recurrent_kernel_init=tf.initializers.orthogonal(dtype=t.my_tf_float),
+                 decoder_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
+                 dense_init=tfi.glorot_normal(dtype=t.my_tf_float),
+                 dense_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
                  bidirectional=True,
                  multi_scale_attention=False):
         self.vocabulary_size = vocabulary_size
@@ -236,6 +248,7 @@ class Model:
         self._row_encoder = RowEncoder(
             encoder_size=encoder_size,
             kernel_init=encoder_kernel_init,
+            recurrent_init=decoder_recurrent_kernel_init,
             bidirectional=bidirectional
         )
         if multi_scale_attention:
@@ -287,14 +300,14 @@ class Model:
         return calculate_h0, calculate_c0
 
     def decoder_init(self, batch_size):
-        init_h = tf.placeholder(dtype=tf.float32, shape=(batch_size, self.decoder_units))
-        init_c = tf.placeholder(dtype=tf.float32, shape=(batch_size, self.decoder_units))
+        init_h = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, self.decoder_units))
+        init_c = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, self.decoder_units))
 
         return init_h, init_c
 
     def decoder(self, feature_grid, image_masks, input_characters, init_h, init_c):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal, dtype=tf.float32,
+            embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal, dtype=t.my_tf_float,
                                         shape=[self.vocabulary_size, self.embedding_dim])
             embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
             states = self._decoder(feature_grid=feature_grid, image_masks=image_masks, inputs=embedded_characters,
@@ -303,9 +316,10 @@ class Model:
             state_h, _ = states
 
             w = tf.get_variable(name="output_w", initializer=self.dense_init,
-                                shape=[self.decoder_units, self.vocabulary_size])
+                                shape=[self.decoder_units, self.vocabulary_size],
+                                dtype=t.my_tf_float)
             b = tf.get_variable(name="output_b", initializer=self.dense_bias_init,
-                                shape=[self.vocabulary_size])
+                                shape=[self.vocabulary_size], dtype=t.my_tf_float)
 
             output = tf.tensordot(state_h, w, axes=1) + b
 

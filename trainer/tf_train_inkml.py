@@ -9,6 +9,8 @@ import logging
 from trainer.tf_generator import DataGenerator
 from trainer.tf_predictor import create_predictor
 from trainer.metrics import wer
+import trainer.default_type as t
+import trainer.tf_initializers as tfi
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -56,13 +58,13 @@ generator = DataGenerator(image, truth, encoding_vb, batch_size)
 image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
 generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
-input_images = tf.placeholder(tf.float32, shape=(batch_size, None, None, 1), name="input_images")
-image_masks = tf.placeholder(tf.float32, shape=(batch_size, None, None, 1), name="input_image_masks")
+input_images = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_images")
+image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_image_masks")
 input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
 is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
 
-single_image = tf.placeholder(tf.float32, shape=(1, None, None, 1), name="single_input_image")
-single_image_mask = tf.placeholder(tf.float32, shape=(1, None, None, 1), name="single_input_image_mask")
+single_image = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="single_input_image")
+single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="single_input_image_mask")
 single_character = tf.placeholder(tf.int32, shape=(1, 1), name="single_character")
 
 logging.debug("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
@@ -75,15 +77,15 @@ with tf.device(device):
                            attention_dim=64,
                            embedding_dim=64,
                            bidirectional=True,
-                           conv_kernel_init=tf.contrib.layers.xavier_initializer(),
-                           conv_bias_init=tf.initializers.constant(0.01),
+                           conv_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
+                           conv_bias_init=tf.initializers.constant(0.01, dtype=t.my_tf_float),
                            conv_activation=tf.nn.relu,
-                           encoder_kernel_init="glorot_uniform",
-                           decoder_kernel_init=tf.contrib.layers.xavier_initializer(),
-                           decoder_bias_init=tf.initializers.constant(1/4),
-                           dense_init=tf.initializers.random_normal(stddev=0.1),
-                           dense_bias_init=tf.contrib.layers.xavier_initializer(),
-                           decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer())
+                           encoder_kernel_init=tf.initializers.random_normal(dtype=t.my_tf_float),
+                           decoder_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
+                           decoder_bias_init=tf.initializers.constant(1/4, dtype=t.my_tf_float),
+                           dense_init=tf.initializers.random_normal(stddev=0.1, dtype=t.my_tf_float),
+                           dense_bias_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
+                           decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float))
     # Training
     training_output = model.training(input_images, image_masks, input_characters)
 
@@ -102,7 +104,7 @@ lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="length
 
 
 with tf.name_scope("loss"):
-    sequence_masks = tf.sequence_mask(lengts_tensor, dtype=tf.float32)
+    sequence_masks = tf.sequence_mask(lengts_tensor, dtype=tf.float16)
     loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
     tf.summary.scalar("loss", loss)
 
@@ -112,7 +114,8 @@ with tf.name_scope("train"):
 
 with tf.name_scope("accuracy"):
     result = tf.argmax(tf.nn.softmax(training_output), output_type=tf.int32, axis=2)
-    accuracy = tf.contrib.metrics.accuracy(result, y_tensor, sequence_masks)
+    sequence_masks_32 = tf.sequence_mask(lengts_tensor, dtype=tf.float32)
+    accuracy = tf.contrib.metrics.accuracy(result, y_tensor, sequence_masks_32)
     tf.summary.scalar("accuracy", accuracy)
 
 saver = tf.train.Saver()

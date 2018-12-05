@@ -1,6 +1,6 @@
 from tensorflow.python import VarianceScaling
 from tensorflow.python.framework import dtypes
-
+import tensorflow as tf
 
 class GlorotNormal(VarianceScaling):
 
@@ -21,8 +21,8 @@ class GlorotNormal(VarianceScaling):
         }
 
 
-def he_normal(seed=None):
-    return VarianceScaling(scale=2., mode="fan_in", distribution="normal", seed=seed)
+def he_normal(seed=None, dtype=tf.float32):
+    return VarianceScaling(scale=2., mode="fan_in", distribution="normal", seed=seed, dtype=dtype)
 
 
 glorot_normal = GlorotNormal
