@@ -43,14 +43,14 @@ class CNNEncoder:
                                       name='max_pool_{}'.format(filter_size))
                 image_mask = image_mask[:, 0::2, 0::2]
 
-                tf.summary.histogram('weights_1', w_1)
-                tf.summary.histogram('weights_2', w_2)
+                #tf.summary.histogram('weights_1', w_1)
+                #tf.summary.histogram('weights_2', w_2)
 
-                tf.summary.histogram('biases_1', b_1)
-                tf.summary.histogram('biases_2', b_2)
+                #tf.summary.histogram('biases_1', b_1)
+                #tf.summary.histogram('biases_2', b_2)
 
-                tf.summary.histogram('activations_1', act_1)
-                tf.summary.histogram('activations_2', act_2)
+                #tf.summary.histogram('activations_1', act_1)
+                #tf.summary.histogram('activations_2', act_2)
 
                 convolutions.append(conv)
 
@@ -101,7 +101,8 @@ class AttentionDecoder:
         self.dense_bias_initializer = dense_bias_initializer
         self.lstm_recurrent_kernel_initializer = lstm_recurrent_kernel_initializer
 
-    def __call__(self, feature_grids, image_masks, inputs, init_h, init_c):
+    def __call__(self, feature_grid, image_masks, inputs, init_h, init_c):
+        feature_grids = tf.unstack(feature_grid)
         feature_grid_dims = [feature_grid.shape[3] for feature_grid in feature_grids]
         kernel = tf.get_variable(name="decoder_lstm_kernel_{}".format(self.units),
                                  initializer=self.lstm_kernel_initializer,
@@ -265,18 +266,17 @@ class Model:
 
         feature_grid.append(re_encoded_images)
 
-        #if self.multi_scale_attention:
-        #    with tf.variable_scope("multi_scale_row_encoder", reuse=tf.AUTO_REUSE):
-        #        re_encoded_images_scale = self._row_encoder_scale(feature_grid=encoded_images[-2])
-        #    feature_grid.append(re_encoded_images_scale)
+        if self.multi_scale_attention:
+            with tf.variable_scope("multi_scale_row_encoder", reuse=tf.AUTO_REUSE):
+                re_encoded_images_scale = self._row_encoder_scale(feature_grid=encoded_images[-2])
+            feature_grid.append(re_encoded_images_scale)
 
-        return feature_grid, image_masks
+        return tf.stack(feature_grid), image_masks
 
     def calculate_decoder_init(self, feature_grid, image_masks):
-        # Mean of
-        # TODO masking * a_m[:, :, :, None]
+        feature_grids = tf.unstack(feature_grid)
         with tf.variable_scope("decoder_initializer", reuse=tf.AUTO_REUSE):
-            encoded_mean = tf.reduce_sum(feature_grid[-1] * image_masks, axis=[1, 2]) / \
+            encoded_mean = tf.reduce_sum(feature_grids[-1] * image_masks, axis=[1, 2]) / \
                            tf.reduce_sum(image_masks, axis=[1, 2])
             calculate_h0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
                                            units=self.decoder_units)
@@ -296,7 +296,7 @@ class Model:
             embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal, dtype=tf.float32,
                                         shape=[self.vocabulary_size, self.embedding_dim])
             embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
-            states = self._decoder(feature_grids=feature_grid, image_masks=image_masks, inputs=embedded_characters,
+            states = self._decoder(feature_grid=feature_grid, image_masks=image_masks, inputs=embedded_characters,
                                    init_h=init_h, init_c=init_c)
 
             state_h, _ = states

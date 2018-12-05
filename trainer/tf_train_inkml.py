@@ -7,7 +7,8 @@ from os import path
 import os
 import logging
 from trainer.tf_generator import DataGenerator
-import trainer.tf_initializers as tfi
+from trainer.tf_predictor import create_predictor
+from trainer.metrics import wer
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -42,8 +43,10 @@ epochs = 30
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
 image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
-
 generator = DataGenerator(image, truth, encoding_vb, batch_size)
+
+image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
+generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
 input_images = tf.placeholder(tf.float32, shape=(batch_size, None, None, 1), name="input_images")
 image_masks = tf.placeholder(tf.float32, shape=(batch_size, None, None, 1), name="input_image_masks")
@@ -51,7 +54,8 @@ input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="inpu
 is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
 
 single_image = tf.placeholder(tf.float32, shape=(1, None, None, 1), name="single_input_image")
-single_character = tf.placeholder(tf.int32, shape=(1, 1))
+single_image_mask = tf.placeholder(tf.float32, shape=(1, None, None, 1), name="single_input_image_mask")
+single_character = tf.placeholder(tf.int32, shape=(1, 1), name="single_character")
 
 logging.debug("Image2Latex: Start create model:", datetime.now().time())
 with tf.device('/cpu:0'):
@@ -72,10 +76,12 @@ with tf.device('/cpu:0'):
     training_output = model.training(input_images, image_masks, input_characters)
 
     # Evaluating
-    #feature_grid = model.feature_grid(single_image, False)
-    #calculate_h0, calculate_c0 = model.calculate_decoder_init(feature_grid)
-    #init_h, init_c = model.decoder_init(1)
-    #state_h, state_c, output = model.decoder(feature_grid, single_character, init_h, init_c)
+    eval_feature_grid, eval_masking = model.feature_grid(single_image, single_image_mask, False)
+    eval_calculate_h0, eval_calculate_c0 = model.calculate_decoder_init(eval_feature_grid, eval_masking)
+    eval_init_h, eval_init_c = model.decoder_init(1)
+    eval_state_h, eval_state_c, eval_output = model.decoder(eval_feature_grid, eval_masking,
+                                                            single_character, eval_init_h, eval_init_c)
+    eval_output_softmax = tf.nn.softmax(eval_output)
 
 logging.debug("Image2Latex: End create model:", datetime.now().time())
 
@@ -92,13 +98,29 @@ with tf.name_scope("train"):
     optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
     train = optimizer.minimize(loss)
 
-tf.summary.image("input", input_images, 4)
+with tf.name_scope("accuracy"):
+    result = tf.argmax(tf.nn.softmax(training_output), output_type=tf.int32, axis=2)
+    accuracy = tf.contrib.metrics.accuracy(result, y_tensor, sequence_masks)
+    tf.summary.scalar("accuracy", accuracy)
+
+#tf.summary.image("input", input_images, 4)
 
 merged_summary = tf.summary.merge_all()
+summary_step = 10
+
+valid_avg_wer_summary = tf.Summary()
+valid_avg_acc_summary = tf.Summary()
+
 init = tf.global_variables_initializer()
 
 logging.debug("Image2Latex Start training...")
+global_step = 0
 with tf.Session() as sess:
+    predictor = create_predictor(sess, (single_image, single_image_mask, eval_init_h,
+                                 eval_init_c, eval_feature_grid, eval_masking,
+                                 single_character), (eval_feature_grid, eval_masking, eval_calculate_h0,
+                                                     eval_calculate_c0, eval_output_softmax, eval_state_h,
+                                                     eval_state_c), encoding_vb, decoding_vb, k=10)
     writer = None
     if tensorboard_log_dir is not None:
         writer = tf.summary.FileWriter(os.path.join(tensorboard_log_dir, tensorboard_name))
@@ -106,7 +128,7 @@ with tf.Session() as sess:
     sess.run(init)
     for epoch in range(epochs):
         generator.reset()
-        for step in range(int(len(image)/batch_size) + 1):
+        for step in range(generator.steps()):
             image, label, observation, masks, lengths = generator.next_batch()
             dict = {
                 input_images: image,
@@ -115,9 +137,36 @@ with tf.Session() as sess:
                 image_masks: masks,
                 y_tensor: label
             }
-            if writer is not None:
-                if step % 2 == 0:
-                    s = sess.run(merged_summary, dict)
-                    writer.add_summary(s, step)
-            loss_val, _ = sess.run([loss, train], feed_dict=dict)
-            print(loss_val)
+            # Write summary
+            if writer is not None and global_step % 10 == 0:
+                s = sess.run(merged_summary, dict)
+                writer.add_summary(s, global_step)
+
+            vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=dict)
+            logging.info("Loss: {}, Acc: {}".format(vloss, vacc))
+
+            global_step += 1
+
+        # Validation after each epoch
+        wern = 0
+        accn = 0
+        for step in range(generator_valid.steps()):
+            image, label, observation, masks, lengths = generator_valid.next_batch()
+            predict = predictor(image, masks)
+            re_encoded = [encoding_vb[s] for s in predict]
+            wern += wer(re_encoded, label[:-1])
+            if re_encoded == predict:
+                accn += 1
+
+        avg_wer = wern / generator_valid.steps()
+        avg_acc = accn / generator_valid.steps()
+
+        valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=avg_wer)
+        valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=avg_acc)
+        writer.add_summary(valid_avg_wer_summary, global_step)
+        writer.add_summary(valid_avg_acc_summary, global_step)
+        writer.flush()
+
+        generator_valid.reset()
+
+

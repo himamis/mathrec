@@ -71,3 +71,7 @@ class DataGenerator:
     def reset(self):
         self.images, self.labels = shuffle(self.images, self.labels)
         self.data_index = 0
+
+    def steps(self):
+        offset = 1 if len(self.images) % self.batch_size != 0 else 0
+        return int(len(self.images) / self.batch_size) + offset
