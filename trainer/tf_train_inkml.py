@@ -66,9 +66,10 @@ device = '/gpu:0' if use_gpu == 't' else '/cpu:0'
 with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
                            filter_sizes=[32, 64, 128, 256, 512],
-                           encoder_size=256,
+                           encoder_size=512,
                            decoder_units=512,
                            attention_dim=512,
+                           bidirectional=False,
                            conv_kernel_init=tf.contrib.layers.xavier_initializer(),
                            conv_bias_init=tf.initializers.constant(0.01),
                            conv_activation=tf.nn.relu,
