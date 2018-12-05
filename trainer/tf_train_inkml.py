@@ -143,7 +143,7 @@ with tf.Session() as sess:
                 writer.add_summary(s, global_step)
 
             vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=dict)
-            logging.info("Loss: {}, Acc: {}".format(vloss, vacc))
+            logging.debug("Loss: {}, Acc: {}".format(vloss, vacc))
 
             global_step += 1
 
