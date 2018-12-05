@@ -62,7 +62,7 @@ single_image_mask = tf.placeholder(tf.float32, shape=(1, None, None, 1), name="s
 single_character = tf.placeholder(tf.int32, shape=(1, 1), name="single_character")
 
 logging.debug("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
-device = '/gpu:0' if use_gpu == 't' else '/cpu:0'
+device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
 with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
                            filter_sizes=[32, 64, 128, 256, 512],
