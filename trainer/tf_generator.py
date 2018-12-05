@@ -38,6 +38,8 @@ class DataGenerator:
             max_label_length = max(len(label) + 1, max_label_length)
 
             self.data_index += 1
+            if self.data_index >= len(self.images):
+                self.data_index = 0
 
         lengths = [len(label) + 1 for label in labels]  # + 1 for end/start label
         image_masks = []
