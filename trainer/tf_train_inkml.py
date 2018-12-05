@@ -62,6 +62,7 @@ logging.debug("Image2Latex: Start create model:", datetime.now().time())
 device = '/gpu:0' if use_gpu == 't' else '/cpu:0'
 with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
+                           filter_sizes=[32, 64, 128, 256, 512],
                            encoder_size=256,
                            decoder_units=512,
                            attention_dim=512,
