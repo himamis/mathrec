@@ -27,6 +27,6 @@ gcloud ml-engine jobs submit training $JOB_NAME \
     --model-dir $OUTPUT_URL \
     --start-epoch 0 \
     --git-hexsha `git rev-parse HEAD` \
-    --use-gpu t \
+    --use-gpu 0 \
     --tb $TB_PATH \
     --tbn $JOB_NAME
