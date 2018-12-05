@@ -60,7 +60,7 @@ def create_predictor(sess, input_params, output_params, encoding_vb, decoding_vb
             should_continue = not np.all(finished)
 
         sequence = sequences[-1]
-        ret = [decoding_vb[s] for s in sequence[0][1:-1]]
+        ret = [decoding_vb[s[0]] for s in sequence[0][1:-1]]
         return ret
 
     return predict_beam_search

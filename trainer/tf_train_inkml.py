@@ -10,6 +10,8 @@ from trainer.tf_generator import DataGenerator
 from trainer.tf_predictor import create_predictor
 from trainer.metrics import wer
 
+logging.basicConfig(level=logging.DEBUG)
+
 from tensorflow import set_random_seed
 import tensorflow as tf
 
@@ -40,8 +42,8 @@ history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 4
-epochs = 30
+batch_size = 8
+epochs = 50
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
 image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
@@ -59,7 +61,7 @@ single_image = tf.placeholder(tf.float32, shape=(1, None, None, 1), name="single
 single_image_mask = tf.placeholder(tf.float32, shape=(1, None, None, 1), name="single_input_image_mask")
 single_character = tf.placeholder(tf.int32, shape=(1, 1), name="single_character")
 
-logging.debug("Image2Latex: Start create model:", datetime.now().time())
+logging.debug("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
 device = '/gpu:0' if use_gpu == 't' else '/cpu:0'
 with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
@@ -87,7 +89,7 @@ with tf.device(device):
                                                             single_character, eval_init_h, eval_init_c)
     eval_output_softmax = tf.nn.softmax(eval_output)
 
-logging.debug("Image2Latex: End create model:", datetime.now().time())
+logging.debug("Image2Latex: End create model: {}".format(str(datetime.now().time())))
 
 y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
 lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="lengths")
@@ -108,12 +110,11 @@ with tf.name_scope("accuracy"):
     tf.summary.scalar("accuracy", accuracy)
 
 saver = tf.train.Saver()
-#tf.summary.image("input", input_images, 4)
 
 merged_summary = tf.summary.merge_all()
 summary_step = 10
 patience = 4
-bad_counter = 4
+bad_counter = 0
 best_wer = 999999
 
 valid_avg_wer_summary = tf.Summary()
@@ -169,11 +170,14 @@ with tf.Session() as sess:
         avg_wer = wern / generator_valid.steps()
         avg_acc = accn / generator_valid.steps()
 
+        logging.debug("Avg_wer: {}, avg_acc: {}".format(avg_wer, avg_acc))
+
         valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=avg_wer)
         valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=avg_acc)
-        writer.add_summary(valid_avg_wer_summary, global_step)
-        writer.add_summary(valid_avg_acc_summary, global_step)
-        writer.flush()
+        if writer is not None:
+            writer.add_summary(valid_avg_wer_summary, global_step)
+            writer.add_summary(valid_avg_acc_summary, global_step)
+            writer.flush()
 
         if avg_wer < best_wer:
             best_wer = avg_wer
@@ -185,7 +189,7 @@ with tf.Session() as sess:
         else:
             bad_counter += 1
         if bad_counter == patience:
-            print("Early stopping")
+            logging.debug("Early stopping")
             break
 
         generator_valid.reset()
