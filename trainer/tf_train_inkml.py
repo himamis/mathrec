@@ -22,6 +22,7 @@ weights_fname = 'weights_{epoch}.h5'
 history_fname = 'history.pkl'
 results_fname = 'results.pkl'
 
+gcs = parse_arg('--gcs', required=False)
 use_gpu = parse_arg('--gpu', default='n', required=False)
 start_epoch = int(parse_arg('--start-epoch', 0))
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/new_data')
@@ -106,10 +107,14 @@ with tf.name_scope("accuracy"):
     accuracy = tf.contrib.metrics.accuracy(result, y_tensor, sequence_masks)
     tf.summary.scalar("accuracy", accuracy)
 
+saver = tf.train.Saver()
 #tf.summary.image("input", input_images, 4)
 
 merged_summary = tf.summary.merge_all()
 summary_step = 10
+patience = 4
+bad_counter = 4
+best_wer = 999999
 
 valid_avg_wer_summary = tf.Summary()
 valid_avg_acc_summary = tf.Summary()
@@ -169,6 +174,19 @@ with tf.Session() as sess:
         writer.add_summary(valid_avg_wer_summary, global_step)
         writer.add_summary(valid_avg_acc_summary, global_step)
         writer.flush()
+
+        if avg_wer < best_wer:
+            best_wer = avg_wer
+            bad_counter = 0
+            if gcs is not None:
+                saver.save(sess, os.path.join("gs://{}".format(gcs), model_checkpoint_dir, base_dir))
+            else:
+                saver.save(sess, base_dir)
+        else:
+            bad_counter += 1
+        if bad_counter == patience:
+            print("Early stopping")
+            break
 
         generator_valid.reset()
 
