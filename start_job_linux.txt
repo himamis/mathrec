@@ -1,5 +1,5 @@
 DATE=`date '+%Y_%M_%d__%H_%m_%S'`
-JOB_NAME="image2latex_"$DATE"conv32"
+JOB_NAME="image2latex_"$DATE"small"
 BUCKET_NAME="image2latex4"
 CONTAINER="gs://"$BUCKET_NAME
 OUTPUT_PATH=$CONTAINER"/output"
