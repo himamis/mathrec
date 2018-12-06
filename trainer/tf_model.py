@@ -202,16 +202,15 @@ class AttentionDecoder:
 
             ctx = tf.concat(ctxs, axis=1)
 
-
             c_i = tf.matmul(ctx, context_kernel[:, :self.units])
             c_f = tf.matmul(ctx, context_kernel[:, self.units:self.units * 2])
             c_c = tf.matmul(ctx, context_kernel[:, self.units * 2:self.units * 3])
             c_o = tf.matmul(ctx, context_kernel[:, self.units * 3:])
 
-            i = tf.keras.backend.hard_sigmoid(x_i + r_i + c_i)
-            f = tf.keras.backend.hard_sigmoid(x_f + r_f + c_f)
+            i = tf.keras.backend.sigmoid(x_i + r_i + c_i)
+            f = tf.keras.backend.sigmoid(x_f + r_f + c_f)
             c = f * c_tm1 + i * tf.tanh(x_c + r_c + c_c)
-            o = tf.keras.backend.hard_sigmoid(x_o + r_o + c_o)
+            o = tf.keras.backend.sigmoid(x_o + r_o + c_o)
 
             h = o * tf.tanh(c)
 
