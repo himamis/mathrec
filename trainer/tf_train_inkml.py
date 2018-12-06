@@ -48,7 +48,7 @@ history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 16
+batch_size = 8
 epochs = 50
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
