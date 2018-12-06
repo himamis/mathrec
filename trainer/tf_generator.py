@@ -45,7 +45,7 @@ class DataGenerator:
         max_image_height = -1
         max_label_length = -1
 
-        for i in range(self.batch_size):
+        for i in range(len(image_bucket)):
             image = image_bucket[i]
             label = label_bucket[i]
 
@@ -60,7 +60,7 @@ class DataGenerator:
         lengths = [len(label) + 1 for label in labels]  # + 1 for end/start label
         image_masks = []
 
-        for i in range(self.batch_size):
+        for i in range(len(image_bucket)):
             # Resize image
             image = images[i]
 
