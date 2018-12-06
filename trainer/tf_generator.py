@@ -26,13 +26,17 @@ class DataGenerator:
         self.label_chuncks = [labels[i:i + self.batch_size] for i in range(0, len(labels), self.batch_size)]
         self.image_chuncks = [images[i:i + self.batch_size] for i in range(0, len(images), self.batch_size)]
 
+        if len(self.image_chuncks[-1]) != self.batch_size:
+            del self.image_chuncks[-1]
+            del self.label_chuncks[-1]
+
     def reset(self):
         self.image_chuncks, self.label_chuncks = shuffle(self.image_chuncks, self.label_chuncks)
         self.chunk_index = 0
 
     def steps(self):
-        if len(self.image_chuncks[-1]) != self.batch_size:
-            return len(self.image_chuncks) - 1
+        #if len(self.image_chuncks[-1]) != self.batch_size:
+        #    return len(self.image_chuncks) - 1
         return len(self.image_chuncks)
 
     def next_batch(self):
