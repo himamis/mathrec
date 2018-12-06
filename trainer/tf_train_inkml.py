@@ -105,6 +105,7 @@ lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="length
 
 with tf.name_scope("loss"):
     sequence_masks = tf.sequence_mask(lengts_tensor, dtype=t.my_tf_float)
+    tf.summary.histogram("before_softmax,", training_output)
     loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
     tf.summary.scalar("loss", loss)
 

@@ -116,14 +116,23 @@ class AttentionDecoder:
                                  initializer=self.lstm_kernel_initializer,
                                  shape=[self.embedding_dim, 4 * self.units],
                                  dtype=t.my_tf_float)
+
+        tf.summary.histogram("kernel", kernel)
+
         recurrent_kernel = tf.get_variable(name="decoder_lstm_recurrent_kernel_{}".format(self.units),
                                            initializer=self.lstm_recurrent_kernel_initializer,
                                            shape=[self.units, 4 * self.units],
                                            dtype=t.my_tf_float)
+
+        tf.summary.histogram("recurrent_kernel", recurrent_kernel)
+
         context_kernel = tf.get_variable(name="decoder_lstm_context_kernel_{}".format(self.units),
                                          initializer=self.lstm_recurrent_kernel_initializer,
                                          shape=[sum(feature_grid_dims), 4 * self.units],
                                          dtype=t.my_tf_float)
+
+        tf.summary.histogram("context_kernel", context_kernel)
+
         bias = tf.get_variable(name="decoder_lstm_bias_{}".format(self.units),
                                initializer=self.lstm_bias_initializer,
                                shape=[4 * self.units],
@@ -329,6 +338,8 @@ class Model:
         feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=True)
         calculate_h, calculate_c = self.calculate_decoder_init(feature_grid, image_masks)
         outputs = self.decoder(feature_grid, image_masks, input_characters, calculate_h, calculate_c)
+
+        tf.summary.histogram("activation_state_h", outputs[0])
 
         return outputs[-1]
 

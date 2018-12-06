@@ -1,5 +1,12 @@
+if [ $# -eq 0 ] ; then
+    echo "No arguments supplied"
+    exit 1
+fi
+
+NAME=$1
+
 DATE=`date '+%Y_%M_%d__%H_%m_%S'`
-JOB_NAME="image2latex_"$DATE"medium"
+JOB_NAME="image2latex_"$DATE$NAME
 BUCKET_NAME="image2latex3"
 CONTAINER="gs://"$BUCKET_NAME
 OUTPUT_PATH=$CONTAINER"/output"
