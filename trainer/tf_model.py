@@ -174,7 +174,7 @@ class AttentionDecoder:
                                         shape=[self.att_dim], dtype=t.my_tf_float)
 
         def step(state, input):
-            h_tm1, c_tm1, _, _, _, _, _, _, _, _, _, _, _, _ = tf.unstack(state)
+            h_tm1, c_tm1, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ = tf.unstack(state)
 
             x_i = tf.nn.bias_add(tf.matmul(input, kernel[:, :self.units]), bias[:self.units])
             x_f = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units:self.units * 2]), bias[self.units:self.units * 2])
@@ -214,18 +214,18 @@ class AttentionDecoder:
 
             h = o * tf.tanh(c)
 
-            return tf.stack([h, c, x_i, x_f, x_c, x_o, r_i, r_f, r_c, r_o, c_i, c_f, c_c, c_o])
+            return tf.stack([h, c, x_i, x_f, x_c, x_o, r_i, r_f, r_c, r_o, c_i, c_f, c_c, c_o, i, f, o])
 
         # init = tf.stack([init_h, init_c])
         init = tf.stack([init_h, init_c,
                          tf.zeros_like(init_h),
                          tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),
                          tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),
-                         tf.zeros_like(init_h),tf.zeros_like(init_h),])
+                         tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h), tf.zeros_like(init_h), tf.zeros_like(init_h)])
         states = tf.scan(step,
                          tf.transpose(inputs, [1, 0, 2]),
                          initializer=init)
-        hs, cs, x_i, x_f, x_c, x_o, r_i, r_f, r_c, r_o, c_i, c_f, c_c, c_o = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
+        hs, cs, x_i, x_f, x_c, x_o, r_i, r_f, r_c, r_o, c_i, c_f, c_c, c_o, i, f, o = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
 
         if summarize:
             tf.summary.histogram("x_i", x_i)
@@ -242,6 +242,10 @@ class AttentionDecoder:
             tf.summary.histogram("c_f", c_f)
             tf.summary.histogram("c_c", c_c)
             tf.summary.histogram("c_o", c_o)
+
+            tf.summary.histogram("i", i)
+            tf.summary.histogram("f", f)
+            tf.summary.histogram("o", o)
 
         return [hs, cs]
 
