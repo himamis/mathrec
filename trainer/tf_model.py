@@ -336,7 +336,14 @@ class Model:
 
     def training(self, input_images, input_image_masks, input_characters):
         feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=True)
+
+        tf.summary.histogram("feature_grid", feature_grid)
+
         calculate_h, calculate_c = self.calculate_decoder_init(feature_grid, image_masks)
+
+        tf.summary.histogram("calculate_h", calculate_h)
+        tf.summary.histogram("calculate_h", calculate_c)
+
         outputs = self.decoder(feature_grid, image_masks, input_characters, calculate_h, calculate_c)
 
         tf.summary.histogram("activation_state_h", outputs[0])
