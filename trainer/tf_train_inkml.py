@@ -11,12 +11,14 @@ from trainer.tf_predictor import create_predictor
 from trainer.metrics import wer
 import trainer.default_type as t
 import trainer.tf_initializers as tfi
+import random
 
 logging.basicConfig(level=logging.DEBUG)
 
 from tensorflow import set_random_seed
 import tensorflow as tf
 
+random.seed(1337)
 seed(1337)
 set_random_seed(1337)
 

@@ -31,6 +31,8 @@ class DataGenerator:
         self.chunk_index = 0
 
     def steps(self):
+        if len(self.image_chuncks[-1]) != self.batch_size:
+            return len(self.image_chuncks) - 1
         return len(self.image_chuncks)
 
     def next_batch(self):
