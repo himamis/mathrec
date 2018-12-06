@@ -19,7 +19,7 @@ class CNNEncoder:
         self.bias_init = bias_init
         self.activation = activation
 
-    def __call__(self, input_images, image_mask, is_training):
+    def __call__(self, input_images, image_mask, is_training, summarize=False):
         convolutions = []
         conv = (input_images - 128) / 128
         prev_size = 1
@@ -39,21 +39,22 @@ class CNNEncoder:
                 conv_1 = tf.nn.conv2d(conv, w_1, strides=[1, 1, 1, 1], padding='SAME') + b_1
                 act_1 = self.activation(conv_1)
                 conv_2 = tf.nn.conv2d(act_1, w_2, strides=[1, 1, 1, 1], padding='SAME') + b_2
-                bn = tf.layers.batch_normalization(conv_2 + b_2, training=is_training,
+                bn = tf.layers.batch_normalization(conv_2, training=is_training,
                                                      name="batch_norm_{}".format(filter_size))
                 act_2 = self.activation(bn)
                 conv = tf.nn.max_pool(act_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
                                       name='max_pool_{}'.format(filter_size))
                 image_mask = image_mask[:, 0::2, 0::2]
 
-                #tf.summary.histogram('weights_1', w_1)
-                #tf.summary.histogram('weights_2', w_2)
+                if summarize:
+                    tf.summary.histogram('weights_1', w_1)
+                    tf.summary.histogram('weights_2', w_2)
 
-                #tf.summary.histogram('biases_1', b_1)
-                #tf.summary.histogram('biases_2', b_2)
+                    tf.summary.histogram('biases_1', b_1)
+                    tf.summary.histogram('biases_2', b_2)
 
-                #tf.summary.histogram('activations_1', act_1)
-                #tf.summary.histogram('activations_2', act_2)
+                    tf.summary.histogram('activations_1', act_1)
+                    tf.summary.histogram('activations_2', act_2)
 
                 convolutions.append(conv)
 
@@ -68,23 +69,32 @@ class RowEncoder:
         self.recurrent_init = recurrent_init
         self.bidirectional = bidirectional
 
-    def __call__(self, feature_grid, image_mask):
+    def __call__(self, feature_grid, image_mask, summarize=False):
         with tf.name_scope("row_encoder"):
-            rnn_cell = tf.nn.rnn_cell.LSTMCell(self.encoder_size, initializer=self.kernel_init, dtype=t.my_tf_float)
+            cell_fw = tf.nn.rnn_cell.LSTMCell(self.encoder_size, initializer=self.kernel_init, dtype=t.my_tf_float)
+
+            if self.bidirectional:
+                cell_bw = tf.nn.rnn_cell.LSTMCell(self.encoder_size, initializer=self.kernel_init, dtype=t.my_tf_float)
 
             masked_feature_grid = feature_grid * image_mask
 
             def apply_fun(image_row):
                 if self.bidirectional:
-                    outputs, _ = tf.nn.bidirectional_dynamic_rnn(rnn_cell, rnn_cell, image_row, dtype=t.my_tf_float)
+                    outputs, _ = tf.nn.bidirectional_dynamic_rnn(cell_fw, cell_bw, image_row, dtype=t.my_tf_float)
                     outputs = tf.concat(outputs, 2)
                 else:
-                    outputs, _ = tf.nn.dynamic_rnn(rnn_cell, image_row, dtype=t.my_tf_float)
+                    outputs, _ = tf.nn.dynamic_rnn(cell_fw, image_row, dtype=t.my_tf_float)
                 return outputs
 
             height_first = tf.transpose(masked_feature_grid, [1, 0, 2, 3])
             output = tf.map_fn(apply_fun, height_first)
             batch_first = tf.transpose(output, [1, 0, 2, 3])
+
+            if summarize:
+                tf.summary.histogram("feature_grid_encoder", feature_grid)
+                tf.summary.histogram("masked_grid_encoder", masked_feature_grid)
+                tf.summary.histogram("height_f", height_first)
+                tf.summary.histogram("batch_first", batch_first)
 
         return batch_first
 
@@ -117,26 +127,26 @@ class AttentionDecoder:
                                  shape=[self.embedding_dim, 4 * self.units],
                                  dtype=t.my_tf_float)
 
-        tf.summary.histogram("kernel", kernel)
-
         recurrent_kernel = tf.get_variable(name="decoder_lstm_recurrent_kernel_{}".format(self.units),
                                            initializer=self.lstm_recurrent_kernel_initializer,
                                            shape=[self.units, 4 * self.units],
                                            dtype=t.my_tf_float)
-
-        tf.summary.histogram("recurrent_kernel", recurrent_kernel)
 
         context_kernel = tf.get_variable(name="decoder_lstm_context_kernel_{}".format(self.units),
                                          initializer=self.lstm_recurrent_kernel_initializer,
                                          shape=[sum(feature_grid_dims), 4 * self.units],
                                          dtype=t.my_tf_float)
 
-        tf.summary.histogram("context_kernel", context_kernel)
-
         bias = tf.get_variable(name="decoder_lstm_bias_{}".format(self.units),
                                initializer=self.lstm_bias_initializer,
                                shape=[4 * self.units],
                                dtype=t.my_tf_float)
+
+        if summarize:
+            tf.summary.histogram("kernel", kernel)
+            tf.summary.histogram("recurrent_kernel", recurrent_kernel)
+            tf.summary.histogram("context_kernel", context_kernel)
+
         attention_us = []
         attention_u_bs = []
         attention_v_as = []
@@ -174,7 +184,7 @@ class AttentionDecoder:
                                         shape=[self.att_dim], dtype=t.my_tf_float)
 
         def step(state, input):
-            h_tm1, c_tm1, _, _, _, _, _, _, _, _, _, _, _, _, _, _, _ = tf.unstack(state)
+            h_tm1, c_tm1 = tf.unstack(state)
 
             x_i = tf.nn.bias_add(tf.matmul(input, kernel[:, :self.units]), bias[:self.units])
             x_f = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units:self.units * 2]), bias[self.units:self.units * 2])
@@ -193,14 +203,15 @@ class AttentionDecoder:
                     zip(watch_vectors, attention_v_as, attention_v_a_bs, feature_grids):
                 tanh_vector = tf.tanh(watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
                 e_ti = tf.tensordot(tanh_vector, attention_v_a, axes=1) + attention_v_a_b  # [batch, h, w, 1]
-                alpha = tf.exp(e_ti)
-                masked_alpha = alpha * image_masks
-                alpha = tf.squeeze(masked_alpha, axis=3)
-                alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
-                ctx = tf.reduce_sum(feature_grid * alpha[:, :, :, None], axis=[1, 2])
+                masked_e_ti = e_ti * image_masks
+                alpha = tf.nn.softmax(masked_e_ti)
+                ctx = tf.reduce_sum(feature_grid * alpha, axis=[1, 2])
                 ctxs.append(ctx)
 
-            ctx = tf.concat(ctxs, axis=1)
+            if len(ctxs) == 1:
+                ctx = ctxs[0]
+            else:
+                ctx = tf.concat(ctxs, axis=1)
 
             c_i = tf.matmul(ctx, context_kernel[:, :self.units])
             c_f = tf.matmul(ctx, context_kernel[:, self.units:self.units * 2])
@@ -214,38 +225,14 @@ class AttentionDecoder:
 
             h = o * tf.tanh(c)
 
-            return tf.stack([h, c, x_i, x_f, x_c, x_o, r_i, r_f, r_c, r_o, c_i, c_f, c_c, c_o, i, f, o])
+            return tf.stack([h, c])
 
         # init = tf.stack([init_h, init_c])
-        init = tf.stack([init_h, init_c,
-                         tf.zeros_like(init_h),
-                         tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),
-                         tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),
-                         tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h), tf.zeros_like(init_h), tf.zeros_like(init_h)])
+        init = tf.stack([init_h, init_c])
         states = tf.scan(step,
                          tf.transpose(inputs, [1, 0, 2]),
                          initializer=init)
-        hs, cs, x_i, x_f, x_c, x_o, r_i, r_f, r_c, r_o, c_i, c_f, c_c, c_o, i, f, o = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
-
-        if summarize:
-            tf.summary.histogram("x_i", x_i)
-            tf.summary.histogram("x_f", x_f)
-            tf.summary.histogram("x_c", x_c)
-            tf.summary.histogram("x_o", x_o)
-
-            tf.summary.histogram("r_i", r_i)
-            tf.summary.histogram("r_f", r_f)
-            tf.summary.histogram("r_c", r_c)
-            tf.summary.histogram("r_o", r_o)
-
-            tf.summary.histogram("c_i", c_i)
-            tf.summary.histogram("c_f", c_f)
-            tf.summary.histogram("c_c", c_c)
-            tf.summary.histogram("c_o", c_o)
-
-            tf.summary.histogram("i", i)
-            tf.summary.histogram("f", f)
-            tf.summary.histogram("o", o)
+        hs, cs = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
 
         return [hs, cs]
 
@@ -305,14 +292,15 @@ class Model:
             lstm_recurrent_kernel_initializer=decoder_recurrent_kernel_init
         )
 
-    def feature_grid(self, input_images, input_image_masks, is_training):
+    def feature_grid(self, input_images, input_image_masks, is_training, summarize=False):
         with tf.variable_scope("convolutional_encoder", reuse=tf.AUTO_REUSE):
             encoded_images, image_masks = self._encoder(input_images=input_images, image_mask=input_image_masks,
-                                           is_training=is_training)
+                                           is_training=is_training, summarize=summarize)
 
         feature_grid = []
         with tf.variable_scope("row_encoder", reuse=tf.AUTO_REUSE):
-            re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1], image_mask=image_masks)
+            re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1], image_mask=image_masks,
+                                                  summarize=summarize)
 
         feature_grid.append(re_encoded_images)
 
@@ -362,14 +350,11 @@ class Model:
         return states + [output]
 
     def training(self, input_images, input_image_masks, input_characters):
-        feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=True)
+        feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=True, summarize=True)
 
         tf.summary.histogram("feature_grid", feature_grid)
 
         calculate_h, calculate_c = self.calculate_decoder_init(feature_grid, image_masks)
-
-        tf.summary.histogram("calculate_h", calculate_h)
-        tf.summary.histogram("calculate_h", calculate_c)
 
         outputs = self.decoder(feature_grid, image_masks, input_characters, calculate_h, calculate_c,
                                summarize=True)

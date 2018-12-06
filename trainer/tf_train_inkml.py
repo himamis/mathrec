@@ -48,7 +48,7 @@ history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 8
+batch_size = 16
 epochs = 50
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
@@ -60,6 +60,7 @@ generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
 input_images = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_images")
 image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_image_masks")
+
 input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
 is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
 
@@ -78,19 +79,19 @@ with tf.device(device):
                            embedding_dim=64,
                            bidirectional=True,
                            conv_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
-                           conv_bias_init=tf.initializers.constant(0.01, dtype=t.my_tf_float),
+                           conv_bias_init=tf.initializers.random_normal(),
                            conv_activation=tf.nn.relu,
                            encoder_kernel_init=tf.initializers.random_normal(dtype=t.my_tf_float),
                            decoder_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
                            decoder_bias_init=tf.initializers.constant(1/4, dtype=t.my_tf_float),
-                           dense_init=tf.initializers.random_normal(stddev=0.1, dtype=t.my_tf_float),
-                           dense_bias_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
+                           dense_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
+                           dense_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
                            decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float))
     # Training
     training_output = model.training(input_images, image_masks, input_characters)
 
     # Evaluating
-    eval_feature_grid, eval_masking = model.feature_grid(single_image, single_image_mask, False)
+    eval_feature_grid, eval_masking = model.feature_grid(single_image, single_image_mask, True)
     eval_calculate_h0, eval_calculate_c0 = model.calculate_decoder_init(eval_feature_grid, eval_masking)
     eval_init_h, eval_init_c = model.decoder_init(1)
     eval_state_h, eval_state_c, eval_output = model.decoder(eval_feature_grid, eval_masking,
@@ -102,10 +103,9 @@ logging.debug("Image2Latex: End create model: {}".format(str(datetime.now().time
 y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
 lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="lengths")
 
-
 with tf.name_scope("loss"):
     sequence_masks = tf.sequence_mask(lengts_tensor, dtype=t.my_tf_float)
-    tf.summary.histogram("before_softmax,", training_output)
+    tf.summary.histogram("before_softmax", training_output)
     loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
     tf.summary.scalar("loss", loss)
 
@@ -132,7 +132,7 @@ valid_avg_acc_summary = tf.Summary()
 init = tf.global_variables_initializer()
 
 logging.debug("Image2Latex Start training...")
-global_step = 0
+global_step = 1
 with tf.Session() as sess:
     if start_epoch != 0:
         saver.restore(sess, save_dir)
@@ -157,12 +157,12 @@ with tf.Session() as sess:
                 image_masks: masks,
                 y_tensor: label
             }
-            # Write summary
-            if writer is not None and global_step % 10 == 0:
-                s = sess.run(merged_summary, dict)
+            if writer is not None and global_step % summary_step == 0:
+                vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
                 writer.add_summary(s, global_step)
+            else:
+                vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=dict)
 
-            vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=dict)
             logging.debug("Loss: {}, Acc: {}".format(vloss, vacc))
 
             global_step += 1

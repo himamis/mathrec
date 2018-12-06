@@ -16,8 +16,28 @@ class DataGenerator:
         self.encoding_vb = encoding_vb
         self.batch_size = batch_size
         self.data_index = 0
+        self.image_chuncks = None
+        self.label_chuncks = None
+        self._build_chunks()
+
+    def _build_chunks(self):
+        lengs = [len(lab) for lab in self.labels]
+        _, labels, images = zip(*sorted(zip(lengs, self.labels, self.images), key=lambda a: a[0]))
+        self.label_chuncks = [labels[i:i + self.batch_size] for i in range(0, len(labels), self.batch_size)]
+        self.image_chuncks = [images[i:i + self.batch_size] for i in range(0, len(images), self.batch_size)]
+
+    def reset(self):
+        self.image_chuncks, self.label_chuncks = shuffle(self.image_chuncks, self.label_chuncks)
+        self.chunk_index = 0
+
+    def steps(self):
+        return len(self.image_chuncks)
 
     def next_batch(self):
+        image_bucket = self.image_chuncks[self.chunk_index]
+        label_bucket = self.label_chuncks[self.chunk_index]
+        self.chunk_index += 1
+
         images = []
         labels = []
         observations = []
@@ -26,8 +46,8 @@ class DataGenerator:
         max_label_length = -1
 
         for i in range(self.batch_size):
-            image = self.images[self.data_index]
-            label = self.labels[self.data_index]
+            image = image_bucket[i]
+            label = label_bucket[i]
 
             images.append(image)
             labels.append(label)
@@ -36,10 +56,6 @@ class DataGenerator:
             max_image_width = max(utils.w(image), max_image_width)
             max_image_height = max(utils.h(image), max_image_height)
             max_label_length = max(len(label) + 1, max_label_length)
-
-            self.data_index += 1
-            if self.data_index >= len(self.images):
-                self.data_index = 0
 
         lengths = [len(label) + 1 for label in labels]  # + 1 for end/start label
         image_masks = []
@@ -69,11 +85,3 @@ class DataGenerator:
         observations = [[start_id] + label + [end_id] * (max_label_length - len(label) - 1) for label in observations]
 
         return images, labels, observations, image_masks, lengths
-
-    def reset(self):
-        self.images, self.labels = shuffle(self.images, self.labels)
-        self.data_index = 0
-
-    def steps(self):
-        offset = 1 if len(self.images) % self.batch_size != 0 else 0
-        return int(len(self.images) / self.batch_size) + offset
