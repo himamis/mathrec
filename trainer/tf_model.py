@@ -109,7 +109,7 @@ class AttentionDecoder:
         self.dense_bias_initializer = dense_bias_initializer
         self.lstm_recurrent_kernel_initializer = lstm_recurrent_kernel_initializer
 
-    def __call__(self, feature_grid, image_masks, inputs, init_h, init_c):
+    def __call__(self, feature_grid, image_masks, inputs, init_h, init_c, summarize=False):
         feature_grids = tf.unstack(feature_grid)
         feature_grid_dims = [feature_grid.shape[3] for feature_grid in feature_grids]
         kernel = tf.get_variable(name="decoder_lstm_kernel_{}".format(self.units),
@@ -174,7 +174,7 @@ class AttentionDecoder:
                                         shape=[self.att_dim], dtype=t.my_tf_float)
 
         def step(state, input):
-            h_tm1, c_tm1 = tf.unstack(state)
+            h_tm1, c_tm1, _, _, _, _, _, _, _, _, _, _, _, _ = tf.unstack(state)
 
             x_i = tf.nn.bias_add(tf.matmul(input, kernel[:, :self.units]), bias[:self.units])
             x_f = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units:self.units * 2]), bias[self.units:self.units * 2])
@@ -201,6 +201,8 @@ class AttentionDecoder:
                 ctxs.append(ctx)
 
             ctx = tf.concat(ctxs, axis=1)
+
+
             c_i = tf.matmul(ctx, context_kernel[:, :self.units])
             c_f = tf.matmul(ctx, context_kernel[:, self.units:self.units * 2])
             c_c = tf.matmul(ctx, context_kernel[:, self.units * 2:self.units * 3])
@@ -213,13 +215,35 @@ class AttentionDecoder:
 
             h = o * tf.tanh(c)
 
-            return tf.stack([h, c])
+            return tf.stack([h, c, x_i, x_f, x_c, x_o, r_i, r_f, r_c, r_o, c_i, c_f, c_c, c_o])
 
-        init = tf.stack([init_h, init_c])
+        # init = tf.stack([init_h, init_c])
+        init = tf.stack([init_h, init_c,
+                         tf.zeros_like(init_h),
+                         tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),
+                         tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),tf.zeros_like(init_h),
+                         tf.zeros_like(init_h),tf.zeros_like(init_h),])
         states = tf.scan(step,
                          tf.transpose(inputs, [1, 0, 2]),
                          initializer=init)
-        hs, cs = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
+        hs, cs, x_i, x_f, x_c, x_o, r_i, r_f, r_c, r_o, c_i, c_f, c_c, c_o = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
+
+        if summarize:
+            tf.summary.histogram("x_i", x_i)
+            tf.summary.histogram("x_f", x_f)
+            tf.summary.histogram("x_c", x_c)
+            tf.summary.histogram("x_o", x_o)
+
+            tf.summary.histogram("r_i", r_i)
+            tf.summary.histogram("r_f", r_f)
+            tf.summary.histogram("r_c", r_c)
+            tf.summary.histogram("r_o", r_o)
+
+            tf.summary.histogram("c_i", c_i)
+            tf.summary.histogram("c_f", c_f)
+            tf.summary.histogram("c_c", c_c)
+            tf.summary.histogram("c_o", c_o)
+
         return [hs, cs]
 
 class Model:
@@ -314,13 +338,13 @@ class Model:
 
         return init_h, init_c
 
-    def decoder(self, feature_grid, image_masks, input_characters, init_h, init_c):
+    def decoder(self, feature_grid, image_masks, input_characters, init_h, init_c, summarize=False):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
             embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal, dtype=t.my_tf_float,
                                         shape=[self.vocabulary_size, self.embedding_dim])
             embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
             states = self._decoder(feature_grid=feature_grid, image_masks=image_masks, inputs=embedded_characters,
-                                   init_h=init_h, init_c=init_c)
+                                   init_h=init_h, init_c=init_c, summarize=summarize)
 
             state_h, _ = states
 
@@ -344,7 +368,8 @@ class Model:
         tf.summary.histogram("calculate_h", calculate_h)
         tf.summary.histogram("calculate_h", calculate_c)
 
-        outputs = self.decoder(feature_grid, image_masks, input_characters, calculate_h, calculate_c)
+        outputs = self.decoder(feature_grid, image_masks, input_characters, calculate_h, calculate_c,
+                               summarize=True)
 
         tf.summary.histogram("activation_state_h", outputs[0])
 
