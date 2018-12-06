@@ -173,7 +173,7 @@ with tf.Session() as sess:
             image, label, observation, masks, lengths = generator_valid.next_batch()
             predict = predictor(image, masks)
             re_encoded = [encoding_vb[s] for s in predict]
-            wern += wer(re_encoded, label[:-1])
+            wern += wer(re_encoded, label[0][:-1])
             if re_encoded == predict:
                 accn += 1
 
