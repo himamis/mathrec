@@ -7,7 +7,7 @@ from os import path
 import os
 from trainer.tf_generator import DataGenerator
 from trainer.tf_predictor import create_predictor
-from trainer.metrics import wer
+from trainer.metrics import wer, exp_rate
 import trainer.default_type as t
 import trainer.tf_initializers as tfi
 import random
@@ -132,11 +132,13 @@ best_wer = 999999
 
 valid_avg_wer_summary = tf.Summary()
 valid_avg_acc_summary = tf.Summary()
+valid_avg_exp_rate_summary = tf.Summary()
 
 init = tf.global_variables_initializer()
 
 print("Image2Latex Start training...")
 global_step = 1
+
 with tf.Session() as sess:
     if start_epoch != 0:
         saver.restore(sess, save_format.format(start_epoch))
@@ -174,24 +176,29 @@ with tf.Session() as sess:
         # Validation after each epoch
         wern = 0
         accn = 0
+        exprate = 0
         for step in range(generator_valid.steps()):
             image, label, observation, masks, lengths = generator_valid.next_batch()
             predict = predictor(image, masks)
             re_encoded = [encoding_vb[s] for s in predict]
             wern += wer(re_encoded, label[0][:-1])
+            exprate += exp_rate(label[0][:-1], re_encoded)
             if re_encoded == predict:
                 accn += 1
 
         avg_wer = float(wern) / float(generator_valid.steps())
         avg_acc = float(accn) / float(generator_valid.steps())
+        avg_exp_rate = float(exprate) / float(generator_valid.steps())
 
-        print("Avg_wer: {}, avg_acc: {}".format(avg_wer, avg_acc))
+        print("Avg_wer: {}, avg_acc: {}, avg_exp_rate: {}".format(avg_wer, avg_acc, avg_exp_rate))
 
         valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=avg_wer)
         valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=avg_acc)
+        valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=avg_exp_rate)
         if writer is not None:
             writer.add_summary(valid_avg_wer_summary, global_step)
             writer.add_summary(valid_avg_acc_summary, global_step)
+            writer.add_summary(valid_avg_exp_rate_summary, global_step)
             writer.flush()
 
         if avg_wer < best_wer:

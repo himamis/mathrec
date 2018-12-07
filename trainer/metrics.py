@@ -1,5 +1,8 @@
 import keras.backend as K
 import keras
+import numpy as np
+from sklearn.metrics import accuracy_score
+
 
 
 def get_masked(mask_value, metric):
@@ -73,3 +76,15 @@ def wer(r, h):
                 d[i][j] = min(substitution, insertion, deletion)
 
     return d[len(r)][len(h)]
+
+def exp_rate(truth, predicted):
+    if len(truth) > len(predicted):
+        predicted = np.append(predicted, np.repeat(-1, len(truth) - len(predicted)))
+    elif len(predicted) > len(truth):
+        truth = np.append(truth, np.repeat(-1, len(predicted) - len(truth)))
+
+    predicted = np.array(predicted)
+    truth = np.array(truth)
+    score = accuracy_score(predicted, truth)
+
+    return score
