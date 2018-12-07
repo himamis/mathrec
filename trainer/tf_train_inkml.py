@@ -127,9 +127,10 @@ saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
 summary_step = 10
-patience = 4
+patience = 5
 bad_counter = 0
 best_wer = 999999
+best_exp_rate = -1
 level = 0
 
 valid_avg_wer_summary = tf.Summary()
@@ -215,8 +216,17 @@ with tf.Session() as sess:
             writer.add_summary(valid_avg_exp_rate_summary, global_step)
             writer.flush()
 
+        improved = False
+
+        if avg_exp_rate > best_exp_rate:
+            best_exp_rate = avg_exp_rate
+            improved = True
+
         if avg_wer < best_wer:
             best_wer = avg_wer
+            improved = True
+
+        if improved:
             bad_counter = 0
             saver.save(sess, save_format.format(epoch))
         else:
