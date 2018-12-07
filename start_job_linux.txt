@@ -8,10 +8,10 @@ if [ -z "$2" ] ; then
     exit 2
 fi
 
-if [ $2 == "1" ] ; then
+if [ $2 == "3" ] ; then
     PROJECT_ID="nomadic-raceway-224107"
     BUCKET_NAME="image2latex3"
-elif [ $2 == "2" ] ; then
+elif [ $2 == "4" ] ; then
     PROJECT_ID="pivotal-store-224110"
     BUCKET_NAME="image2latex4"
 else
@@ -26,6 +26,8 @@ echo "Name is: "$NAME
 echo "Project id is: "$PROJECT_ID
 echo "Bucket name is: "$BUCKET_NAME
 
+
+
 DATE=`date '+%Y_%m_%d__%H_%M'`
 JOB_NAME="im2lx_"$DATE$NAME
 CONTAINER="gs://"$BUCKET_NAME
@@ -39,8 +41,9 @@ REGION="us-central1"
 DATA_URL="new_data/"
 OUTPUT_URL="output"
 
-echo $OUTPUT_PATH
+echo "Job: "$JOB_NAME" running on: "$OUTPUT_PATH
 
+gcloud config set project $PROJECT_ID
 gcloud ml-engine jobs submit training $JOB_NAME \
     --job-dir $OUTPUT_PATH \
     --runtime-version 1.9\
