@@ -5,7 +5,7 @@ from numpy.random import seed
 from datetime import datetime
 from os import path
 import os
-from trainer.tf_generator import DataGenerator
+from trainer.tf_generator import DataGenerator, DifficultyDataGenerator
 from trainer.tf_predictor import create_predictor
 from trainer.metrics import wer, exp_rate
 import trainer.default_type as t
@@ -50,10 +50,11 @@ git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 batch_size = 16
 epochs = 50
+levels = 5
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
 image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
-generator = DataGenerator(image, truth, encoding_vb, batch_size)
+generator = DifficultyDataGenerator(image, truth, encoding_vb, levels=levels, batch_size=batch_size)
 
 image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
 generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
@@ -129,15 +130,18 @@ summary_step = 10
 patience = 4
 bad_counter = 0
 best_wer = 999999
+level = 0
 
 valid_avg_wer_summary = tf.Summary()
 valid_avg_acc_summary = tf.Summary()
 valid_avg_exp_rate_summary = tf.Summary()
+level_summary = tf.Summary()
 
 init = tf.global_variables_initializer()
 
 print("Image2Latex Start training...")
 global_step = 1
+
 
 with tf.Session() as sess:
     if start_epoch != 0:
@@ -153,6 +157,12 @@ with tf.Session() as sess:
         writer.add_graph(sess.graph)
     sess.run(init)
     for epoch in range(epochs):
+
+        print("Current level {}".format(level))
+        level_summary.value.add(tag="level", simple_value=level)
+        if writer is not None:
+            writer.add_summary(level_summary, global_step)
+
         generator.reset()
         for step in range(generator.steps()):
             image, label, observation, masks, lengths = generator.next_batch()
@@ -172,6 +182,10 @@ with tf.Session() as sess:
             print("Loss: {}, Acc: {}".format(vloss, vacc))
 
             global_step += 1
+
+        if level < levels - 1:
+            level += 1
+            generator.set_level(level)
 
         # Validation after each epoch
         wern = 0
