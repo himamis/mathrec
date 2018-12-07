@@ -15,7 +15,7 @@ class DataGenerator:
         self.labels = labels
         self.encoding_vb = encoding_vb
         self.batch_size = batch_size
-        self.data_index = 0
+        self.chunk_index = 0
         self.image_chuncks = None
         self.label_chuncks = None
         self._build_chunks()

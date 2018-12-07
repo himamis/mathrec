@@ -5,15 +5,12 @@ from numpy.random import seed
 from datetime import datetime
 from os import path
 import os
-import logging
 from trainer.tf_generator import DataGenerator
 from trainer.tf_predictor import create_predictor
 from trainer.metrics import wer
 import trainer.default_type as t
 import trainer.tf_initializers as tfi
 import random
-
-logging.basicConfig(level=logging.DEBUG)
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -27,6 +24,7 @@ folder_str = 'model-inkml-' + date_str
 weights_fname = 'weights_{epoch}.h5'
 history_fname = 'history.pkl'
 results_fname = 'results.pkl'
+checkpoint_fname = 'checkpoint_epoch_{}.ckpt'
 
 gcs = parse_arg('--gcs', required=False)
 use_gpu = parse_arg('--gpu', default='n', required=False)
@@ -36,9 +34,9 @@ model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/tf_mod
 tensorboard_log_dir = parse_arg('--tb', None, required=False)
 tensorboard_name = parse_arg('--tbn', "adam", required=False)
 base_dir = path.join(model_checkpoint_dir, folder_str)
-save_dir = base_dir
+save_format = path.join(base_dir, checkpoint_fname)
 if gcs is not None:
-    save_dir = os.path.join("gs://{}".format(gcs), save_dir)
+    save_format = os.path.join("gs://{}".format(gcs), save_format)
 
 #if not path.exists(base_dir):
 #    os.mkdir(base_dir)
@@ -70,7 +68,7 @@ single_image = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="sin
 single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="single_input_image_mask")
 single_character = tf.placeholder(tf.int32, shape=(1, 1), name="single_character")
 
-logging.debug("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
+print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
 with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
@@ -100,7 +98,7 @@ with tf.device(device):
                                                             single_character, eval_init_h, eval_init_c)
     eval_output_softmax = tf.nn.softmax(eval_output)
 
-logging.debug("Image2Latex: End create model: {}".format(str(datetime.now().time())))
+print("Image2Latex: End create model: {}".format(str(datetime.now().time())))
 
 y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
 lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="lengths")
@@ -113,7 +111,11 @@ with tf.name_scope("loss"):
 
 with tf.name_scope("train"):
     optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
-    train = optimizer.minimize(loss)
+    grads_and_vars = optimizer.compute_gradients(loss)
+    clipped_grads_and_vars = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in grads_and_vars]
+    tf.summary.merge(
+        [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in clipped_grads_and_vars if g[0] is not None])
+    train = optimizer.apply_gradients(clipped_grads_and_vars)
 
 with tf.name_scope("accuracy"):
     result = tf.argmax(tf.nn.softmax(training_output), output_type=tf.int32, axis=2)
@@ -133,11 +135,11 @@ valid_avg_acc_summary = tf.Summary()
 
 init = tf.global_variables_initializer()
 
-logging.debug("Image2Latex Start training...")
+print("Image2Latex Start training...")
 global_step = 1
 with tf.Session() as sess:
     if start_epoch != 0:
-        saver.restore(sess, save_dir)
+        saver.restore(sess, save_format.format(start_epoch))
     predictor = create_predictor(sess, (single_image, single_image_mask, eval_init_h,
                                  eval_init_c, eval_feature_grid, eval_masking,
                                  single_character), (eval_feature_grid, eval_masking, eval_calculate_h0,
@@ -165,7 +167,7 @@ with tf.Session() as sess:
             else:
                 vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=dict)
 
-            logging.debug("Loss: {}, Acc: {}".format(vloss, vacc))
+            print("Loss: {}, Acc: {}".format(vloss, vacc))
 
             global_step += 1
 
@@ -180,10 +182,10 @@ with tf.Session() as sess:
             if re_encoded == predict:
                 accn += 1
 
-        avg_wer = wern / generator_valid.steps()
-        avg_acc = accn / generator_valid.steps()
+        avg_wer = float(wern) / float(generator_valid.steps())
+        avg_acc = float(accn) / float(generator_valid.steps())
 
-        logging.debug("Avg_wer: {}, avg_acc: {}".format(avg_wer, avg_acc))
+        print("Avg_wer: {}, avg_acc: {}".format(avg_wer, avg_acc))
 
         valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=avg_wer)
         valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=avg_acc)
@@ -195,11 +197,11 @@ with tf.Session() as sess:
         if avg_wer < best_wer:
             best_wer = avg_wer
             bad_counter = 0
-            saver.save(sess, save_dir)
+            saver.save(sess, save_format.format(epoch))
         else:
             bad_counter += 1
         if bad_counter == patience:
-            logging.debug("Early stopping")
+            print("Early stopping")
             break
 
         generator_valid.reset()

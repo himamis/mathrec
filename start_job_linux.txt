@@ -7,7 +7,7 @@ NAME=$1
 
 DATE=`date '+%Y_%M_%d__%H_%m_%S'`
 JOB_NAME="image2latex_"$DATE$NAME
-BUCKET_NAME="image2latex3"
+BUCKET_NAME="image2latex4"
 CONTAINER="gs://"$BUCKET_NAME
 OUTPUT_PATH=$CONTAINER"/output"
 TB_PATH=$CONTAINER"/logdir"

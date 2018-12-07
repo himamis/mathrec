@@ -7,7 +7,7 @@ from file_utils import common
 from utilities import parse_arg
 import tarfile
 
-bucket_name = parse_arg('--gcs', 'image2latex3')
+bucket_name = parse_arg('--gcs', 'image2latex4')
 
 storage_client = storage.Client()
 bucket = storage_client.bucket(bucket_name)

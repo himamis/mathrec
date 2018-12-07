@@ -186,44 +186,52 @@ class AttentionDecoder:
         def step(state, input):
             h_tm1, c_tm1 = tf.unstack(state)
 
-            x_i = tf.nn.bias_add(tf.matmul(input, kernel[:, :self.units]), bias[:self.units])
-            x_f = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units:self.units * 2]), bias[self.units:self.units * 2])
-            x_c = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units * 2:self.units * 3]), bias[self.units * 2:self.units * 3])
-            x_o = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units * 3:]), bias[self.units * 3:])
+            with tf.name_scope("x"):
+                x_i = tf.nn.bias_add(tf.matmul(input, kernel[:, :self.units]), bias[:self.units])
+                x_f = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units:self.units * 2]), bias[self.units:self.units * 2])
+                x_c = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units * 2:self.units * 3]), bias[self.units * 2:self.units * 3])
+                x_o = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units * 3:]), bias[self.units * 3:])
 
-            r_i = tf.tensordot(h_tm1, recurrent_kernel[:, :self.units], 1)
-            r_f = tf.tensordot(h_tm1, recurrent_kernel[:, self.units:self.units * 2], 1)
-            r_c = tf.tensordot(h_tm1, recurrent_kernel[:, self.units * 2:self.units * 3], 1)
-            r_o = tf.tensordot(h_tm1, recurrent_kernel[:, self.units * 3:], 1)
+            with tf.name_scope("r"):
+                r_i = tf.tensordot(h_tm1, recurrent_kernel[:, :self.units], 1)
+                r_f = tf.tensordot(h_tm1, recurrent_kernel[:, self.units:self.units * 2], 1)
+                r_c = tf.tensordot(h_tm1, recurrent_kernel[:, self.units * 2:self.units * 3], 1)
+                r_o = tf.tensordot(h_tm1, recurrent_kernel[:, self.units * 3:], 1)
 
-            # context vector
-            speller_vector = tf.tensordot(h_tm1, attention_w, axes=1) + attention_w_b
-            ctxs = []
-            for watch_vector, attention_v_a, attention_v_a_b, feature_grid in \
+            with tf.name_scope("ctx"):
+                # context vector
+                speller_vector = tf.tensordot(h_tm1, attention_w, axes=1) + attention_w_b
+                ctxs = []
+                for watch_vector, attention_v_a, attention_v_a_b, feature_grid in \
                     zip(watch_vectors, attention_v_as, attention_v_a_bs, feature_grids):
-                tanh_vector = tf.tanh(watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
-                e_ti = tf.tensordot(tanh_vector, attention_v_a, axes=1) + attention_v_a_b  # [batch, h, w, 1]
-                masked_e_ti = e_ti * image_masks
-                alpha = tf.nn.softmax(masked_e_ti)
-                ctx = tf.reduce_sum(feature_grid * alpha, axis=[1, 2])
-                ctxs.append(ctx)
+                    tanh_vector = tf.tanh(watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
+                    e_ti = tf.tensordot(tanh_vector, attention_v_a, axes=1) + attention_v_a_b  # [batch, h, w, 1]
+                    alpha = tf.exp(e_ti)
+                    alpha = alpha * image_masks
+                    alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
+                    #masked_e_ti = e_ti * image_masks
+                    #alpha = tf.nn.softmax(masked_e_ti)
+                    ctx = tf.reduce_sum(feature_grid * alpha, axis=[1, 2])
+                    ctxs.append(ctx)
 
-            if len(ctxs) == 1:
-                ctx = ctxs[0]
-            else:
-                ctx = tf.concat(ctxs, axis=1)
+                if len(ctxs) == 1:
+                    ctx = ctxs[0]
+                else:
+                    ctx = tf.concat(ctxs, axis=1)
 
-            c_i = tf.matmul(ctx, context_kernel[:, :self.units])
-            c_f = tf.matmul(ctx, context_kernel[:, self.units:self.units * 2])
-            c_c = tf.matmul(ctx, context_kernel[:, self.units * 2:self.units * 3])
-            c_o = tf.matmul(ctx, context_kernel[:, self.units * 3:])
+            with tf.name_scope("c"):
+                c_i = tf.matmul(ctx, context_kernel[:, :self.units])
+                c_f = tf.matmul(ctx, context_kernel[:, self.units:self.units * 2])
+                c_c = tf.matmul(ctx, context_kernel[:, self.units * 2:self.units * 3])
+                c_o = tf.matmul(ctx, context_kernel[:, self.units * 3:])
 
-            i = tf.keras.backend.sigmoid(x_i + r_i + c_i)
-            f = tf.keras.backend.sigmoid(x_f + r_f + c_f)
-            c = f * c_tm1 + i * tf.tanh(x_c + r_c + c_c)
-            o = tf.keras.backend.sigmoid(x_o + r_o + c_o)
+            with tf.name_scope("gates"):
+                i = tf.keras.backend.sigmoid(x_i + r_i + c_i)
+                f = tf.keras.backend.sigmoid(x_f + r_f + c_f)
+                c = f * c_tm1 + i * tf.tanh(x_c + r_c + c_c)
+                o = tf.keras.backend.sigmoid(x_o + r_o + c_o)
 
-            h = o * tf.tanh(c)
+                h = o * tf.tanh(c)
 
             return tf.stack([h, c])
 
