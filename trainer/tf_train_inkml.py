@@ -138,6 +138,11 @@ valid_avg_acc_summary = tf.Summary()
 valid_avg_exp_rate_summary = tf.Summary()
 level_summary = tf.Summary()
 
+valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=None)
+valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=None)
+valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=None)
+level_summary.value.add(tag="level", simple_value=None)
+
 init = tf.global_variables_initializer()
 
 print("Image2Latex Start training...")
@@ -160,7 +165,7 @@ with tf.Session() as sess:
     for epoch in range(epochs):
 
         print("Current level {}".format(level))
-        level_summary.value.add(tag="level", simple_value=level)
+        level_summary.value[0].simple_value = level
         if writer is not None:
             writer.add_summary(level_summary, global_step)
 
@@ -196,9 +201,10 @@ with tf.Session() as sess:
             image, label, observation, masks, lengths = generator_valid.next_batch()
             predict = predictor(image, masks)
             re_encoded = [encoding_vb[s] for s in predict]
-            wern += wer(re_encoded, label[0][:-1])
+            cwer = wer(re_encoded, label[0][:-1])
+            wern += cwer
             exprate += exp_rate(label[0][:-1], re_encoded)
-            if re_encoded == predict:
+            if cwer == 0:
                 accn += 1
 
         avg_wer = float(wern) / float(generator_valid.steps())
@@ -207,9 +213,9 @@ with tf.Session() as sess:
 
         print("Avg_wer: {}, avg_acc: {}, avg_exp_rate: {}".format(avg_wer, avg_acc, avg_exp_rate))
 
-        valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=avg_wer)
-        valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=avg_acc)
-        valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=avg_exp_rate)
+        valid_avg_wer_summary.value[0].simple_value = avg_wer
+        valid_avg_acc_summary.value[0].simple_value = avg_acc
+        valid_avg_exp_rate_summary.value[0].simple_value = avg_exp_rate
         if writer is not None:
             writer.add_summary(valid_avg_wer_summary, global_step)
             writer.add_summary(valid_avg_acc_summary, global_step)
