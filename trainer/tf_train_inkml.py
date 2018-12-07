@@ -201,10 +201,11 @@ with tf.Session() as sess:
             image, label, observation, masks, lengths = generator_valid.next_batch()
             predict = predictor(image, masks)
             re_encoded = [encoding_vb[s] for s in predict]
-            cwer = wer(re_encoded, label[0][:-1])
+            target = label[0][:-1]
+            cwer = wer(re_encoded, target) / len(target)
             wern += cwer
-            exprate += exp_rate(label[0][:-1], re_encoded)
-            if cwer == 0:
+            exprate += exp_rate(target, re_encoded)
+            if abs(cwer) < 1e-6:
                 accn += 1
 
         avg_wer = float(wern) / float(generator_valid.steps())
