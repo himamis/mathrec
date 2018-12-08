@@ -5,19 +5,55 @@ import trainer.tf_initializers as tfi
 import trainer.default_type as t
 
 
+def default_cnn_block(conv, filter_size, prev_filter_size, bias_init, kernel_init, activation, is_training,
+                      summarize):
+    w_1 = tf.get_variable("kernel_1", shape=(3, 3, prev_filter_size, filter_size),
+                          initializer=kernel_init, dtype=t.my_tf_float)
+    b_1 = tf.get_variable("bias_1", shape=[filter_size], initializer=bias_init,
+                          dtype=t.my_tf_float)
+
+    w_2 = tf.get_variable("kernel_2", shape=(3, 3, filter_size, filter_size),
+                          initializer=kernel_init, dtype=t.my_tf_float)
+    b_2 = tf.get_variable("bias_2", shape=[filter_size], initializer=bias_init,
+                          dtype=t.my_tf_float)
+
+    conv_1 = tf.nn.conv2d(conv, w_1, strides=[1, 1, 1, 1], padding='SAME') + b_1
+    act_1 = activation(conv_1)
+    conv_2 = tf.nn.conv2d(act_1, w_2, strides=[1, 1, 1, 1], padding='SAME') + b_2
+    bn = tf.layers.batch_normalization(conv_2, training=is_training,
+                                       name="batch_norm_{}".format(filter_size))
+    act_2 = activation(bn)
+
+    if summarize:
+        tf.summary.histogram('weights_1', w_1)
+        tf.summary.histogram('weights_2', w_2)
+
+        tf.summary.histogram('biases_1', b_1)
+        tf.summary.histogram('biases_2', b_2)
+
+        tf.summary.histogram('activations_1', act_1)
+        tf.summary.histogram('activations_2', act_2)
+
+    return act_2
+
+
 class CNNEncoder:
 
     def __init__(self,
                  filter_sizes=None,
                  kernel_init=None,
                  bias_init=None,
-                 activation=None):
+                 activation=None,
+                 cnn_block=None):
         if filter_sizes is None:
             filter_sizes = [64, 128, 256, 512]
         self.filter_sizes = filter_sizes
         self.kernel_init = kernel_init
         self.bias_init = bias_init
         self.activation = activation
+        self.cnn_block = cnn_block
+        if cnn_block is None:
+            raise ValueError("cnn_block must not be None")
 
     def __call__(self, input_images, image_mask, is_training, summarize=False):
         convolutions = []
@@ -25,38 +61,15 @@ class CNNEncoder:
         prev_size = 1
         for index, filter_size in enumerate(self.filter_sizes):
             with tf.variable_scope("conv_block_{}".format(filter_size)):
-                w_1 = tf.get_variable("kernel_1", shape=(3, 3, prev_size, filter_size),
-                                      initializer=self.kernel_init, dtype=t.my_tf_float)
-                b_1 = tf.get_variable("bias_1", shape=[filter_size], initializer=self.bias_init,
-                                      dtype=t.my_tf_float)
-
-                w_2 = tf.get_variable("kernel_2", shape=(3, 3, filter_size, filter_size),
-                                      initializer=self.kernel_init, dtype=t.my_tf_float)
-                b_2 = tf.get_variable("bias_2", shape=[filter_size], initializer=self.bias_init,
-                                      dtype=t.my_tf_float)
+                conv = self.cnn_block(conv=conv, filter_size=filter_size, prev_filter_size=prev_size,
+                                      bias_init=self.bias_init, kernel_init=self.kernel_init,
+                                      activation=self.activation, is_training=is_training, summarize=summarize)
                 prev_size = filter_size
-
-                conv_1 = tf.nn.conv2d(conv, w_1, strides=[1, 1, 1, 1], padding='SAME') + b_1
-                act_1 = self.activation(conv_1)
-                conv_2 = tf.nn.conv2d(act_1, w_2, strides=[1, 1, 1, 1], padding='SAME') + b_2
-                bn = tf.layers.batch_normalization(conv_2, training=is_training,
-                                                     name="batch_norm_{}".format(filter_size))
-                act_2 = self.activation(bn)
-                conv = tf.nn.max_pool(act_2, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
+                conv = tf.nn.max_pool(conv, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
                                       name='max_pool_{}'.format(filter_size))
                 image_mask = image_mask[:, 0::2, 0::2]
 
-                if summarize:
-                    tf.summary.histogram('weights_1', w_1)
-                    tf.summary.histogram('weights_2', w_2)
-
-                    tf.summary.histogram('biases_1', b_1)
-                    tf.summary.histogram('biases_2', b_2)
-
-                    tf.summary.histogram('activations_1', act_1)
-                    tf.summary.histogram('activations_2', act_2)
-
-                convolutions.append(conv)
+            convolutions.append(conv)
 
         return convolutions, image_mask
 
@@ -244,6 +257,7 @@ class AttentionDecoder:
 
         return [hs, cs]
 
+
 class Model:
 
     def __init__(self, vocabulary_size, encoder_size=512,
@@ -254,6 +268,7 @@ class Model:
                  conv_kernel_init=tfi.he_normal(dtype=t.my_tf_float),
                  conv_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
                  conv_activation=tf.nn.relu,
+                 cnn_block=default_cnn_block,
                  encoder_kernel_init=tf.initializers.orthogonal(dtype=t.my_tf_float),
                  decoder_kernel_init=tf.initializers.orthogonal(dtype=t.my_tf_float),
                  decoder_recurrent_kernel_init=tf.initializers.orthogonal(dtype=t.my_tf_float),
@@ -274,7 +289,8 @@ class Model:
             filter_sizes=filter_sizes,
             kernel_init=conv_kernel_init,
             bias_init=conv_bias_init,
-            activation=conv_activation
+            activation=conv_activation,
+            cnn_block=cnn_block
         )
         self._row_encoder = RowEncoder(
             encoder_size=encoder_size,

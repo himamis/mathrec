@@ -82,6 +82,7 @@ with tf.device(device):
                            conv_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
                            conv_bias_init=tf.initializers.random_normal(),
                            conv_activation=tf.nn.relu,
+                           cnn_block=tf_model.default_cnn_block,
                            encoder_kernel_init=tf.initializers.random_normal(dtype=t.my_tf_float),
                            decoder_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
                            decoder_bias_init=tf.initializers.constant(1/4, dtype=t.my_tf_float),
