@@ -147,7 +147,8 @@ class DifficultyDataGenerator:
         self.chunk_index = 0
 
     def steps(self):
-        return len(self.difficulties[-1][0])
+        #return len(self.difficulties[-1][0])
+        return len(self.image_chuncks)
 
     def next_batch(self):
         if self.chunk_index == len(self.image_chuncks):

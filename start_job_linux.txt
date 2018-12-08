@@ -14,6 +14,9 @@ if [ $2 == "3" ] ; then
 elif [ $2 == "4" ] ; then
     PROJECT_ID="pivotal-store-224110"
     BUCKET_NAME="image2latex4"
+elif [ $2 == "2" ] ; then
+    PROJECT_ID="true-eye-223916"
+    BUCKET_NAME="image2latex3"
 else
     echo "Unknown project index"
     exit 1
