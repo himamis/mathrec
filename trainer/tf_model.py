@@ -5,9 +5,15 @@ import trainer.tf_initializers as tfi
 import trainer.default_type as t
 
 
-def default_cnn_block(conv, filter_size, prev_filter_size, bias_init, kernel_init, activation, is_training,
-                      summarize):
-    w_1 = tf.get_variable("kernel_1", shape=(3, 3, prev_filter_size, filter_size),
+def default_cnn_block(**kwargs):
+    filter_size = kwargs['filter_size']
+    kernel_init = kwargs['kernel_init']
+    bias_init = kwargs['bias_init']
+    conv = kwargs['conv']
+    activation = kwargs['activation']
+    is_training = kwargs['is_training']
+    summarize = kwargs['summarize']
+    w_1 = tf.get_variable("kernel_1", shape=(3, 3, kwargs['prev_filter_size'], filter_size),
                           initializer=kernel_init, dtype=t.my_tf_float)
     b_1 = tf.get_variable("bias_1", shape=[filter_size], initializer=bias_init,
                           dtype=t.my_tf_float)
@@ -37,6 +43,42 @@ def default_cnn_block(conv, filter_size, prev_filter_size, bias_init, kernel_ini
     return act_2
 
 
+def dense_cnn_block_creator(dense_size=4, dropout=0.2):
+
+    def dense_cnn_block(**kwargs):
+        filter_size = kwargs['filter_size']
+        kernel_init = kwargs['kernel_init']
+        bias_init = kwargs['bias_init']
+        conv = kwargs['conv']
+        activation = kwargs['activation']
+        is_training = kwargs['is_training']
+        summarize = kwargs['summarize']
+        size = kwargs['prev_filter_size']
+        is_last_block = kwargs['last_block']
+        for i in range(dense_size):
+            with tf.variable_scope("layer_{}".format(i)):
+                w = tf.get_variable("kernel", shape=(3, 3, size, filter_size),
+                                    initializer=kernel_init, dtype=t.my_tf_float)
+                b = tf.get_variable("bias", shape=[filter_size], initializer=bias_init,
+                                    dtype=t.my_tf_float)
+                size = filter_size
+                conv = tf.nn.conv2d(conv, w, strides=[1, 1, 1, 1], padding='SAME') + b
+                bn = tf.layers.batch_normalization(conv, training=is_training,
+                                                   name="batch_norm_{}".format(filter_size))
+                conv = activation(bn)
+                if is_last_block and dropout is not None:
+                    conv = tf.layers.dropout(conv, rate=dropout, training=is_training)
+
+                if summarize:
+                    tf.summary.histogram('kernel', w)
+                    tf.summary.histogram('bias', b)
+                    tf.summary.histogram('activation', conv)
+
+        return conv
+
+    return dense_cnn_block
+
+
 class CNNEncoder:
 
     def __init__(self,
@@ -60,10 +102,11 @@ class CNNEncoder:
         conv = (input_images - 128) / 128
         prev_size = 1
         for index, filter_size in enumerate(self.filter_sizes):
-            with tf.variable_scope("conv_block_{}".format(filter_size)):
+            with tf.variable_scope("conv_block_{}_{}".format(filter_size, index)):
                 conv = self.cnn_block(conv=conv, filter_size=filter_size, prev_filter_size=prev_size,
                                       bias_init=self.bias_init, kernel_init=self.kernel_init,
-                                      activation=self.activation, is_training=is_training, summarize=summarize)
+                                      activation=self.activation, is_training=is_training, summarize=summarize,
+                                      last_block=index+1 == len(self.filter_sizes))
                 prev_size = filter_size
                 conv = tf.nn.max_pool(conv, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME',
                                       name='max_pool_{}'.format(filter_size))
