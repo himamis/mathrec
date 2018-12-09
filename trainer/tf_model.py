@@ -79,6 +79,89 @@ def dense_cnn_block_creator(dense_size=4, dropout=0.2):
     return dense_cnn_block
 
 
+class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
+
+    def __init__(self, cell, att_dim, units, feature_grids, image_masks, dense_initializer, dense_bias_initializer):
+        super(AttentionWrapper, self).__init__()
+        self.cell = cell
+        self.feature_grid_dims = [feature_grid.shape[3] for feature_grid in feature_grids]
+        self.feature_grids = feature_grids
+        self.image_masks = image_masks
+        self.attention_us = []
+        self.attention_u_bs = []
+        self.attention_v_as = []
+        self.attention_v_a_bs = []
+        self.watch_vectors = []
+        for index, (feature_grid, feature_grid_dim) in enumerate(zip(feature_grids, self.feature_grid_dims)):
+            attention_u = tf.get_variable(name="decoder_attention_u_scale_{}".format(index),
+                                          initializer=dense_initializer,
+                                          shape=[feature_grid_dim, att_dim], dtype=t.my_tf_float)
+            attention_u_b = tf.get_variable(name="decoder_attention_u_b_scale_{}".format(index),
+                                            initializer=dense_bias_initializer,
+                                            shape=[att_dim], dtype=t.my_tf_float)
+
+            attention_v_a = tf.get_variable(name="decoder_attention_v_a_scale_{}".format(index),
+                                            initializer=dense_initializer,
+                                            shape=[att_dim, 1], dtype=t.my_tf_float)
+            attention_v_a_b = tf.get_variable(name="decoder_attention_v_a_b_scale_{}".format(index),
+                                              initializer=dense_bias_initializer,
+                                              shape=[1], dtype=t.my_tf_float)
+
+            # Can be precomputed
+            watch_vector = tf.tensordot(feature_grid, attention_u, axes=1) + attention_u_b  # [batch, h, w, dim_attend]
+
+            self.attention_us.append(attention_u)
+            self.attention_u_bs.append(attention_u_b)
+            self.attention_v_as.append(attention_v_a)
+            self.attention_v_a_bs.append(attention_v_a_b)
+            self.watch_vectors.append(watch_vector)
+
+        self.attention_w = tf.get_variable(name="decoder_attention_w",
+                                      initializer=dense_initializer,
+                                      shape=[units, att_dim], dtype=t.my_tf_float)
+        self.attention_w_b = tf.get_variable(name="decoder_attention_w_b",
+                                        initializer=dense_bias_initializer,
+                                        shape=[att_dim], dtype=t.my_tf_float)
+
+    @property
+    def wrapped_cell(self):
+        return self.cell
+
+    @property
+    def state_size(self):
+        return self.cell.state_size
+
+    @property
+    def output_size(self):
+        return self.cell.output_size
+
+    def zero_state(self, batch_size, dtype):
+        return self.cell.zero_state(batch_size, dtype)
+
+    def __call__(self, inputs, state, scope=None):
+        h_tm1, c_tm1 = state
+        with tf.name_scope("ctx"):
+            # context vector
+            speller_vector = tf.tensordot(h_tm1, self.attention_w, axes=1) + self.attention_w_b
+            ctxs = []
+            for watch_vector, attention_v_a, attention_v_a_b, feature_grid in \
+                    zip(self.watch_vectors, self.attention_v_as, self.attention_v_a_bs, self.feature_grids):
+                tanh_vector = tf.tanh(watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
+                e_ti = tf.tensordot(tanh_vector, attention_v_a, axes=1) + attention_v_a_b  # [batch, h, w, 1]
+                alpha = tf.exp(e_ti)
+                alpha = alpha * self.image_masks
+                alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
+                # masked_e_ti = e_ti * image_masks
+                # alpha = tf.nn.softmax(masked_e_ti)
+                ctx = tf.reduce_sum(feature_grid * alpha, axis=[1, 2])
+                ctxs.append(ctx)
+
+            if len(ctxs) == 1:
+                ctx = ctxs[0]
+            else:
+                ctx = tf.concat(ctxs, axis=1)
+        return self.cell(tf.concat([inputs, ctx], 1), state, scope=scope)
+
 class CNNEncoder:
 
     def __init__(self,
@@ -177,128 +260,13 @@ class AttentionDecoder:
 
     def __call__(self, feature_grid, image_masks, inputs, init_h, init_c, summarize=False):
         feature_grids = tf.unstack(feature_grid)
-        feature_grid_dims = [feature_grid.shape[3] for feature_grid in feature_grids]
-        kernel = tf.get_variable(name="decoder_lstm_kernel_{}".format(self.units),
-                                 initializer=self.lstm_kernel_initializer,
-                                 shape=[self.embedding_dim, 4 * self.units],
-                                 dtype=t.my_tf_float)
 
-        recurrent_kernel = tf.get_variable(name="decoder_lstm_recurrent_kernel_{}".format(self.units),
-                                           initializer=self.lstm_recurrent_kernel_initializer,
-                                           shape=[self.units, 4 * self.units],
-                                           dtype=t.my_tf_float)
+        cell = AttentionWrapper(tf.nn.rnn_cell.LSTMCell(self.units), self.att_dim, self.units, feature_grids,
+                                image_masks, self.dense_initializer, self.dense_bias_initializer)
+        outputs, states = tf.nn.dynamic_rnn(cell, inputs, dtype=t.my_tf_float,
+                                            initial_state=tf.nn.rnn_cell.LSTMStateTuple(init_c, init_h))
 
-        context_kernel = tf.get_variable(name="decoder_lstm_context_kernel_{}".format(self.units),
-                                         initializer=self.lstm_recurrent_kernel_initializer,
-                                         shape=[sum(feature_grid_dims), 4 * self.units],
-                                         dtype=t.my_tf_float)
-
-        bias = tf.get_variable(name="decoder_lstm_bias_{}".format(self.units),
-                               initializer=self.lstm_bias_initializer,
-                               shape=[4 * self.units],
-                               dtype=t.my_tf_float)
-
-        if summarize:
-            tf.summary.histogram("kernel", kernel)
-            tf.summary.histogram("recurrent_kernel", recurrent_kernel)
-            tf.summary.histogram("context_kernel", context_kernel)
-
-        attention_us = []
-        attention_u_bs = []
-        attention_v_as = []
-        attention_v_a_bs = []
-        watch_vectors = []
-        for index, (feature_grid, feature_grid_dim) in enumerate(zip(feature_grids, feature_grid_dims)):
-            attention_u = tf.get_variable(name="decoder_attention_u_scale_{}".format(index),
-                                          initializer=self.dense_initializer,
-                                          shape=[feature_grid_dim, self.att_dim], dtype=t.my_tf_float)
-            attention_u_b = tf.get_variable(name="decoder_attention_u_b_scale_{}".format(index),
-                                            initializer=self.dense_bias_initializer,
-                                            shape=[self.att_dim], dtype=t.my_tf_float)
-
-            attention_v_a = tf.get_variable(name="decoder_attention_v_a_scale_{}".format(index),
-                                            initializer=self.dense_initializer,
-                                            shape=[self.att_dim, 1], dtype=t.my_tf_float)
-            attention_v_a_b = tf.get_variable(name="decoder_attention_v_a_b_scale_{}".format(index),
-                                              initializer=self.dense_bias_initializer,
-                                              shape=[1], dtype=t.my_tf_float)
-
-            # Can be precomputed
-            watch_vector = tf.tensordot(feature_grid, attention_u, axes=1) + attention_u_b  # [batch, h, w, dim_attend]
-
-            attention_us.append(attention_u)
-            attention_u_bs.append(attention_u_b)
-            attention_v_as.append(attention_v_a)
-            attention_v_a_bs.append(attention_v_a_b)
-            watch_vectors.append(watch_vector)
-
-        attention_w = tf.get_variable(name="decoder_attention_w",
-                                      initializer=self.dense_initializer,
-                                      shape=[self.units, self.att_dim], dtype=t.my_tf_float)
-        attention_w_b = tf.get_variable(name="decoder_attention_w_b",
-                                        initializer=self.dense_bias_initializer,
-                                        shape=[self.att_dim], dtype=t.my_tf_float)
-
-        def step(state, input):
-            h_tm1, c_tm1 = tf.unstack(state)
-
-            with tf.name_scope("x"):
-                x_i = tf.nn.bias_add(tf.matmul(input, kernel[:, :self.units]), bias[:self.units])
-                x_f = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units:self.units * 2]), bias[self.units:self.units * 2])
-                x_c = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units * 2:self.units * 3]), bias[self.units * 2:self.units * 3])
-                x_o = tf.nn.bias_add(tf.matmul(input, kernel[:, self.units * 3:]), bias[self.units * 3:])
-
-            with tf.name_scope("r"):
-                r_i = tf.tensordot(h_tm1, recurrent_kernel[:, :self.units], 1)
-                r_f = tf.tensordot(h_tm1, recurrent_kernel[:, self.units:self.units * 2], 1)
-                r_c = tf.tensordot(h_tm1, recurrent_kernel[:, self.units * 2:self.units * 3], 1)
-                r_o = tf.tensordot(h_tm1, recurrent_kernel[:, self.units * 3:], 1)
-
-            with tf.name_scope("ctx"):
-                # context vector
-                speller_vector = tf.tensordot(h_tm1, attention_w, axes=1) + attention_w_b
-                ctxs = []
-                for watch_vector, attention_v_a, attention_v_a_b, feature_grid in \
-                    zip(watch_vectors, attention_v_as, attention_v_a_bs, feature_grids):
-                    tanh_vector = tf.tanh(watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
-                    e_ti = tf.tensordot(tanh_vector, attention_v_a, axes=1) + attention_v_a_b  # [batch, h, w, 1]
-                    alpha = tf.exp(e_ti)
-                    alpha = alpha * image_masks
-                    alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
-                    #masked_e_ti = e_ti * image_masks
-                    #alpha = tf.nn.softmax(masked_e_ti)
-                    ctx = tf.reduce_sum(feature_grid * alpha, axis=[1, 2])
-                    ctxs.append(ctx)
-
-                if len(ctxs) == 1:
-                    ctx = ctxs[0]
-                else:
-                    ctx = tf.concat(ctxs, axis=1)
-
-            with tf.name_scope("c"):
-                c_i = tf.matmul(ctx, context_kernel[:, :self.units])
-                c_f = tf.matmul(ctx, context_kernel[:, self.units:self.units * 2])
-                c_c = tf.matmul(ctx, context_kernel[:, self.units * 2:self.units * 3])
-                c_o = tf.matmul(ctx, context_kernel[:, self.units * 3:])
-
-            with tf.name_scope("gates"):
-                i = tf.keras.backend.sigmoid(x_i + r_i + c_i)
-                f = tf.keras.backend.sigmoid(x_f + r_f + c_f)
-                c = f * c_tm1 + i * tf.tanh(x_c + r_c + c_c)
-                o = tf.keras.backend.sigmoid(x_o + r_o + c_o)
-
-                h = o * tf.tanh(c)
-
-            return tf.stack([h, c])
-
-        # init = tf.stack([init_h, init_c])
-        init = tf.stack([init_h, init_c])
-        states = tf.scan(step,
-                         tf.transpose(inputs, [1, 0, 2]),
-                         initializer=init)
-        hs, cs = tf.unstack(tf.transpose(states, [1, 2, 0, 3]))
-
-        return [hs, cs]
+        return [outputs, states[1], states[0]]
 
 
 class Model:
@@ -401,10 +369,9 @@ class Model:
             embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal, dtype=t.my_tf_float,
                                         shape=[self.vocabulary_size, self.embedding_dim])
             embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
-            states = self._decoder(feature_grid=feature_grid, image_masks=image_masks, inputs=embedded_characters,
-                                   init_h=init_h, init_c=init_c, summarize=summarize)
-
-            state_h, _ = states
+            outputs, state_h, state_c = self._decoder(feature_grid=feature_grid, image_masks=image_masks,
+                                                      inputs=embedded_characters, init_h=init_h, init_c=init_c,
+                                                      summarize=summarize)
 
             w = tf.get_variable(name="output_w", initializer=self.dense_init,
                                 shape=[self.decoder_units, self.vocabulary_size],
@@ -412,9 +379,9 @@ class Model:
             b = tf.get_variable(name="output_b", initializer=self.dense_bias_init,
                                 shape=[self.vocabulary_size], dtype=t.my_tf_float)
 
-            output = tf.tensordot(state_h, w, axes=1) + b
+            output = tf.tensordot(outputs, w, axes=1) + b
 
-        return states + [output]
+        return [state_h, state_c] + [output]
 
     def training(self, input_images, input_image_masks, input_characters):
         feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=True, summarize=True)
