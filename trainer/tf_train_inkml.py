@@ -55,8 +55,8 @@ decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
 image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
-generator = DifficultyDataGenerator(image, truth, encoding_vb, levels=levels, batch_size=batch_size)
-#generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
+#generator = DifficultyDataGenerator(image, truth, encoding_vb, levels=levels, batch_size=batch_size)
+generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
 
 image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
 generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
@@ -140,8 +140,8 @@ patience = 5
 bad_counter = 0
 best_wer = 999999
 best_exp_rate = -1
-level = 0
-#level = 4
+#level = 0
+level = 4
 
 valid_avg_wer_summary = tf.Summary()
 valid_avg_acc_summary = tf.Summary()
