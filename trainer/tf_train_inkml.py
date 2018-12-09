@@ -51,6 +51,7 @@ git_hexsha = parse_arg('--git-hexsha', 'NAN')
 batch_size = 8
 epochs = 50
 levels = 5
+decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
 image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
@@ -110,12 +111,18 @@ with tf.name_scope("loss"):
     sequence_masks = tf.sequence_mask(lengts_tensor, dtype=t.my_tf_float)
     tf.summary.histogram("before_softmax", training_output)
     loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
+
+    # L2 regularization
+    for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+        if not variable.name.startswith('batch_norm'):
+            loss += decay * tf.reduce_sum(tf.pow(variable, 2))
+
     tf.summary.scalar("loss", loss)
 
 with tf.name_scope("train"):
     optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
     grads_and_vars = optimizer.compute_gradients(loss)
-    clipped_grads_and_vars = [(tf.clip_by_value(grad, -5., 5.), var) for grad, var in grads_and_vars]
+    clipped_grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     tf.summary.merge(
         [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in clipped_grads_and_vars if g[0] is not None])
     train = optimizer.apply_gradients(clipped_grads_and_vars)
