@@ -1,6 +1,6 @@
 import numpy as np
 
-def create_predictor(sess, input_params, output_params, encoding_vb, decoding_vb, max_length = 300, k=100, alpha=0.7):
+def create_predictor(sess, input_params, output_params, encoding_vb, decoding_vb, max_length = 100, k=100, alpha=0.7):
     single_image, single_image_mask, eval_init_h, \
     eval_init_c, feature_grid_input, masking_input, single_char_input = input_params
     eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_c0, eval_output_softmax, \

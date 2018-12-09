@@ -28,7 +28,8 @@ checkpoint_fname = 'checkpoint_epoch_{}.ckpt'
 
 gcs = parse_arg('--gcs', required=False)
 use_gpu = parse_arg('--gpu', default='n', required=False)
-start_epoch = int(parse_arg('--start-epoch', 0))
+start_epoch = int(parse_arg('--start-epoch', -1))
+ckpt_dir = parse_arg('--ckpt-dir', None, required=False)
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/new_data')
 model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/tf_model')
 tensorboard_log_dir = parse_arg('--tb', None, required=False)
@@ -37,24 +38,24 @@ base_dir = path.join(model_checkpoint_dir, folder_str)
 save_format = path.join(base_dir, checkpoint_fname)
 if gcs is not None:
     save_format = os.path.join("gs://{}".format(gcs), save_format)
+if ckpt_dir is not None:
+    save_format = os.path.join(ckpt_dir, checkpoint_fname)
 
 #if not path.exists(base_dir):
 #    os.mkdir(base_dir)
 
-model_weights_file = path.join(model_checkpoint_dir, folder_str, weights_fname)
-results_file = path.join(model_checkpoint_dir, folder_str, results_fname)
-history_file = path.join(model_checkpoint_dir, folder_str, history_fname)
 
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 16
+batch_size = 8
 epochs = 50
 levels = 5
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
 image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
 generator = DifficultyDataGenerator(image, truth, encoding_vb, levels=levels, batch_size=batch_size)
+#generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
 
 image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
 generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
@@ -133,6 +134,7 @@ bad_counter = 0
 best_wer = 999999
 best_exp_rate = -1
 level = 0
+#level = 4
 
 valid_avg_wer_summary = tf.Summary()
 valid_avg_acc_summary = tf.Summary()
@@ -151,8 +153,9 @@ global_step = 1
 
 
 with tf.Session() as sess:
-    if start_epoch != 0:
+    if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
+        start_epoch = -1
     predictor = create_predictor(sess, (single_image, single_image_mask, eval_init_h,
                                  eval_init_c, eval_feature_grid, eval_masking,
                                  single_character), (eval_feature_grid, eval_masking, eval_calculate_h0,
@@ -203,7 +206,7 @@ with tf.Session() as sess:
             predict = predictor(image, masks)
             re_encoded = [encoding_vb[s] for s in predict]
             target = label[0][:-1]
-            cwer = wer(re_encoded, target) / len(target)
+            cwer = wer(re_encoded, target) / max(len(target), len(re_encoded))
             wern += cwer
             exprate += exp_rate(target, re_encoded)
             if abs(cwer) < 1e-6:
@@ -226,9 +229,9 @@ with tf.Session() as sess:
 
         improved = False
 
-        if avg_exp_rate > best_exp_rate:
-            best_exp_rate = avg_exp_rate
-            improved = True
+        #if avg_exp_rate > best_exp_rate:
+        #    best_exp_rate = avg_exp_rate
+        #    improved = True
 
         if avg_wer < best_wer:
             best_wer = avg_wer
