@@ -14,9 +14,9 @@ def center(image1, image2, dim):
     return round(abs(dim(image1) - dim(image2)) / 2)
 
 
-def paste(destination, source, x, y):
+def paste(destination, source, x, y, operation=cv2.bitwise_and):
     subarray = destination[y: y + source.shape[0], x: x + source.shape[1]]
-    cv2.bitwise_or(subarray, source, subarray)
+    operation(subarray, source, subarray)
 
 
 def insert(destination, source, x, y):
@@ -41,9 +41,9 @@ def sub_image(image, x, y, width, height):
     return image[y: y + height, x: x + width]
 
 
-def pad_image(image, top, left, bottom, right, default_value = 255, channels=3):
+def pad_image(image, top, left, bottom, right, default_value = 255, channels=3, operation=cv2.bitwise_and):
     padded_image = new_image(w(image) + left + right, h(image) + top + bottom, default_value, channels)
-    paste(padded_image, image, left, top)
+    paste(padded_image, image, left, top, operation=operation)
     return padded_image
 
 

@@ -3,6 +3,8 @@ from trainer.metrics import *
 import tensorflow as tf
 import trainer.tf_initializers as tfi
 import trainer.default_type as t
+from trainer.rnn_cell import NLSTMCell
+
 
 
 def default_cnn_block(**kwargs):
@@ -139,7 +141,10 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         return self.cell.zero_state(batch_size, dtype)
 
     def __call__(self, inputs, state, scope=None):
-        h_tm1, c_tm1 = state
+        if isinstance(state, tf.nn.rnn_cell.LSTMStateTuple):
+            h_tm1 = state.h
+        else:
+            h_tm1 = state[0]
         with tf.name_scope("ctx"):
             # context vector
             speller_vector = tf.tensordot(h_tm1, self.attention_w, axes=1) + self.attention_w_b
@@ -261,10 +266,18 @@ class AttentionDecoder:
     def __call__(self, feature_grid, image_masks, inputs, init_h, init_c, summarize=False):
         feature_grids = tf.unstack(feature_grid)
 
-        cell = AttentionWrapper(tf.nn.rnn_cell.LSTMCell(self.units), self.att_dim, self.units, feature_grids,
+        # Simple LSTM Cell
+        rnn_cell = tf.nn.rnn_cell.LSTMCell(self.units)
+        initial_states=tf.nn.rnn_cell.LSTMStateTuple(init_c, init_h)
+
+        # Nested LSTM Cell
+        #rnn_cell = NLSTMCell(self.units, 2)
+        #initial_states = (init_h, init_c, tf.zeros_like(init_c))
+
+        cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grids,
                                 image_masks, self.dense_initializer, self.dense_bias_initializer)
         outputs, states = tf.nn.dynamic_rnn(cell, inputs, dtype=t.my_tf_float,
-                                            initial_state=tf.nn.rnn_cell.LSTMStateTuple(init_c, init_h))
+                                            initial_state=initial_states)
 
         return [outputs, states[1], states[0]]
 
@@ -333,16 +346,16 @@ class Model:
                                            is_training=is_training, summarize=summarize)
 
         feature_grid = []
-        with tf.variable_scope("row_encoder", reuse=tf.AUTO_REUSE):
-            re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1], image_mask=image_masks,
-                                                  summarize=summarize)
+        #with tf.variable_scope("row_encoder", reuse=tf.AUTO_REUSE):
+        #    re_encoded_images = self._row_encoder(feature_grid=encoded_images[-1], image_mask=image_masks,
+        #                                          summarize=summarize)
 
-        feature_grid.append(re_encoded_images)
+        feature_grid.append(encoded_images[-1])
 
-        if self.multi_scale_attention:
-            with tf.variable_scope("multi_scale_row_encoder", reuse=tf.AUTO_REUSE):
-                re_encoded_images_scale = self._row_encoder_scale(feature_grid=encoded_images[-2])
-            feature_grid.append(re_encoded_images_scale)
+        #if self.multi_scale_attention:
+        #    with tf.variable_scope("multi_scale_row_encoder", reuse=tf.AUTO_REUSE):
+        #        re_encoded_images_scale = self._row_encoder_scale(feature_grid=encoded_images[-2])
+        #    feature_grid.append(re_encoded_images_scale)
 
         return tf.stack(feature_grid), image_masks
 

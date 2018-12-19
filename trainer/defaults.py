@@ -4,7 +4,7 @@ from xainano_graphics import create_graphics_factory
 
 
 def create_config():
-    return Config(".", c(["a", "b", "c", "d", "e", "f", "g", "x", "y", "z"]), c(["\\times"]))
+    return Config(".", c(["x"]), c(["."]))
 
 
 def create_generator():

@@ -29,8 +29,8 @@ while True:
     tokens = []
     generator.generate_formula(tokens, config)
     image = token_parser.parse(tokens, post_processor)
-    image = augmentor.size_changing_augment(image)
-    image = augmentor.augment(image)
+    #image = augmentor.size_changing_augment(image)
+    #image = augmentor.augment(image)
 
     cv2.imshow("Image", image)
     cv2.waitKey(0)

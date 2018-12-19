@@ -40,14 +40,13 @@ def create_predictor(sess, input_params, output_params, encoding_vb, decoding_vb
                     eval_init_c: state[1],
                     single_char_input: inp
                 })
-                #output, h, c = decoder.predict([feature_grid] + [inp] + state)
                 top_n_indices = np.argpartition(output[0, 0, :], -k)[-k:]
                 for j in range(k):
                     index = top_n_indices[j]
                     sequence = np.zeros((1,), dtype=np.int32)
                     sequence[0] = index
                     sc = np.log(output[0, 0, index])
-                    candidates.append([seq + [sequence], [h[0, :, :], c[0, :, :]], score + sc])
+                    candidates.append([seq + [sequence], [h, c], score + sc])
             def ke(a):
                 return a[2] / np.power(len(a[0]), alpha)
             ordered = sorted(candidates, key=ke)
