@@ -149,12 +149,14 @@ with tf.name_scope("loss"):
     tf.summary.scalar("loss", loss)
 
 with tf.name_scope("train"):
-    optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
+    #optimizer = tf.train.GradientDescentOptimizer()
+    #optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.1)
     grads_and_vars = optimizer.compute_gradients(loss)
-    clipped_grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+    #grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     tf.summary.merge(
-        [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in clipped_grads_and_vars if g[0] is not None])
-    train = optimizer.apply_gradients(clipped_grads_and_vars)
+        [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in grads_and_vars if g[0] is not None])
+    train = optimizer.apply_gradients(grads_and_vars)
 
 with tf.name_scope("accuracy"):
     result = tf.argmax(tf.nn.softmax(training_output), output_type=tf.int32, axis=2)
