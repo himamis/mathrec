@@ -4,6 +4,7 @@ import tensorflow as tf
 import trainer.tf_initializers as tfi
 import trainer.default_type as t
 from trainer.rnn_cell import NLSTMCell
+from trainer.dense_net_creator import DenseNetCreator
 
 
 
@@ -44,7 +45,7 @@ def default_cnn_block(**kwargs):
 
     return act_2
 
-
+# VGG-net style
 def dense_cnn_block_creator(dense_size=4, dropout=0.2):
 
     def dense_cnn_block(**kwargs):
@@ -154,10 +155,9 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
                 tanh_vector = tf.tanh(watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
                 e_ti = tf.tensordot(tanh_vector, attention_v_a, axes=1) + attention_v_a_b  # [batch, h, w, 1]
                 alpha = tf.exp(e_ti)
-                alpha = alpha * self.image_masks
+                if self.image_masks is not None:
+                    alpha = alpha * self.image_masks
                 alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
-                # masked_e_ti = e_ti * image_masks
-                # alpha = tf.nn.softmax(masked_e_ti)
                 ctx = tf.reduce_sum(feature_grid * alpha, axis=[1, 2])
                 ctxs.append(ctx)
 
@@ -166,6 +166,7 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
             else:
                 ctx = tf.concat(ctxs, axis=1)
         return self.cell(tf.concat([inputs, ctx], 1), state, scope=scope)
+
 
 class CNNEncoder:
 
@@ -186,6 +187,14 @@ class CNNEncoder:
             raise ValueError("cnn_block must not be None")
 
     def __call__(self, input_images, image_mask, is_training, summarize=False):
+        # import tensorflow.contrib.slim.nets as nets
+        # _, outputs = nets.resnet_v2.resnet_v2_50(input_images)
+        # last = outputs.popitem()
+        # for index in range(len(self.filter_sizes) + 1):
+        #     image_mask = image_mask[:, 0::2, 0::2]
+        #
+        # return last, image_mask
+
         convolutions = []
         conv = (input_images - 128) / 128
         prev_size = 1
@@ -309,13 +318,18 @@ class Model:
             filter_sizes = [64, 128, 256, 512]
         self.decoder_units = decoder_units
         self.embedding_dim = embedding_dim
-        self._encoder = CNNEncoder(
-            filter_sizes=filter_sizes,
-            kernel_init=conv_kernel_init,
-            bias_init=conv_bias_init,
-            activation=conv_activation,
-            cnn_block=cnn_block
-        )
+        self._encoder = DenseNetCreator(data_format='channels_last',
+                                        efficient=False, growth_rate=12,
+                                        include_top=False,
+                                        bottleneck=False,
+                                        depth=40)
+        #self._encoder = CNNEncoder(
+        #    filter_sizes=filter_sizes,
+        #    kernel_init=conv_kernel_init,
+        #    bias_init=conv_bias_init,
+        #    activation=conv_activation,
+        #    cnn_block=cnn_block
+        #)
         self._row_encoder = RowEncoder(
             encoder_size=encoder_size,
             kernel_init=encoder_kernel_init,
@@ -362,8 +376,11 @@ class Model:
     def calculate_decoder_init(self, feature_grid, image_masks):
         feature_grids = tf.unstack(feature_grid)
         with tf.variable_scope("decoder_initializer", reuse=tf.AUTO_REUSE):
-            encoded_mean = tf.reduce_sum(feature_grids[-1] * image_masks, axis=[1, 2]) / \
-                           tf.reduce_sum(image_masks, axis=[1, 2])
+            if image_masks is not None:
+                encoded_mean = tf.reduce_sum(feature_grids[-1] * image_masks, axis=[1, 2]) / \
+                               tf.reduce_sum(image_masks, axis=[1, 2])
+            else:
+                encoded_mean = tf.reduce_mean(feature_grids[-1], axis=[1, 2])
             calculate_h0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
                                            units=self.decoder_units)
             calculate_c0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,

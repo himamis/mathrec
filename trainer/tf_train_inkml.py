@@ -19,6 +19,8 @@ random.seed(1337)
 seed(1337)
 set_random_seed(1337)
 
+parameter_count = True
+
 date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 folder_str = 'model-inkml-' + date_str
 weights_fname = 'weights_{epoch}.h5'
@@ -48,13 +50,13 @@ if ckpt_dir is not None:
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 8
+batch_size = 32
 epochs = 50
 levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
-image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
+image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "overfit.pkl")))
 #generator = DifficultyDataGenerator(image, truth, encoding_vb, levels=levels, batch_size=batch_size)
 generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
 
@@ -102,6 +104,18 @@ with tf.device(device):
                                                             single_character, eval_init_h, eval_init_c)
     eval_output_softmax = tf.nn.softmax(eval_output)
 
+if parameter_count:
+    total_parameters = 0
+    for variable in tf.trainable_variables():
+        # shape is an array of tf.Dimension
+        shape = variable.get_shape()
+        variable_parameters = 1
+        for dim in shape:
+            variable_parameters *= dim.value
+        total_parameters += variable_parameters
+    print("Total parameter num: {}".format(total_parameters))
+
+
 print("Image2Latex: End create model: {}".format(str(datetime.now().time())))
 
 y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
@@ -113,9 +127,9 @@ with tf.name_scope("loss"):
     loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
 
     # L2 regularization
-    for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-        if not variable.name.startswith('batch_norm'):
-            loss += decay * tf.reduce_sum(tf.pow(variable, 2))
+    #for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+    #    if not variable.name.startswith('batch_norm'):
+    #        loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
     tf.summary.scalar("loss", loss)
 
@@ -129,13 +143,15 @@ with tf.name_scope("train"):
 
 with tf.name_scope("accuracy"):
     result = tf.argmax(tf.nn.softmax(training_output), output_type=tf.int32, axis=2)
+
     accuracy = tf.contrib.metrics.accuracy(result, y_tensor, sequence_masks)
+    accuracy = tf.Print(accuracy, [result, y_tensor, sequence_masks], "Res, Tens, Maks", summarize=20)
     tf.summary.scalar("accuracy", accuracy)
 
 saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
-summary_step = 10
+summary_step = 1
 patience = 5
 bad_counter = 0
 best_wer = 999999
@@ -203,7 +219,7 @@ with tf.Session() as sess:
         if level < levels - 1:
             level += 1
             generator.set_level(level)
-
+        continue
         # Validation after each epoch
         wern = 0
         accn = 0
