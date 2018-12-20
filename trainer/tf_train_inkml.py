@@ -50,7 +50,7 @@ if ckpt_dir is not None:
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 32
+batch_size = 16
 epochs = 50
 levels = 5
 decay = 1e-4
@@ -133,10 +133,11 @@ if parameter_count:
 print("Image2Latex: End create model: {}".format(str(datetime.now().time())))
 
 y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
-lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="lengths")
+#lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="lengths")
+sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None))
 
 with tf.name_scope("loss"):
-    sequence_masks = tf.sequence_mask(lengts_tensor, dtype=t.my_tf_float)
+    #sequence_masks = tf.sequence_mask(lengts_tensor, dtype=t.my_tf_float)
     tf.summary.histogram("before_softmax", training_output)
     loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
 
@@ -212,11 +213,11 @@ with tf.Session(config=config) as sess:
 
         generator.reset()
         for step in range(generator.steps()):
-            image, label, observation, masks, lengths = generator.next_batch()
+            image, label, observation, masks, label_masks = generator.next_batch()
             dict = {
                 input_images: image,
                 input_characters: observation,
-                lengts_tensor: lengths,
+                sequence_masks: label_masks,
                 image_masks: masks,
                 y_tensor: label
             }

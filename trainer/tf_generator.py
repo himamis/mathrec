@@ -89,10 +89,12 @@ class DataGenerator:
         labels = [[self.encoding_vb[char] for char in label] for label in labels]
         observations = list(labels)
 
+        masks = [np.append(np.append(np.ones(len(label), dtype=np.float32), 1 / len(self.encoding_vb)),
+                           np.zeros(max_label_length - len(label) - 1, dtype=np.float32)) for label in labels]
         labels = [label + [end_id] * (max_label_length - len(label)) for label in labels]
         observations = [[start_id] + label + [end_id] * (max_label_length - len(label) - 1) for label in observations]
 
-        return images, labels, observations, image_masks, lengths
+        return images, labels, observations, image_masks, masks
 
 
 class DifficultyDataGenerator:
@@ -200,7 +202,8 @@ class DifficultyDataGenerator:
         labels = [[self.encoding_vb[char] for char in label] for label in labels]
         observations = list(labels)
 
+        masks = [np.append(np.append(np.ones(len(label), dtype=np.float32), 1 / len(self.encoding_vb)), np.zeros(max_label_length - len(label) - 1, dtype=np.float32)) for label in labels]
         labels = [label + [end_id] * (max_label_length - len(label)) for label in labels]
         observations = [[start_id] + label + [end_id] * (max_label_length - len(label) - 1) for label in observations]
 
-        return images, labels, observations, image_masks, lengths
+        return images, labels, observations, image_masks, masks
