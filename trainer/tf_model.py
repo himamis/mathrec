@@ -404,10 +404,10 @@ class Model:
                                                       summarize=summarize)
 
             w = tf.get_variable(name="output_w", initializer=self.dense_init,
-                                shape=[self.decoder_units, self.vocabulary_size],
+                                shape=[self.decoder_units, self.vocabulary_size - 1],
                                 dtype=t.my_tf_float)
             b = tf.get_variable(name="output_b", initializer=self.dense_bias_init,
-                                shape=[self.vocabulary_size], dtype=t.my_tf_float)
+                                shape=[self.vocabulary_size - 1], dtype=t.my_tf_float)
 
             output = tf.tensordot(outputs, w, axes=1) + b
 

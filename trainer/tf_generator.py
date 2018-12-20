@@ -90,7 +90,7 @@ class DataGenerator:
         observations = list(labels)
 
         masks = [np.append(np.append(np.ones(len(label), dtype=np.float32),
-                                     max(min((((len(label) + 1) * (len(label) + 1)) / len(self.encoding_vb)), 1), 0.1)
+                                     max(min((((len(label) + 1) * (len(label) + 1)) / (len(self.encoding_vb)-1)), 1), 0.1)
                                      ), np.zeros(max_label_length - len(label) - 1, dtype=np.float32)) for label in labels]
         labels = [label + [end_id] * (max_label_length - len(label)) for label in labels]
         observations = [[start_id] + label + [end_id] * (max_label_length - len(label) - 1) for label in observations]

@@ -60,11 +60,11 @@ image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "overfit.pkl")))
 if True:
     new_vocab = "1234567890-+"
     new_vocab = list(new_vocab)
-    new_vocab.append("<start>")
     new_vocab.append("<end>")
+    new_vocab.append("<start>")
 
     encoding_vb = dict(zip(new_vocab, range(len(new_vocab))))
-    decoding_vb = { v: k for k, v in encoding_vb.items() }
+    decoding_vb = { v: k for k, v in encoding_vb.items() if k != "<start>"}
 
 
 #generator = DifficultyDataGenerator(image, truth, encoding_vb, levels=levels, batch_size=batch_size)
