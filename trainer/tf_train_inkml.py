@@ -84,10 +84,10 @@ single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name
 single_character = tf.placeholder(tf.int32, shape=(1, 1), name="single_character")
 
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
-if use_gpu == 'n':
-    config = tf.ConfigProto(device_count = {'GPU': 0})
-else:
-    config = tf.ConfigProto()
+#if use_gpu == 'n':
+#    config = tf.ConfigProto(device_count = {'GPU': 0})
+#else:
+#    config = tf.ConfigProto()
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
 with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
@@ -191,7 +191,7 @@ init = tf.global_variables_initializer()
 print("Image2Latex Start training...")
 global_step = 1
 
-
+config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)
 with tf.Session(config=config) as sess:
     if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
