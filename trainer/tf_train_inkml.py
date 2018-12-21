@@ -112,10 +112,10 @@ with tf.device(device):
 
     # Evaluating
     eval_feature_grid, eval_masking = model.feature_grid(single_image, single_image_mask, True)
-    eval_calculate_h0, eval_calculate_c0 = model.calculate_decoder_init(eval_feature_grid, eval_masking)
-    eval_init_h, eval_init_c = model.decoder_init(1)
-    eval_state_h, eval_state_c, eval_output = model.decoder(eval_feature_grid, eval_masking,
-                                                            single_character, eval_init_h, eval_init_c)
+    eval_calculate_h0 = model.calculate_decoder_init(eval_feature_grid, eval_masking)
+    eval_init_h = model.decoder_init(1)
+    eval_state_h, eval_output = model.decoder(eval_feature_grid, eval_masking,
+                                                            single_character, eval_init_h)
     eval_output_softmax = tf.nn.softmax(eval_output)
 
 if parameter_count:
@@ -196,11 +196,9 @@ with tf.Session(config=config) as sess:
     if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
         start_epoch = -1
-    predictor = create_predictor(sess, (single_image, single_image_mask, eval_init_h,
-                                 eval_init_c, eval_feature_grid, eval_masking,
-                                 single_character), (eval_feature_grid, eval_masking, eval_calculate_h0,
-                                                     eval_calculate_c0, eval_output_softmax, eval_state_h,
-                                                     eval_state_c), encoding_vb, decoding_vb, k=10)
+    predictor = create_predictor(sess, (single_image, single_image_mask, eval_init_h, eval_feature_grid, eval_masking,
+                                 single_character), (eval_feature_grid, eval_masking, eval_calculate_h0, eval_output_softmax,
+                                                     eval_state_h), encoding_vb, decoding_vb, k=10)
     writer = None
     if tensorboard_log_dir is not None:
         writer = tf.summary.FileWriter(os.path.join(tensorboard_log_dir, tensorboard_name))

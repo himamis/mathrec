@@ -2,23 +2,22 @@ import numpy as np
 
 def create_predictor(sess, input_params, output_params, encoding_vb, decoding_vb, max_length = 100, k=100, alpha=0.7):
     single_image, single_image_mask, eval_init_h, \
-    eval_init_c, feature_grid_input, masking_input, single_char_input = input_params
-    eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_c0, eval_output_softmax, \
-    eval_state_h, eval_state_c = output_params
+    feature_grid_input, masking_input, single_char_input = input_params
+    eval_feature_grid, eval_masking, eval_calculate_h0, eval_output_softmax, \
+    eval_state_h = output_params
 
     def predict_beam_search(image, mask):
         sequence = np.zeros((1,), dtype=np.int32)
         sequence[0] = encoding_vb["<start>"]
 
-        feature_grid, mask, init_h, init_c = sess.run([eval_feature_grid, eval_masking,
-                                                       eval_calculate_h0, eval_calculate_c0], feed_dict={
+        feature_grid, mask, init_h = sess.run([eval_feature_grid, eval_masking,
+                                                       eval_calculate_h0], feed_dict={
             single_image: image,
             single_image_mask: mask
         })
 
         h = init_h
-        c = init_c
-        state = [h, c]
+        state = [h]
 
         sequences = [[[sequence], state, 0.0]]
         finished = [False]
@@ -33,11 +32,10 @@ def create_predictor(sess, input_params, output_params, encoding_vb, decoding_vb
                     continue
                 last = seq[-1]
                 inp = np.reshape(last, (1, -1))
-                h, c, output = sess.run([eval_state_h, eval_state_c, eval_output_softmax], feed_dict={
+                h, c, output = sess.run([eval_state_h, eval_output_softmax], feed_dict={
                     feature_grid_input: feature_grid,
                     masking_input: mask,
                     eval_init_h: state[0],
-                    eval_init_c: state[1],
                     single_char_input: inp
                 })
                 top_n_indices = np.argpartition(output[0, 0, :], -k)[-k:]
