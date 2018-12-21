@@ -5,11 +5,9 @@ from numpy.random import seed
 from datetime import datetime
 from os import path
 import os
-from trainer.tf_generator import DataGenerator, DifficultyDataGenerator
+from trainer.tf_generator import DataGenerator
 from trainer.tf_predictor import create_predictor
-from trainer.metrics import wer, exp_rate
 import trainer.default_type as t
-import trainer.tf_initializers as tfi
 import random
 
 from tensorflow import set_random_seed
@@ -66,8 +64,6 @@ if True:
     encoding_vb = dict(zip(new_vocab, range(len(new_vocab))))
     decoding_vb = { v: k for k, v in encoding_vb.items() if k != "<start>"}
 
-
-#generator = DifficultyDataGenerator(image, truth, encoding_vb, levels=levels, batch_size=batch_size)
 generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
 
 image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
@@ -75,19 +71,15 @@ generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
 input_images = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_images")
 image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_image_masks")
-
 input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
 is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
 
-single_image = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="single_input_image")
-single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="single_input_image_mask")
-single_character = tf.placeholder(tf.int32, shape=(1, 1), name="single_character")
+single_input_image = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="input_images")
+single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="input_image_masks")
+single_input_character = tf.placeholder(tf.int32, shape=(1, None), name="input_characters")
+
 
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
-#if use_gpu == 'n':
-#    config = tf.ConfigProto(device_count = {'GPU': 0})
-#else:
-#    config = tf.ConfigProto()
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
 with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
@@ -111,11 +103,11 @@ with tf.device(device):
     training_output = model.training(input_images, image_masks, input_characters)
 
     # Evaluating
-    eval_feature_grid, eval_masking = model.feature_grid(single_image, single_image_mask, True)
+    eval_feature_grid, eval_masking = model.feature_grid(single_input_image, single_image_mask, True)
     eval_calculate_h0 = model.calculate_decoder_init(eval_feature_grid, eval_masking)
     eval_init_h = model.decoder_init(1)
     eval_state_h, eval_output = model.decoder(eval_feature_grid, eval_masking,
-                                                            single_character, eval_init_h)
+                                                            single_input_character, eval_init_h)
     eval_output_softmax = tf.nn.softmax(eval_output)
 
 if parameter_count:
@@ -196,8 +188,8 @@ with tf.Session(config=config) as sess:
     if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
         start_epoch = -1
-    predictor = create_predictor(sess, (single_image, single_image_mask, eval_init_h, eval_feature_grid, eval_masking,
-                                 single_character), (eval_feature_grid, eval_masking, eval_calculate_h0, eval_output_softmax,
+    predictor = create_predictor(sess, (single_input_image, single_image_mask, eval_init_h, eval_feature_grid, eval_masking,
+                                 single_input_character), (eval_feature_grid, eval_masking, eval_calculate_h0, eval_output_softmax,
                                                      eval_state_h), encoding_vb, decoding_vb, k=10)
     writer = None
     if tensorboard_log_dir is not None:

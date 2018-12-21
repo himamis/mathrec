@@ -232,4 +232,4 @@ class DenseNetCreator:
         if self.include_top:
             x = dense(x, self.nb_classes)
 
-        return [x], None
+        return x, None
