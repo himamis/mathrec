@@ -93,6 +93,11 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         self.attention_v_a_bs = []
         self.watch_vectors = []
 
+        self.u_f = tf.get_variable(name="u_f", initializer=tf.initializers.random_normal,
+                                   shape=(att_dim, att_dim), dtype=t.my_tf_float)
+        self.u_f_b = tf.get_variable(name="U_f_b", initializer=tf.initializers.zeros,
+                                     shape=(att_dim,), dtype=t.my_tf_float)
+
         self.attention_u = tf.get_variable(name="decoder_attention_u_scale",
                                            initializer=dense_initializer,
                                            shape=[self.feature_grid_dim, att_dim], dtype=t.my_tf_float)
@@ -117,6 +122,9 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
                                              initializer=dense_bias_initializer,
                                              shape=[att_dim], dtype=t.my_tf_float)
 
+        # Past attention probabilities
+        self.alpha_past_filter = tf.get_variable(name="alpha_past_filter", shape=(11, 11, 1, att_dim))
+
     @property
     def wrapped_cell(self):
         return self.cell
@@ -139,20 +147,29 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
             h_tm1 = state[0]
         else:
             h_tm1 = state
+        betas = state[1]
 
         with tf.name_scope("ctx"):
+            # Coverage vector
+            ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
+            coverage_vector = tf.tensordot(ft, self.u_f, axes=1) + self.u_f_b
+
             # context vector
             speller_vector = tf.tensordot(h_tm1, self.attention_w, axes=1) + self.attention_w_b
 
-            tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
+            tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)  # [batch, h, w, dim_attend]
             e_ti = tf.tensordot(tanh_vector, self.attention_v_a, axes=1) + self.attention_v_a_b  # [batch, h, w, 1]
             alpha = tf.exp(e_ti)
             if self.image_masks is not None:
                 alpha = alpha * self.image_masks
             alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
+            betas = betas + alpha
             ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
 
-        return self.cell(tf.concat([inputs, ctx], 1), state, scope=scope)
+        output, new_state = self.cell(tf.concat([inputs, ctx], 1), h_tm1, scope=scope)
+
+        # Can I return variable length state? :D
+        return [output, [new_state, betas]]
 
 
 class CNNEncoder:
@@ -270,10 +287,15 @@ class AttentionDecoder:
         #initial_states = (init_h, init_c, tf.zeros_like(init_c))
 
         rnn_cell = tf.nn.rnn_cell.GRUCell(self.units)
-        initial_states = init_h
 
         cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grid,
                                 image_masks, self.dense_initializer, self.dense_bias_initializer)
+        shape = tf.shape(feature_grid[:, :, :, -1])
+
+        alpha_shape = tf.concat([shape, tf.ones(1, dtype=tf.int32)], axis=0)
+        alphas = tf.zeros(alpha_shape, dtype=tf.float32)
+
+        initial_states = [init_h, alphas]
         outputs, states = tf.nn.dynamic_rnn(cell, inputs, dtype=t.my_tf_float,
                                             initial_state=initial_states)
 
@@ -389,7 +411,7 @@ class Model:
 
         state_h, output = self.decoder(feature_grid, image_masks, input_characters, calculate_h, summarize=True)
 
-        tf.summary.histogram("activation_state_h", state_h)
+        #tf.summary.histogram("activation_state_h", state_h)
 
         return output
 
