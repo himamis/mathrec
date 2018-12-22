@@ -201,7 +201,7 @@ class DenseNetCreator:
                            'trainable': self.trainable }
         self.training = is_training
 
-        input_images = input_images / 256
+        input_images = (input_images - 127) / 128
 
         """ Builds the network. """
         x = conv2d(input_images, self.nb_filter, self.initial_kernel, kernel_initializer='he_normal', padding='same',
