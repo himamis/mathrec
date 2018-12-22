@@ -49,7 +49,7 @@ start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 batch_size = 16
-epochs = 50
+epochs = 100
 levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
@@ -143,7 +143,7 @@ with tf.name_scope("loss"):
 with tf.name_scope("train"):
     #optimizer = tf.train.GradientDescentOptimizer()
     #optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
-    optimizer = tf.train.AdamOptimizer(learning_rate=0.01)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
     grads_and_vars = optimizer.compute_gradients(loss)
     #grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     tf.summary.merge(
