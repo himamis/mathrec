@@ -123,7 +123,7 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
                                              shape=[att_dim], dtype=t.my_tf_float)
 
         # Past attention probabilities
-        self.alpha_past_filter = tf.get_variable(name="alpha_past_filter", shape=(11, 11, 1, att_dim))
+        self.alpha_past_filter = tf.get_variable(name="alpha_past_filter", shape=(3, 3, 1, att_dim))
 
     @property
     def wrapped_cell(self):
