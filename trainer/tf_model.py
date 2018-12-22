@@ -165,6 +165,9 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
             alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
             ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
             betas = betas - alpha
+            tf.summary.histogram("betas", betas)
+            tf.summary.histogram("alpha", alpha)
+            tf.summary.histogram("alpha", alpha)
 
         output, new_state = self.cell(tf.concat([inputs, ctx], 1), h_tm1, scope=scope)
 
