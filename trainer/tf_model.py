@@ -294,7 +294,7 @@ class AttentionDecoder:
 
         alpha_shape = tf.concat([shape, tf.ones(1, dtype=tf.int32)], axis=0)
         #alphas = tf.ones(alpha_shape, dtype=tf.float32)
-        alphas = tf.zeroes(alpha_shape, dtype=tf.float32)
+        alphas = tf.zeros(alpha_shape, dtype=tf.float32)
 
         initial_states = [init_h, alphas]
         outputs, states = tf.nn.dynamic_rnn(cell, inputs, dtype=t.my_tf_float,
