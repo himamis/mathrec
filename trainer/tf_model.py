@@ -332,10 +332,11 @@ class Model:
         self.decoder_units = decoder_units
         self.embedding_dim = embedding_dim
         self._encoder = DenseNetCreator(data_format='channels_last',
-                                        efficient=False, growth_rate=12,
+                                        efficient=False, growth_rate=24,
                                         include_top=False,
                                         bottleneck=False,
-                                        depth=40)
+                                        depth=100,
+                                        nb_dense_block=4)
         #self._encoder = CNNEncoder(
         #    filter_sizes=filter_sizes,
         #    kernel_init=conv_kernel_init,
@@ -408,6 +409,8 @@ class Model:
         feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=True, summarize=True)
 
         tf.summary.histogram("feature_grid", feature_grid)
+
+        feature_grid = tf.Print(feature_grid, [tf.shape(feature_grid)], summarize=20)
 
         calculate_h = self.calculate_decoder_init(feature_grid, image_masks)
 
