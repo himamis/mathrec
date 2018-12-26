@@ -174,7 +174,7 @@ best_exp_rate = -1
 #level = 0
 level = 4
 
-lr_val = 0.01
+lr_val = 1.0
 epoch_lr_decay = 10
 decay_rate = 0.5
 
