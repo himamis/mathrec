@@ -175,7 +175,7 @@ best_exp_rate = -1
 level = 4
 
 lr_val = 0.01
-epoch_lr_decay = 20
+epoch_lr_decay = 40
 decay_rate = 0.7
 
 valid_avg_wer_summary = tf.Summary()
@@ -236,7 +236,7 @@ with tf.Session(config=config) as sess:
 
             print("Loss: {}, Acc: {}".format(vloss, vacc))
             if (epoch + 1) % epoch_lr_decay == 0:
-                lr_val = lr_val * epoch_lr_decay
+                lr_val = max(lr_val * decay_rate, 0.0001)
                 lr_summary.value[0].simple_value = lr_val
                 if writer is not None:
                     writer.add_summary(lr_summary, global_step)
