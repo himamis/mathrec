@@ -141,10 +141,14 @@ with tf.name_scope("loss"):
 
     tf.summary.scalar("loss", loss)
 
+lr = tf.placeholder(dtype=tf.float32, shape=[], name="learning_rate")
+
 with tf.name_scope("train"):
     #optimizer = tf.train.GradientDescentOptimizer()
     #optimizer = tf.train.AdadeltaOptimizer(learning_rate=1.0)
-    optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+    #optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+    optimizer = tf.train.GradientDescentOptimizer(learning_rate=lr)
+    #optimizer = tf.train.GradientDescentOptimizer()
     grads_and_vars = optimizer.compute_gradients(loss)
     #grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     tf.summary.merge(
@@ -170,15 +174,22 @@ best_exp_rate = -1
 #level = 0
 level = 4
 
+lr_val = 0.01
+epoch_lr_decay = 20
+decay_rate = 0.7
+
 valid_avg_wer_summary = tf.Summary()
 valid_avg_acc_summary = tf.Summary()
 valid_avg_exp_rate_summary = tf.Summary()
 level_summary = tf.Summary()
+lr_summary = tf.Summary()
 
 valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=None)
 valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=None)
 valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=None)
 level_summary.value.add(tag="level", simple_value=None)
+lr_summary.value.add(tag="learning_rate", simple_value=None)
+lr_summary.value[0].simple_value = lr_val
 
 init = tf.global_variables_initializer()
 
@@ -197,6 +208,7 @@ with tf.Session(config=config) as sess:
     if tensorboard_log_dir is not None:
         writer = tf.summary.FileWriter(os.path.join(tensorboard_log_dir, tensorboard_name))
         writer.add_graph(sess.graph)
+        writer.add_summary(lr_summary)
     sess.run(init)
     for epoch in range(epochs):
 
@@ -213,7 +225,8 @@ with tf.Session(config=config) as sess:
                 input_characters: observation,
                 sequence_masks: label_masks,
                 image_masks: masks,
-                y_tensor: label
+                y_tensor: label,
+                lr: lr_val
             }
             if writer is not None and global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
@@ -222,6 +235,11 @@ with tf.Session(config=config) as sess:
                 vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=dict)
 
             print("Loss: {}, Acc: {}".format(vloss, vacc))
+            if (epoch + 1) % epoch_lr_decay == 0:
+                lr_val = lr_val * epoch_lr_decay
+                lr_summary.value[0].simple_value = lr_val
+                if writer is not None:
+                    writer.add_summary(lr_summary, global_step)
 
             global_step += 1
 
