@@ -9,6 +9,7 @@ from trainer.tf_generator import DataGenerator
 from trainer.tf_predictor import create_predictor
 import trainer.default_type as t
 import random
+import math
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -160,7 +161,8 @@ with tf.name_scope("accuracy"):
 saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
-summary_step = 1
+no_summary_per_epoch = 2
+summary_step = math.floor(generator.steps() / no_summary_per_epoch)
 patience = 5
 bad_counter = 0
 best_wer = 999999
