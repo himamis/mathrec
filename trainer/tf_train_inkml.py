@@ -48,7 +48,7 @@ if ckpt_dir is not None:
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 16
+batch_size = 4
 epochs = 200
 levels = 5
 decay = 1e-4
