@@ -335,7 +335,7 @@ class Model:
                                         efficient=True, growth_rate=12,
                                         include_top=False,
                                         bottleneck=False,
-                                        depth=60,
+                                        depth=64,
                                         nb_dense_block=3)
         #self._encoder = CNNEncoder(
         #    filter_sizes=filter_sizes,
