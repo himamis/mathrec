@@ -336,6 +336,7 @@ class Model:
                                         include_top=False,
                                         bottleneck=False,
                                         depth=40,
+                                        subsample_initial_block=True,
                                         nb_dense_block=3)
         #self._encoder = CNNEncoder(
         #    filter_sizes=filter_sizes,
