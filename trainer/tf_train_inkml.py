@@ -54,9 +54,10 @@ epochs = 200
 levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
+image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
 
-image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "overfit.pkl")))
 if True:
+    image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "overfit.pkl")))
     new_vocab = "1234567890-+"
     new_vocab = list(new_vocab)
     new_vocab.append("<end>")
