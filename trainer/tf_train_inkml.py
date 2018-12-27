@@ -50,7 +50,7 @@ start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 batch_size = 4
-epochs = 400
+epochs = 200
 levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
@@ -174,7 +174,7 @@ best_exp_rate = -1
 #level = 0
 level = 4
 
-lr_val = 1.0
+lr_val = 0.8
 epoch_lr_decay = 20
 decay_rate = 0.5
 
