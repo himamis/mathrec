@@ -50,7 +50,7 @@ start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 batch_size = 4
-epochs = 200
+epochs = 400
 levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
@@ -87,9 +87,9 @@ with tf.device(device):
     model = tf_model.Model(len(encoding_vb),
                            filter_sizes=[32, 64, 64, 128],
                            encoder_size=128,
-                           decoder_units=512,
-                           attention_dim=512,
-                           embedding_dim=512,
+                           decoder_units=720,
+                           attention_dim=720,
+                           embedding_dim=720,
                            bidirectional=True,
                            conv_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
                            conv_bias_init=tf.initializers.random_normal(),
