@@ -225,8 +225,8 @@ with tf.Session(config=config) as sess:
                 input_characters: observation,
                 sequence_masks: label_masks,
                 image_masks: masks,
-                y_tensor: label,
-                lr: lr_val
+                y_tensor: label#,
+                #lr: lr_val
             }
             if writer is not None and global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
