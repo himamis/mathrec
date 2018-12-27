@@ -175,7 +175,7 @@ best_exp_rate = -1
 level = 4
 
 lr_val = 0.1
-epoch_lr_decay = 20
+epoch_lr_decay = 70
 decay_rate = 0.5
 
 valid_avg_wer_summary = tf.Summary()
