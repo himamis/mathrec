@@ -145,8 +145,8 @@ lr = tf.placeholder(dtype=tf.float32, shape=[], name="learning_rate")
 
 with tf.name_scope("train"):
     #optimizer = tf.train.GradientDescentOptimizer()
-    optimizer = tf.train.AdadeltaOptimizer(learning_rate=0.001)
-    #optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+    #optimizer = tf.train.AdadeltaOptimizer(learning_rate=0.001)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
     #optimizer = tf.train.GradientDescentOptimizer(learning_rate=lr)
     #optimizer = tf.train.GradientDescentOptimizer()
     grads_and_vars = optimizer.compute_gradients(loss)
