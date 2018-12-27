@@ -332,10 +332,10 @@ class Model:
         self.decoder_units = decoder_units
         self.embedding_dim = embedding_dim
         self._encoder = DenseNetCreator(data_format='channels_last',
-                                        efficient=True, growth_rate=24,
+                                        efficient=True, growth_rate=6,
                                         include_top=False,
                                         bottleneck=False,
-                                        depth=31,
+                                        depth=40,
                                         subsample_initial_block=True,
                                         nb_dense_block=3)
         #self._encoder = CNNEncoder(
