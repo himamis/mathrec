@@ -50,7 +50,7 @@ start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 batch_size = 4
-epochs = 200
+epochs = 400
 levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
