@@ -1,7 +1,6 @@
 from graphics.utils import *
 import cv2
 import math
-import scipy.interpolate
 
 info = np.finfo(np.float32)
 
