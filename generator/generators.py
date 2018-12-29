@@ -1,6 +1,7 @@
 import numpy as np
 import string
-from .collection import c
+from .collection import c, Collection
+from typing import List
 
 '''
 Generators should be classes that have at least two public methods with the following signatures
@@ -13,8 +14,9 @@ The second method should return all tokens that the generator can generate in a 
 
 
 class Config:
+    """ Configs are used to modify the behaviour of generators."""
 
-    def __init__(self, separator, variables, multiplier):
+    def __init__(self, separator='.', variables=c(), multiplier=c()):
         self.separator = separator
         self.variables = variables
         self.multiplier = multiplier
@@ -23,41 +25,107 @@ class Config:
         return self.variables.all() | self.multiplier.all() | {self.separator}
 
 
-class TokenGenerator:
+class FormulaGenerator(object):
+    """ FormulaGenerators are objects that can generate formulas."""
+
+    def generate(self, tokens: List[str], config=Config()):
+        """
+        Generates a formula.
+
+        :param tokens: a list that contains tokens
+        :param config: optional config object
+        """
+        raise NotImplementedError("Class %s doesn't implement generate()" % self.__class__.__name__)
+
+    def vocabulary(self, config=Config()):
+        """
+        Creates a vocabulary that contains all tokens that this generator can create.
+
+        :param config: optional config
+        :return: set of tokens
+        """
+        raise NotImplementedError("Class %s doesn't implement vocabulary()" % self.__class__.__name__)
+
+
+class WrappingFormulaGenerator(FormulaGenerator):
+    """ Formula generators that wrap other generators.
+        It can accept arbitrary generators in a list of generators.
+    """
+
+    def __init__(self, generators: List[FormulaGenerator]):
+        super().__init__()
+        self.generators = generators
+
+    def generate(self, tokens, config=Config()):
+        super().generate(tokens, config)
+
+    def vocabulary(self, config=Config()):
+        return super().vocabulary(config)
+
+
+class RandomTokenGenerator(FormulaGenerator):
+    """ Generates a random token """
+
+    def __init__(self, token_collection: Collection):
+        super().__init__()
+        self.token_collection = token_collection
+
+    def generate(self, tokens: List[str], config=Config()):
+        tokens += [self.token_collection.get()]
+
+    def vocabulary(self, config=Config()):
+        return self.token_collection.all()
+
+
+class TokenGenerator(RandomTokenGenerator):
+    """ Generates a single token. """
 
     def __init__(self, token="x"):
-        self.token = token
+        super().__init__(c(token))
 
-    def generate_formula(self, tokens, config):
-        tokens += [self.token]
+    @property
+    def token(self):
+        return self.token_collection.get()
 
-    def vocabulary(self, config):
-        return {self.token}
+    @token.setter
+    def token(self, value):
+        self.token_collection = c(value)
 
 
-class NumberGenerator:
+class NumberGenerator(FormulaGenerator):
+    """ Generates numbers. """
 
     def __init__(self, n=5, p=0.05, p_real=0.1, p_neg=0.0):
+        """ Create a NumberGenerator. The length of the number (number of decimals)
+        is defined by a binomial distribution with parameters n and p.
+        With probability p_real, it generates a real number.
+        With probability p_neg it generates a negative number.
+
+        :param n: binomial probability distribution parameter n
+        :param p: binomial probability distribution parameter p
+        :param p_real: probability of real number
+        :param p_neg: probability of negative number
+        """
         self.n = n
         self.p = p
         self.p_real = p_real
         self.p_neg = p_neg
 
-    def generate_formula(self, tokens, config):
+    def generate(self, tokens, config=Config()):
         if np.random.random() < self.p_neg:
             tokens += "-"
-        self.generate_number(tokens)
+        self._generate_number(tokens)
         if np.random.random() < self.p_real:
             tokens += config.separator
-            self.generate_number(tokens)
+            self._generate_number(tokens)
 
-    def generate_number(self, tokens):
+    def _generate_number(self, tokens):
         length = np.random.binomial(self.n, self.p) + 1
         if length > 0:
             tokens += [str(np.random.random_integers(1, 9))]
             tokens += [str(np.random.random_integers(0, 9)) for _ in range(length - 1)]
 
-    def vocabulary(self, config):
+    def vocabulary(self, config=Config()):
         vocab = {str(num) for num in range(0, 10)}
         if self.p_neg > 0:
             vocab = vocab | {'-'}
@@ -66,24 +134,33 @@ class NumberGenerator:
         return vocab
 
 
-class ExpressionGenerator:
+class ExpressionGenerator(WrappingFormulaGenerator):
+    """ Generates expressions. """
 
-    def __init__(self, generators=[], operators=[c([])]):
-        self.generators = generators
+    def __init__(self, generators: List[FormulaGenerator], operators: List[Collection] = list()):
+        """
+        Creates an expression generator.
+        It is defined by a list of generators, which are separated by the operators.
+
+        :param generators: the list of generators
+        :param operators: operators that separate the expression. Each operator is a collection of operators.
+        """
+        super().__init__(generators)
         self.operators = operators
         self.randomize_order = False
 
-    def generate_formula(self, tokens, config):
+    def generate(self, tokens, config=Config()):
         if self.randomize_order:
             np.random.shuffle(self.generators)
+
         for index in range(len(self.generators)):
             if index < len(self.operators) and self.operators[index] is not None:
                 operator = self.operators[index].get()
                 if operator is not None:
                     tokens += [operator]
-            self.generators[index].generate_formula(tokens, config)
+            self.generators[index].generate(tokens, config)
 
-    def vocabulary(self, config):
+    def vocabulary(self, config=Config()):
         vocab = set()
         for generator in self.generators:
             vocab = vocab | generator.vocabulary(config)
@@ -95,61 +172,76 @@ class ExpressionGenerator:
         return vocab
 
 
-class CommandGenerator:
+class CommandGenerator(WrappingFormulaGenerator):
+    """ Generates formulas with commands and parameters. """
 
-    def __init__(self, name, generators):
+    def __init__(self, name, generators=list()):
+        """ Create a CommandGenerator.
+
+        :param name: name of the command
+        :param generators: parameter generators, separated by curly braces {}
+        """
+        super().__init__(generators)
         self.name = name
-        self.generators = generators
 
-    def generate_formula(self, tokens, config):
+    def generate(self, tokens, config=Config()):
         tokens += [self.name]
         for generator in self.generators:
             tokens += "{"
-            generator.generate_formula(tokens, config)
+            generator.generate(tokens, config)
             tokens += "}"
 
-    def vocabulary(self, config):
+    def vocabulary(self, config=Config()):
         vocab = {self.name}
         for generator in self.generators:
             vocab = vocab | generator.vocabulary(config)
         return vocab
 
 
-class CallableGenerator:
+class CallableGenerator(WrappingFormulaGenerator):
+    """ Callable generator e.g. sin(x) or f(a,b). """
 
     def __init__(self, name, generators, brackets):
+        """ Creates a CallableGenerator.
+
+        :param name: name of the generator
+        :param generators: parameters
+        :param brackets: brackets to use
+        """
+        super().__init__(generators)
         self._name = c(name)
-        self.generators = generators
         self.brackets = brackets
 
     @property
     def name(self):
+        """ Get the name of the callable e.g. sin """
         return self._name
 
     @name.setter
     def name(self, value):
+        """ Set the name of the callable e.g. cos """
         self._name = c(value)
 
-    def generate_formula(self, tokens, config):
+    def generate(self, tokens, config=Config()):
         if self.name is not None:
             name = self.name.get()
             if name is not None:
-                for char in name:
-                    tokens.append(char)
+                tokens.append(name)
+
         tokens += [self.brackets[0]]
+
         for index in range(len(self.generators)):
-            self.generators[index].generate_formula(tokens, config)
+            self.generators[index].generate(tokens, config)
             if index < len(self.generators) - 1:
                 tokens += [","]
         tokens += [self.brackets[1]]
 
-    def vocabulary(self, config):
+    def vocabulary(self, config=Config()):
         vocab = {self.brackets[0], self.brackets[1]}
         if self.name is not None:
             for name in self.name.all():
                 if name is not None:
-                    for character in name:
-                        vocab.add(character)
+                    vocab.add(name)
         for generator in self.generators:
             vocab = vocab | generator.vocabulary(config)
         if len(self.generators) > 1:
@@ -159,39 +251,39 @@ class CallableGenerator:
         return vocab
 
 
-class RelationGenerator:
+class RelationGenerator(ExpressionGenerator):
+    """ Relation generator with two left and right sides. """
 
-    def __init__(self, operator=c("="), generators=[TokenGenerator(), TokenGenerator()]):
-        self.operator = operator
-        self.generators = generators
-
-    def generate_formula(self, tokens, config):
-        self.generators[0].generate_formula(tokens, config)
-        tokens += [self.operator.get()]
-        self.generators[1].generate_formula(tokens, config)
-
-    def vocabulary(self, config):
-        return self.generators[0].vocabulary(config) | self.generators[1].vocabulary(config) | self.operator.all()
+    def __init__(self, operator=c("="),
+                 left_side: FormulaGenerator = TokenGenerator(),
+                 right_side: FormulaGenerator = TokenGenerator()):
+        super().__init__([left_side, right_side], [operator])
 
 
-class VariableGenerator:
+class VariableGenerator(FormulaGenerator):
+    """ Generates variables. """
 
-    def __init__(self, variable_wrapper=None, scale_generator=None):
+    def __init__(self, variable_wrapper: WrappingFormulaGenerator = None, scale_generator: FormulaGenerator = None):
+        """ Create a VariableGenerator.
+
+        :param variable_wrapper:
+        :param scale_generator: token generator that is appended before the variable
+        """
         self.variable_wrapper = variable_wrapper
         self.scale_generator = scale_generator
 
-    def generate_formula(self, tokens, config):
+    def generate(self, tokens, config=Config()):
         if self.scale_generator is not None:
-            self.scale_generator.generate_formula(tokens, config)
+            self.scale_generator.generate(tokens, config)
             if config.multiplier is not None:
                 tokens += [config.multiplier.get()]
         if self.variable_wrapper is not None:
-            self.variable_wrapper.generator = TokenGenerator(config.variables.get())
-            self.variable_wrapper.generate_formula(tokens, config)
+            self.variable_wrapper.generators = [TokenGenerator(config.variables.get())]
+            self.variable_wrapper.generate(tokens, config)
         else:
             tokens += [config.variables.get()]
 
-    def vocabulary(self, config):
+    def vocabulary(self, config=Config()):
         vocab = set()
         if self.scale_generator is not None:
             vocab = vocab | self.scale_generator.vocabulary(config)
@@ -203,49 +295,60 @@ class VariableGenerator:
         return vocab
 
 
-class PowerGenerator:
+class PowerGenerator(WrappingFormulaGenerator):
+    """ Generates power expressions. """
 
-    def __init__(self, generator=TokenGenerator(), power_generator=TokenGenerator("2")):
-        self.generator = generator
+    def __init__(self, generator: FormulaGenerator = NumberGenerator(),
+                 power_generator: FormulaGenerator = TokenGenerator("2")):
+        """ Create a PowerGenerator object.
+
+        :param generator: object to wrap with power
+        :param power_generator: the expression in the power term
+        """
+        super().__init__([generator])
         self.power_generator = power_generator
 
     def generate_formula(self, tokens, config):
         new_tokens = []
-        self.generator.generate_formula(new_tokens, config)
+        self.generators[0].generate(new_tokens, config)
         if len(new_tokens) > 1:
             tokens += "("
         tokens += new_tokens
         if len(new_tokens) > 1:
             tokens += ")"
         tokens += ["^", "{"]
-        self.power_generator.generate_formula(tokens, config)
+        self.power_generator.generate(tokens, config)
         tokens += ["}"]
 
-    def vocabulary(self, config):
+    def vocabulary(self, config=Config()):
         vocab = {"(", ")", "^", "{", "}"}
-        vocab = vocab | self.generator.vocabulary(config)
+        vocab = vocab | self.generators[0].vocabulary(config)
         vocab = vocab | self.power_generator.vocabulary(config)
         return vocab
 
 
 # These build on the ones before
-class PolynomialGenerator:
+class PolynomialGenerator(FormulaGenerator):
+    """ Generates polynomial expressions. """
 
-    def __init__(self, length=c(3), p_miss=0.1, p_minus=0.3):
+    def __init__(self, length=c([2, 3, 4]), p_miss=0.1, p_minus=0.3):
+        """ Creates a Polynomial Generator object.
+
+        :param length: collection of lengths
+        :param p_miss: probability of missing a term
+        :param p_minus: probability of having a negative term
+        """
         self.length = length
         self.p_miss = p_miss
         self.p_minus = p_minus
 
         self.power = TokenGenerator("1")
-        self.power_gen = PowerGenerator(power_generator=self.power)
-        self.power_gen.power_generator = self.power
+        self.power_gen = PowerGenerator(TokenGenerator(), power_generator=self.power)
 
         self.number_gen = NumberGenerator()
-        self.var_gen = VariableGenerator()
-        self.var_gen.scale_generator = self.number_gen
-        self.var_gen.variable_wrapper = self.power_gen
+        self.var_gen = VariableGenerator(self.power_gen, self.number_gen)
 
-    def generate_formula(self, tokens, config):
+    def generate(self, tokens: List[str], config=Config()):
         new_tokens = []
         length = self.length.get()
         for ind in range(length, 0, -1):
@@ -255,55 +358,71 @@ class PolynomialGenerator:
                 new_tokens += ["-"]
             elif len(new_tokens) > 0:
                 new_tokens += ["+"]
+
             if ind > 2:
                 self.power.token = str(ind - 1)
-                self.var_gen.generate_formula(new_tokens, config)
+                self.var_gen.variable_wrapper = self.power_gen
+                self.var_gen.generate(new_tokens, config)
             elif ind == 2:
                 self.var_gen.variable_wrapper = None
-                self.var_gen.generate_formula(new_tokens, config)
+                self.var_gen.generate(new_tokens, config)
             else:
-                self.number_gen.generate_formula(new_tokens, config)
+                self.number_gen.generate(new_tokens, config)
         tokens += new_tokens
 
-    def vocabulary(self, config):
+    def vocabulary(self, config=Config()):
         vocab = {"+"} | self.var_gen.vocabulary(config)
         if self.p_minus > 0:
             vocab = vocab | {"-"}
         return vocab
 
 
-class RandomGenerator:
+class RandomGenerator(FormulaGenerator):
+    """ A collection of generators. """
 
-    def __init__(self, generators):
+    def __init__(self, generators: List[FormulaGenerator]):
+        """ Create a RandomGenerator.
+
+        :param generators: a list of generators
+        """
         self.generators = generators
 
-    def generate_formula(self, tokens, config):
+    def generate(self, tokens: List[str], config=Config()):
         generator = np.random.choice(self.generators)
-        generator.generate_formula(tokens, config)
+        generator.generate(tokens, config)
 
-    def vocabulary(self, config):
+    def vocabulary(self, config=Config()):
         vocab = set()
         for generator in self.generators:
             vocab = vocab | generator.vocabulary(config)
         return vocab
 
 
-class GibberishGenerator:
+class GibberishGenerator(FormulaGenerator):
+    """ Generates just unintelligible gibberish. """
 
     def __init__(self, min_length=4, max_length=20, brckt_p=0.2):
+        """ Create a GibberishGenerator.
+
+        :param min_length: the minimum length of the gibberish
+        :param max_length: the maximum length of the gibberish
+        :param brckt_p: probability of including brackets
+        """
         self.min_length = min_length
         self.max_length = max_length
         self.brckt_p = brckt_p
-        self.tokens = []
-        for rep in range(0, 4):
-            for char in range(0, 9):
-                self.tokens += str(char)
-        for operators in ['=', '+', '-']:
-            self.tokens += operators
-        for char in range(ord('a'), ord('z') + 1):
-            self.tokens += chr(char)
 
-    def generate_formula(self, tokens, config):
+        random_tokens = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                         '\\Delta', '\\alpha', '\\beta', '\\cos', '\\div', '\\exists', '\\forall', '\\gamma', '\\geq',
+                         '\\gt', '\\in', '\\infty', '\\int', '\\lambda', '\\ldots', '\\leq', '\\lim', '\\log', '\\lt',
+                         '\\mu', '\\neq', '\\phi', '\\pi', '\\pm', '\\prime', '\\rightarrow', '\\sigma', '\\sin',
+                         '\\sqrt', '\\sum', '\\tan', '\\theta', '\\times',
+                         '!', '+', ',', '-', '.', '/', '=']
+        generator = RandomTokenGenerator(c(random_tokens))
+        self.single_token_gen = RandomGenerator([uppercase_character(), lowercase_character(), generator])
+        self.brackets = [('(', ')'), ('[', ']'), ('{', '}')]
+
+    def generate(self, tokens: List[str], config=Config()):
         length = np.random.randint(self.min_length, self.max_length)
         if length > 3 and np.random.uniform() < self.brckt_p:
             opening_bracket = np.random.randint(0, length - 2)
@@ -312,23 +431,36 @@ class GibberishGenerator:
             opening_bracket = -2
             closing_bracket = -2
 
+        bracket = np.random.choice(self.brackets)
         for i in range(0, length):
             if i == opening_bracket:
-                tokens += '('
+                tokens += bracket[0]
             elif i == closing_bracket:
-                tokens += ')'
+                tokens += bracket[1]
             else:
-                tokens += np.random.choice(self.tokens)
+                self.single_token_gen.generate(tokens, config)
 
-    def vocabulary(self, config):
-        return set(self.tokens) | {'(', ')'}
-
-
+    def vocabulary(self, config=Config()):
+        tokens = self.single_token_gen.vocabulary(config)
+        for bracket in self.brackets:
+            tokens |= {bracket[0], bracket[1]}
+        return tokens
 
 
 square_brackets = ("[", "]")
 round_brackets = ("(", ")")
 curly_brackets = ("{", "}")
+
+
+def uppercase_character():
+    characters = ['A', 'B', 'C', 'E', 'F', 'G', 'H', 'I', 'L', 'M', 'N', 'P', 'R', 'S', 'T', 'V', 'X', 'Y']
+    return RandomTokenGenerator(c(characters))
+
+
+def lowercase_character():
+    characters = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                  'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']
+    return RandomTokenGenerator(c(characters))
 
 
 def function_generator(name, generators): return CallableGenerator(name, generators, round_brackets)
@@ -340,46 +472,30 @@ def fraction_generator(numerator, denominator): return CommandGenerator("\\frac"
 def random_simple_expression():
     num = NumberGenerator()
 
-    var1 = VariableGenerator()
-    var1.scale_generator = num
+    var1 = VariableGenerator(scale_generator=num)
     var2 = VariableGenerator()
     rand = RandomGenerator([var1, var2])
 
-    operators = [c(None), c(["+", "-"])]
-    expr = ExpressionGenerator([rand, num])
+    expr = ExpressionGenerator([rand, num], operators=[c(None), c(["+", "-"])])
     expr.randomize_order = True
-    expr.operators = operators
 
     return expr
 
 
-def random_polynomial():
-    poly = PolynomialGenerator()
-    poly.length = c([2, 3, 4])
-
-    return poly
-
-
 def random_simple_equation():
     num = NumberGenerator()
-    var = VariableGenerator()
-    var.scale_generator = num
+    var = VariableGenerator(scale_generator=num)
 
-    expr = ExpressionGenerator()
-    expr.generators = [var, num]
+    expr = ExpressionGenerator([var, num], [c([None, "+", "-"]), c(["+", "-"])])
     expr.randomize_order = True
-    expr.operators = [c([None, "+", "-"]), c(["+", "-"])]
 
-    rel = ExpressionGenerator()
-    rel.generators = [expr, num]
-    rel.operators = [c(None), c(["=", "\\leq", "\\geq"])]
+    rel = ExpressionGenerator([expr, num], [c(None), c(["=", "\\leq", "\\geq"])])
 
     return rel
 
 
 def random_coord():
-    num = NumberGenerator()
-    num.p_neg = 0.5
+    num = NumberGenerator(p_neg=0.5)
     co = function_generator(None, [num, num])
 
     generators = []
@@ -387,35 +503,19 @@ def random_coord():
         generators.append(TokenGenerator(character))
     rand = RandomGenerator(generators)
 
-    rel = RelationGenerator()
-    rel.operator = c("=")
-    rel.generators = [rand, co]
-
-    return rel
+    return RelationGenerator(operator=c("="), left_side=rand, right_side=co)
 
 
 def random_fraction():
-    pow_num = NumberGenerator(0, p_real=0)
-    pow_num.p_neg = 0.4
-
-    num = NumberGenerator()
-    num.p_neg = 0.5
-
-    var = VariableGenerator()
-    var.scale_generator = num
-    var.variable_wrapper = PowerGenerator(power_generator=pow_num)
+    num = NumberGenerator(p_neg=0.5)
+    pow_num = NumberGenerator(0, p_real=0, p_neg=0.4)
+    power_generator = PowerGenerator(power_generator=pow_num)
+    var = VariableGenerator(scale_generator=num, variable_wrapper=power_generator)
 
     fraction = fraction_generator(var, pow_num)
 
-    e = TokenGenerator("e")
-    pow_e = PowerGenerator(e, pow_num)
-
     tok = TokenGenerator("y")
-    rel = ExpressionGenerator()
-    rel.operators = [c(None), c("=")]
-
-    #TODO Factor out pow_e
-    rel.generators = [tok, RandomGenerator([fraction])]
+    rel = ExpressionGenerator(generators=[tok, RandomGenerator([fraction])], operators=[c(None), c("=")])
 
     return rel
 
@@ -440,9 +540,8 @@ def random_long_expression():
     generators = []
 
     for i in range(4, 8):
-        expr = ExpressionGenerator()
-        expr.generators = [_random_long_expr_item() for _ in range(i)]
-        expr.operators = [c(None)] + [c(["+", "-"]) for _ in range(i - 1)]
+        expr = ExpressionGenerator(generators=[_random_long_expr_item() for _ in range(i)],
+                                   operators=[c(None)] + [c(["+", "-"]) for _ in range(i - 1)])
         generators.append(expr)
 
     return RandomGenerator(generators)
@@ -455,10 +554,10 @@ def random_square_root():
 
 def random_generator():
     generators = [random_simple_expression()]
-    #generators = [random_simple_expression(), random_polynomial(), random_coord(),
-    #              random_fraction(), random_long_expression_no_frac()]\
-        #, almost_absolutely_random_generator(),
-        #         almost_absolutely_random_generator(), almost_absolutely_random_generator()]
+    # generators = [random_simple_expression(), random_polynomial(), random_coord(),
+    #               random_fraction(), random_long_expression_no_frac()]\
+    #     , almost_absolutely_random_generator(),
+    #              almost_absolutely_random_generator(), almost_absolutely_random_generator()]
     return RandomGenerator(generators)
 
 
@@ -468,10 +567,10 @@ def almost_absolutely_random_generator():
     very_short_generator = GibberishGenerator(1, 2)
     bs_frac_generator = fraction_generator(short_random_generator, short_random_generator)
     random_frac_or_nofrac = RandomGenerator([short_random_generator, bs_frac_generator])
-    relation_generator = RelationGenerator(generators=[random_frac_or_nofrac, random_frac_or_nofrac])
+    relation_generator = RelationGenerator(left_side=random_frac_or_nofrac, right_side=random_frac_or_nofrac)
     power_generator = PowerGenerator(short_random_generator, very_short_generator)
     longer_power = ExpressionGenerator(generators=[power_generator, very_short_generator])
-    power_relation = RelationGenerator(generators=[random_frac_or_nofrac, longer_power])
+    power_relation = RelationGenerator(left_side=random_frac_or_nofrac, right_side=longer_power)
     generators = [long_random_generator, bs_frac_generator, short_random_generator, bs_frac_generator,
                   relation_generator, power_generator, longer_power, power_relation]
     return RandomGenerator(generators)

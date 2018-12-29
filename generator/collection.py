@@ -15,7 +15,7 @@ class Collection:
         return set(self.values)
 
 
-def c(values):
+def c(values=list()):
     """
     Creates a collection of values.
 
