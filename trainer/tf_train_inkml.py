@@ -35,6 +35,7 @@ data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/new_data')
 model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/tf_model')
 tensorboard_log_dir = parse_arg('--tb', None, required=False)
 tensorboard_name = parse_arg('--tbn', "adam", required=False)
+folder_str = folder_str + '-' + tensorboard_name
 base_dir = path.join(model_checkpoint_dir, folder_str)
 save_format = path.join(base_dir, checkpoint_fname)
 if gcs is not None:
@@ -50,7 +51,7 @@ start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 batch_size = 4
-epochs = 50
+epochs = 400
 levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
@@ -169,6 +170,7 @@ merged_summary = tf.summary.merge_all()
 no_summary_per_epoch = 2
 summary_step = math.floor(generator.steps() / no_summary_per_epoch)
 patience = 5
+save_epoch = 50
 bad_counter = 0
 best_wer = 999999
 best_exp_rate = -1
@@ -247,6 +249,11 @@ with tf.Session(config=config) as sess:
         if level < levels - 1:
             level += 1
             generator.set_level(level)
+
+        # Save interim results for overfitting
+        if epoch % save_epoch == 0:
+            saver.save(sess, save_format.format(epoch))
+
         continue
         # Validation after each epoch
         wern = 0
@@ -298,5 +305,3 @@ with tf.Session(config=config) as sess:
             break
 
         generator_valid.reset()
-
-    saver.save(sess, save_format.format(epoch))
