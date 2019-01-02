@@ -299,4 +299,4 @@ with tf.Session(config=config) as sess:
 
         generator_valid.reset()
 
-
+saver.save(sess, save_format.format(epoch))
