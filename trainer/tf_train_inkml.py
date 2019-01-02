@@ -223,6 +223,9 @@ with tf.Session(config=config) as sess:
         generator.reset()
         for step in range(generator.steps()):
             image, label, observation, masks, label_masks = generator.next_batch()
+            # import cv2
+            # cv2.imshow("image", image[0])
+            # cv2.waitKey(0)
             dict = {
                 input_images: image,
                 input_characters: observation,

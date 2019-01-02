@@ -164,6 +164,7 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
             if self.image_masks is not None:
                 alpha = alpha * self.image_masks
             alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
+            #alpha = tf.Print(alpha, [alpha], summarize=200)
             #ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
             ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
             #betas = betas + alpha

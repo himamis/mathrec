@@ -75,7 +75,7 @@ class DataGenerator:
             h, w = utils.h(image), utils.w(image)
             rw, rh = max_image_width - w, max_image_height - h
             left, top = int(rw / 2), int(rh / 2)
-            image = utils.pad_image(image, top, left, rh - top, rw - left, 0, 1)
+            image = utils.pad_image(image, top, left, rh - top, rw - left, 0, 1, operation=cv2.bitwise_or)
             images[i] = image
 
             image_mask = np.zeros((max_image_height, max_image_width, 1), dtype=np.float32)
