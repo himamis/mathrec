@@ -1,8 +1,41 @@
 from graphics.utils import *
 import cv2
 import math
+import copy
 
 info = np.finfo(np.float32)
+
+
+class CoordTransform(object):
+
+    def __init__(self):
+        self.translate = 0
+        self.scale = 0
+
+    def transform(self, coord):
+        raise Exception("Not implemented")
+
+
+class TranslateScaleTransformer(CoordTransform):
+
+    def __init__(self, translate, scale):
+        super().__init__()
+        self.translate = translate
+        self.scale = scale
+
+    def transform(self, coord):
+        return (coord - self.translate) * self.scale
+
+
+class ReplaceTransform(CoordTransform):
+
+    def __init__(self, length):
+        super().__init__()
+        self.length = length
+
+    def transform(self, coord):
+        return int(round(self.length / 2))
+
 
 def normalize_points(inkml):
     min_x = info.max
@@ -76,7 +109,7 @@ class Graphics:
 
         return image
 
-    def create_token_image(self, traces, expected_width=None, expected_height=None, padding=10):
+    def create_token_image(self, traces, expected_width=None, expected_height=None, padding=6):
         if expected_height is None and expected_width is None:
             print("Must provide height of width at least")
             exit(0)
@@ -93,36 +126,58 @@ class Graphics:
                 max_x = max(max_x, point[0])
                 max_y = max(max_y, point[1])
 
+        if max_x == min_x and max_y == min_y:
+            return self._create_point(expected_width, expected_height, padding)
+
         width = None
         height = None
-        scale_x = None
-        scale_y = None
+
+        scale_x = 0
+        scale_y = 0
+        transform_x = None
+        transform_y = None
+
         if expected_width is not None:
-            scale_x = (expected_width - padding * 2) / (max_x - min_x)
+            if max_x == min_x:
+                transform_x = ReplaceTransform(expected_width)
+            else:
+                scale_x = (expected_width - padding * 2) / (max_x - min_x)
+                transform_x = TranslateScaleTransformer(min_x, scale_x)
+
             width = expected_width
 
         if expected_height is not None:
-            scale_y = (expected_height - padding * 2) / (max_y - min_y)
+            if max_y == min_y:
+                transform_y = ReplaceTransform(expected_height)
+            else:
+                scale_y = (expected_height - padding * 2) / (max_y - min_y)
+                transform_y = TranslateScaleTransformer(min_y, scale_y)
             height = expected_height
 
-        scale_x = scale_y if scale_x is None else scale_x
-        scale_y = scale_x if scale_y is None else scale_y
+        if transform_x is None:
+            transform_x = copy.copy(transform_y)
+            transform_x.translate = min_x
+            scale_x = scale_y
 
-        trans_x = min_x
-        trans_y = min_y
+        if transform_y is None:
+            transform_y = copy.copy(transform_x)
+            transform_y.translate = min_y
+            scale_y = scale_x
 
         if width is None:
-            width = round((max_x - trans_x) * scale_x) + 2 * padding
+            width = int(round((max_x - min_x) * scale_x + 2 * padding))
         if height is None:
-            height = round((max_y - trans_y) * scale_y) + 2 * padding
+            height = int(round((max_y - min_y) * scale_y + 2 * padding))
 
         # Normalize points
         for trace_index, trace in enumerate(traces):
             new_trace = []
             prev_point = None
             for point in trace:
-                x = (point[0] - trans_x) * scale_x + padding
-                y = (point[1] - trans_y) * scale_y + padding
+                x = transform_x.transform(point[0]) + padding
+                y = transform_y.transform(point[1]) + padding
+                #x = (point[0] - trans_x) * scale_x + padding
+                #y = (point[1] - trans_y) * scale_y + padding
 
                 new_point = np.array((x, y), dtype=np.float32)
                 if np.any(new_point != prev_point):
@@ -132,6 +187,13 @@ class Graphics:
 
         image = new_image(width, height)
 
+        # Draw points
+        for trace in traces:
+            if len(trace) == 1:
+                # It's a point
+                point = trace[0]
+                self._draw_point(image, (point[0], point[1]))
+
         pts = [np.rint(line) for line in traces]
         pts = [np.asarray(line, dtype=np.int32) for line in pts]
         pts = [np.reshape(np.array(line), (-1, 1, 2)) for line in pts]
@@ -139,3 +201,15 @@ class Graphics:
 
         return image
 
+    def _create_point(self, expected_width=None, expected_height=None, padding=10):
+        if expected_width is None:
+            expected_width = 10
+        if expected_height is None:
+            expected_height = 10
+        new_im = new_image(expected_width + padding, expected_height)
+        self._draw_point(new_im, (int(round(expected_width / 2)), int(round(expected_height / 2))))
+
+        return new_im
+
+    def _draw_point(self, image, location):
+        cv2.circle(image, location, np.random.randint(2, 3), (0, 0, 0), -1, lineType=cv2.LINE_AA)

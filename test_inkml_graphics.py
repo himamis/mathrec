@@ -1,36 +1,54 @@
 import inkml
 import pickle
 import cv2
+import token_parser
+import inkml_graphics
+import generator
+import random
+import numpy as np
 
-token_traces = pickle.load(open('/Users/balazs/export/tokengroup_test2011.pkl', 'rb'))
-graphics = inkml.Graphics()
+random.seed(123)
+np.random.seed(123)
 
-def _filter(trace):
-    prev_x = -1
-    prev_y = -1
-    prev_eq_x = 0
-    prev_eq_y = 0
-    for point in trace:
-        x = point[0]
-        y = point[1]
+#
+# def _filter(trace):
+#     prev_x = -1
+#     prev_y = -1
+#     prev_eq_x = 0
+#     prev_eq_y = 0
+#     for point in trace:
+#         x = point[0]
+#         y = point[1]
+#
+#         if prev_x == x:
+#             prev_eq_x += 1
+#         else:
+#             prev_eq_x = 0
+#
+#         if prev_y == y:
+#             prev_eq_y += 1
+#         else:
+#             prev_eq_y = 0
+#
+#         prev_x = x
+#         prev_y = y
+#         if prev_eq_x == 3 or prev_eq_y == 3:
+#             return True
+#     return False
 
-        if prev_x == x:
-            prev_eq_x += 1
-        else:
-            prev_eq_x = 0
+gen = generator.random_generator()
+conf = generator.Config()
+#parser = token_parser.Parser(inkml_graphics.create_graphics_factory('/Users/balazs/export/tokengroup_test2011.pkl'))
+parser = token_parser.Parser(inkml_graphics.create_graphics_factory('/Users/balazs/export/tokengroup.pkl'))
 
-        if prev_y == y:
-            prev_eq_y += 1
-        else:
-            prev_eq_y = 0
-
-        prev_x = x
-        prev_y = y
-        if prev_eq_x == 3 or prev_eq_y == 3:
-            return True
-    return False
-
-
+while True:
+    tokens = []
+    gen.generate(tokens, conf)
+    #tokens = ['5', '.', '6', '9', '-', 'y']
+    print(tokens)
+    image = parser.parse(tokens)
+    cv2.imshow("Image", image)
+    cv2.waitKey(0)
 # for key in token_traces.keys():
 #     traces = token_traces[key]
 #     new_traces = []

@@ -16,7 +16,7 @@ The second method should return all tokens that the generator can generate in a 
 class Config:
     """ Configs are used to modify the behaviour of generators."""
 
-    def __init__(self, separator='.', variables=c(), multiplier=c()):
+    def __init__(self, separator='.', variables=c(['x', 'y']), multiplier=c()):
         self.separator = separator
         self.variables = variables
         self.multiplier = multiplier
@@ -276,7 +276,9 @@ class VariableGenerator(FormulaGenerator):
         if self.scale_generator is not None:
             self.scale_generator.generate(tokens, config)
             if config.multiplier is not None:
-                tokens += [config.multiplier.get()]
+                multiplier = config.multiplier.get()
+                if multiplier is not None:
+                    tokens += [multiplier]
         if self.variable_wrapper is not None:
             self.variable_wrapper.generators = [TokenGenerator(config.variables.get())]
             self.variable_wrapper.generate(tokens, config)

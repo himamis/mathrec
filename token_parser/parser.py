@@ -1,3 +1,5 @@
+import graphics
+
 def _token_sequence(tokens, index, sequence):
     seq_index = 0
     ret_val = True
@@ -29,19 +31,19 @@ class Parser:
     def __init__(self, graphics_factory):
         self.graphics_factory = graphics_factory
 
-    def parse(self, tokens, post_processor):
-        graphics = self.graphics_factory(post_processor)
+    def parse(self, tokens):
+        graphics = self.graphics_factory()
         self._expression(tokens, graphics)
 
         return graphics.draw()
 
-    def _expression(self, tokens, graphics, index=0):
+    def _expression(self, tokens, graphics: graphics.Graphics, index=0):
         while index < len(tokens):
-            for cmd in function_tokens:
-                if _token_sequence(tokens, index, cmd):
-                    graphics.expression(cmd)
-                    index += len(cmd)
-                    break
+            #for cmd in function_tokens:
+            #    if _token_sequence(tokens, index, cmd):
+            #        graphics.expression(cmd)
+            #        index += len(cmd)
+            #        break
 
             if tokens[index] == "^":
                 assert tokens[index + 1] == "{"
@@ -69,5 +71,5 @@ class Parser:
                 graphics.square_root(sqrt)
                 index = closing + 1
             else:
-                graphics.expression(tokens[index])
+                graphics.token(tokens[index])
                 index += 1
