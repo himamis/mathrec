@@ -113,7 +113,7 @@ with tf.device(device):
     training_output = model.training(pl_input_images, pl_image_masks, pl_input_characters)
 
     # Evaluating
-    eval_feature_grid, eval_masking = model.feature_grid(pl_single_input_image, pl_single_image_mask, True)
+    eval_feature_grid, eval_masking = model.feature_grid(pl_single_input_image, pl_single_image_mask, is_training=False)
     eval_calculate_h0, eval_calculate_alphas = model.calculate_decoder_init(eval_feature_grid, eval_masking)
 
     pl_eval_init_h, pl_eval_init_alpha = model.decoder_init()
