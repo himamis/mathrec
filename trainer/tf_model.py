@@ -370,6 +370,9 @@ class Model:
             encoded_images, image_masks = self._encoder(input_images=input_images, image_mask=input_image_masks,
                                                         is_training=is_training, summarize=summarize)
 
+            if summarize:
+                tf.summary.histogram('feature_grid', encoded_images)
+
         return encoded_images, image_masks
 
     def calculate_decoder_init(self, feature_grid, image_masks):
@@ -406,14 +409,3 @@ class Model:
             output = tf.layers.dense(outputs, self.vocabulary_size - 1, activation=None, name="output")
 
         return output, states
-
-    def training(self, input_images, input_image_masks, input_characters, is_training=True):
-        feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=is_training,
-                                                      summarize=True)
-
-        calculate_h, calculate_alphas = self.calculate_decoder_init(feature_grid, image_masks)
-
-        output, _ = self.decoder(feature_grid, image_masks, input_characters,
-                                 calculate_h, calculate_alphas, summarize=True)
-
-        return output

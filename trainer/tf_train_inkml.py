@@ -78,15 +78,16 @@ generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
 image_width = None
 image_height = None
+batch_size = None
 
 pl_input_images = tf.placeholder(t.my_tf_float, shape=(batch_size, image_width, image_height, 1), name="input_images")
 pl_image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, image_width, image_height, 1), name="input_image_masks")
 pl_input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
 pl_is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
 
-pl_single_input_image = tf.placeholder(t.my_tf_float, shape=(1, image_width, image_height, 1), name="input_images")
-pl_single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, image_width, image_height, 1), name="input_image_masks")
-pl_single_input_character = tf.placeholder(tf.int32, shape=(1, None), name="input_characters")
+#pl_single_input_image = tf.placeholder(t.my_tf_float, shape=(1, image_width, image_height, 1), name="input_images")
+#pl_single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, image_width, image_height, 1), name="input_image_masks")
+#pl_single_input_character = tf.placeholder(tf.int32, shape=(1, None), name="input_characters")
 
 
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
@@ -109,21 +110,13 @@ with tf.device(device):
                            dense_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
                            dense_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
                            decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float))
-    # Training
-    training_output = model.training(pl_input_images, pl_image_masks, pl_input_characters, pl_is_training)
-
-    # Evaluating
-    eval_feature_grid, eval_masking = model.feature_grid(pl_single_input_image, pl_single_image_mask,
-                                                         is_training=pl_is_training)
+    eval_feature_grid, eval_masking = model.feature_grid(pl_input_images, pl_image_masks, is_training=pl_is_training,
+                                                         summarize=False)
     eval_calculate_h0, eval_calculate_alphas = model.calculate_decoder_init(eval_feature_grid, eval_masking)
+    output, (states_h, states_alpha) = model.decoder(eval_feature_grid, eval_masking, pl_input_characters,
+                                                     eval_calculate_h0, eval_calculate_alphas, summarize=False)
 
-    pl_eval_init_h, pl_eval_init_alpha = model.decoder_init()
-    pl_feature_grid = tf.placeholder(dtype=t.my_tf_float, shape=eval_feature_grid.shape)
-    pl_feature_grid_mask = tf.placeholder(dtype=t.my_tf_float, shape=eval_masking.shape)
-    eval_output, (eval_state_h, eval_alpha) = model.decoder(pl_feature_grid, pl_feature_grid_mask,
-                                                            pl_single_input_character, pl_eval_init_h,
-                                                            pl_eval_init_alpha)
-    eval_output_softmax = tf.nn.softmax(eval_output)
+    eval_output_softmax = tf.nn.softmax(output)
 
 if parameter_count:
     total_parameters = 0
@@ -143,8 +136,8 @@ pl_y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_l
 pl_sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None))
 
 with tf.name_scope("loss"):
-    tf.summary.histogram("before_softmax", training_output)
-    loss = tf.contrib.seq2seq.sequence_loss(training_output, pl_y_tensor, pl_sequence_masks)
+    #tf.summary.histogram("before_softmax", output)
+    loss = tf.contrib.seq2seq.sequence_loss(output, pl_y_tensor, pl_sequence_masks)
 
     # L2 regularization
     #for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
@@ -161,16 +154,15 @@ with tf.name_scope("train"):
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
         grads_and_vars = optimizer.compute_gradients(loss)
-
         # Gradient clipping
         # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
-
-        tf.summary.merge(
-            [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in grads_and_vars if g[0] is not None])
         train = optimizer.apply_gradients(grads_and_vars)
 
+    #tf.summary.merge(
+    #    [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in grads_and_vars if g[0] is not None])
+
 with tf.name_scope("accuracy"):
-    result = tf.argmax(tf.nn.softmax(training_output), output_type=tf.int32, axis=2)
+    result = tf.argmax(tf.nn.softmax(output), output_type=tf.int32, axis=2)
 
     accuracy = tf.contrib.metrics.accuracy(result, pl_y_tensor, pl_sequence_masks)
     accuracy = tf.Print(accuracy, [result, pl_y_tensor, pl_sequence_masks], "Res, Tens, Maks", summarize=20)
@@ -181,7 +173,7 @@ saver = tf.train.Saver()
 merged_summary = tf.summary.merge_all()
 no_summary_per_epoch = 2
 summary_step = math.floor(generator.steps() / no_summary_per_epoch)
-patience = 5
+patience = 6
 save_epoch = 50
 bad_counter = 0
 best_wer = 999999
@@ -189,22 +181,15 @@ best_exp_rate = -1
 #level = 0
 level = 4
 
-lr_val = 0.1
-epoch_lr_decay = 50
-decay_rate = 0.5
-
 valid_avg_wer_summary = tf.Summary()
 valid_avg_acc_summary = tf.Summary()
 valid_avg_exp_rate_summary = tf.Summary()
 level_summary = tf.Summary()
-lr_summary = tf.Summary()
 
 valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=None)
 valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=None)
 valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=None)
 level_summary.value.add(tag="level", simple_value=None)
-lr_summary.value.add(tag="learning_rate", simple_value=None)
-lr_summary.value[0].simple_value = lr_val
 
 init = tf.global_variables_initializer()
 
@@ -219,17 +204,15 @@ with tf.Session(config=config) as sess:
     else:
         sess.run(init)
     predictor = create_predictor(sess,
-                                 (pl_single_input_image, pl_single_image_mask, pl_is_training),
+                                 (pl_input_images, pl_image_masks, pl_is_training),
                                  (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas),
-                                 (pl_feature_grid, pl_feature_grid_mask, pl_single_input_character,
-                                  pl_eval_init_h, pl_eval_init_alpha),
-                                 (eval_output_softmax, eval_state_h, eval_alpha),
+                                 (pl_input_characters),
+                                 (eval_output_softmax, states_h, states_alpha),
                                  encoding_vb, decoding_vb, k=100)
     writer = None
     if tensorboard_log_dir is not None:
         writer = tf.summary.FileWriter(os.path.join(tensorboard_log_dir, tensorboard_name))
         writer.add_graph(sess.graph)
-        writer.add_summary(lr_summary)
 
     for epoch in range(epochs):
         print("Current level {}".format(level))
@@ -255,11 +238,6 @@ with tf.Session(config=config) as sess:
                 vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=dict)
 
             print("Loss: {}, Acc: {}".format(vloss, vacc))
-            if (epoch + 1) % epoch_lr_decay == 0:
-                lr_val = max(lr_val * decay_rate, 0.0001)
-                lr_summary.value[0].simple_value = lr_val
-                if writer is not None:
-                    writer.add_summary(lr_summary, global_step)
 
             global_step += 1
 
@@ -268,6 +246,8 @@ with tf.Session(config=config) as sess:
         #    generator.set_level(level)
 
         # Validation after each epoch
+        if (epoch + 1) % 40 != 0:
+            continue
         wern = 0
         accn = 0
         exprate = 0
