@@ -390,10 +390,6 @@ class Model:
 
     def decoder_init(self):
         pl_init_state_h = tf.placeholder(dtype=t.my_tf_float, shape=(1, self.decoder_units))
-        #shape = tf.shape(feature_grid[:, :, :, -1])
-
-        #alpha_shape = tf.concat([shape, tf.ones(1, dtype=tf.int32)], axis=0)
-
         pl_init_alpha = tf.placeholder(dtype=t.my_tf_float, shape=(1, None, None, 1))
 
         return pl_init_state_h, pl_init_alpha
@@ -411,12 +407,9 @@ class Model:
 
         return output, states
 
-    def training(self, input_images, input_image_masks, input_characters):
-        feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=True, summarize=True)
-
-        tf.summary.histogram("feature_grid", feature_grid)
-
-        #feature_grid = tf.Print(feature_grid, [tf.shape(feature_grid)], summarize=20)
+    def training(self, input_images, input_image_masks, input_characters, is_training=True):
+        feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=is_training,
+                                                      summarize=True)
 
         calculate_h, calculate_alphas = self.calculate_decoder_init(feature_grid, image_masks)
 

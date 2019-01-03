@@ -5,7 +5,7 @@ def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_
                      decoder_input_params, decoder_output_params,
                      encoding_vb, decoding_vb, max_length=100, k=100, alpha=0.7):
 
-    (pl_single_input_image, pl_single_image_mask) = feature_grid_input_params
+    (pl_single_input_image, pl_single_image_mask, pl_is_training) = feature_grid_input_params
 
     (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas) = \
         feature_grid_decoder_init_output_params
@@ -19,7 +19,11 @@ def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_
         sequence = np.zeros((1,), dtype=np.int32)
         sequence[0] = encoding_vb["<start>"]
 
-        dictionary = {pl_single_input_image: image, pl_single_image_mask: mask}
+        dictionary = {
+            pl_single_input_image: image,
+            pl_single_image_mask: mask,
+            pl_is_training: False
+        }
         feature_grid, mask, h, a = sess.run([eval_feature_grid, eval_masking,
                                              eval_calculate_h0, eval_calculate_alphas], feed_dict=dictionary)
 
@@ -46,8 +50,9 @@ def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_
                     pl_single_input_character: inp
                 }
                 h, a, output = sess.run([eval_state_h, eval_alpha, eval_output_softmax], feed_dict=dictionary)
-                top_n_indices = np.argpartition(output[0, 0, :], -k)[-k:]
-                for j in range(k):
+                p = min(k, np.shape(output)[2])
+                top_n_indices = np.argpartition(output[0, 0, :], -p)[-p:]
+                for j in range(p):
                     index = top_n_indices[j]
                     sequence = np.zeros((1,), dtype=np.int32)
                     sequence[0] = index
@@ -59,8 +64,7 @@ def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_
             ordered = sorted(candidates, key=key)
             sequences = ordered[-k:]
             finished = []
-            for i in range(k):
-                seq, state, score = sequences[i]
+            for seq, state, score in sequences:
                 finish = len(seq) > max_length or seq[-1] == encoding_vb['<end>']
                 finished.append(finish)
             should_continue = not np.all(finished)

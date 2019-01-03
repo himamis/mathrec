@@ -110,10 +110,11 @@ with tf.device(device):
                            dense_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
                            decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float))
     # Training
-    training_output = model.training(pl_input_images, pl_image_masks, pl_input_characters)
+    training_output = model.training(pl_input_images, pl_image_masks, pl_input_characters, pl_is_training)
 
     # Evaluating
-    eval_feature_grid, eval_masking = model.feature_grid(pl_single_input_image, pl_single_image_mask, is_training=False)
+    eval_feature_grid, eval_masking = model.feature_grid(pl_single_input_image, pl_single_image_mask,
+                                                         is_training=pl_is_training)
     eval_calculate_h0, eval_calculate_alphas = model.calculate_decoder_init(eval_feature_grid, eval_masking)
 
     pl_eval_init_h, pl_eval_init_alpha = model.decoder_init()
@@ -138,14 +139,12 @@ if parameter_count:
 
 print("Image2Latex: End create model: {}".format(str(datetime.now().time())))
 
-y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
-#lengts_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size,), name="lengths")
-sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None))
+pl_y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
+pl_sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None))
 
 with tf.name_scope("loss"):
-    #sequence_masks = tf.sequence_mask(lengts_tensor, dtype=t.my_tf_float)
     tf.summary.histogram("before_softmax", training_output)
-    loss = tf.contrib.seq2seq.sequence_loss(training_output, y_tensor, sequence_masks)
+    loss = tf.contrib.seq2seq.sequence_loss(training_output, pl_y_tensor, pl_sequence_masks)
 
     # L2 regularization
     #for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
@@ -157,13 +156,11 @@ with tf.name_scope("loss"):
 lr = tf.placeholder(dtype=tf.float32, shape=[], name="learning_rate")
 
 with tf.name_scope("train"):
-    #optimizer = tf.train.GradientDescentOptimizer()
-    #optimizer = tf.train.AdadeltaOptimizer(learning_rate=0.001)
     optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
-    #optimizer = tf.train.GradientDescentOptimizer(learning_rate=lr)
-    #optimizer = tf.train.GradientDescentOptimizer()
     grads_and_vars = optimizer.compute_gradients(loss)
+
     #grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+
     tf.summary.merge(
         [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in grads_and_vars if g[0] is not None])
     train = optimizer.apply_gradients(grads_and_vars)
@@ -171,8 +168,8 @@ with tf.name_scope("train"):
 with tf.name_scope("accuracy"):
     result = tf.argmax(tf.nn.softmax(training_output), output_type=tf.int32, axis=2)
 
-    accuracy = tf.contrib.metrics.accuracy(result, y_tensor, sequence_masks)
-    accuracy = tf.Print(accuracy, [result, y_tensor, sequence_masks], "Res, Tens, Maks", summarize=20)
+    accuracy = tf.contrib.metrics.accuracy(result, pl_y_tensor, pl_sequence_masks)
+    accuracy = tf.Print(accuracy, [result, pl_y_tensor, pl_sequence_masks], "Res, Tens, Maks", summarize=20)
     tf.summary.scalar("accuracy", accuracy)
 
 saver = tf.train.Saver()
@@ -210,7 +207,7 @@ init = tf.global_variables_initializer()
 print("Image2Latex Start training...")
 global_step = 1
 
-config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=True)
+config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
 with tf.Session(config=config) as sess:
     if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
@@ -218,12 +215,12 @@ with tf.Session(config=config) as sess:
     else:
         sess.run(init)
     predictor = create_predictor(sess,
-                                 (pl_single_input_image, pl_single_image_mask),
+                                 (pl_single_input_image, pl_single_image_mask, pl_is_training),
                                  (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas),
                                  (pl_feature_grid, pl_feature_grid_mask, pl_single_input_character,
                                   pl_eval_init_h, pl_eval_init_alpha),
                                  (eval_output_softmax, eval_state_h, eval_alpha),
-                                 encoding_vb, decoding_vb, k=13)
+                                 encoding_vb, decoding_vb, k=100)
     writer = None
     if tensorboard_log_dir is not None:
         writer = tf.summary.FileWriter(os.path.join(tensorboard_log_dir, tensorboard_name))
@@ -242,9 +239,10 @@ with tf.Session(config=config) as sess:
             dict = {
                 pl_input_images: image,
                 pl_input_characters: observation,
-                sequence_masks: label_masks,
+                pl_sequence_masks: label_masks,
                 pl_image_masks: masks,
-                y_tensor: label
+                pl_y_tensor: label,
+                pl_is_training: True
             }
             if writer is not None and global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
