@@ -157,13 +157,17 @@ lr = tf.placeholder(dtype=tf.float32, shape=[], name="learning_rate")
 
 with tf.name_scope("train"):
     optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
-    grads_and_vars = optimizer.compute_gradients(loss)
 
-    #grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies(update_ops):
+        grads_and_vars = optimizer.compute_gradients(loss)
 
-    tf.summary.merge(
-        [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in grads_and_vars if g[0] is not None])
-    train = optimizer.apply_gradients(grads_and_vars)
+        # Gradient clipping
+        # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+
+        tf.summary.merge(
+            [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in grads_and_vars if g[0] is not None])
+        train = optimizer.apply_gradients(grads_and_vars)
 
 with tf.name_scope("accuracy"):
     result = tf.argmax(tf.nn.softmax(training_output), output_type=tf.int32, axis=2)
