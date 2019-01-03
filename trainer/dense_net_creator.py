@@ -207,6 +207,8 @@ class DenseNetCreator:
         """ Builds the network. """
         x = conv2d(x, self.nb_filter, self.initial_kernel, kernel_initializer='he_normal', padding='same',
                    strides=self.initial_strides, use_bias=False, **self.conv_kwargs)
+        m = average_pooling2d(m, self.initial_kernel, strides=self.initial_strides, data_format=self.data_format,
+                              padding='same')
 
         if self.subsample_initial_block:
             x = batch_normalization(x, **self.bn_kwargs)
