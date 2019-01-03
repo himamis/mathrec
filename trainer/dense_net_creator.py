@@ -194,12 +194,11 @@ class DenseNetCreator:
         return x
 
     def __call__(self, input_images, image_mask, is_training, **kwargs):
-
-        self.bn_kwargs = { 'fused': True,
-                           'axis': self.axis,
-                           'training': self.training,
-                           'trainable': self.trainable }
         self.training = is_training
+        self.bn_kwargs = {'fused': True,
+                          'axis': self.axis,
+                          'training': self.training,
+                          'trainable': self.trainable}
 
         x = (input_images - 127) / 128
         m = image_mask
