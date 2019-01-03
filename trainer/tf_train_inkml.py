@@ -290,9 +290,9 @@ with tf.Session(config=config) as sess:
         valid_avg_acc_summary.value[0].simple_value = avg_acc
         valid_avg_exp_rate_summary.value[0].simple_value = avg_exp_rate
         if writer is not None:
-            writer.add_summary(valid_avg_wer_summary, global_step)
-            writer.add_summary(valid_avg_acc_summary, global_step)
-            writer.add_summary(valid_avg_exp_rate_summary, global_step)
+            writer.add_summary(valid_avg_wer_summary, epoch)
+            writer.add_summary(valid_avg_acc_summary, epoch)
+            writer.add_summary(valid_avg_exp_rate_summary, epoch)
             writer.flush()
 
         improved = False
