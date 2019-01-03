@@ -83,12 +83,7 @@ batch_size = None
 pl_input_images = tf.placeholder(t.my_tf_float, shape=(batch_size, image_width, image_height, 1), name="input_images")
 pl_image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, image_width, image_height, 1), name="input_image_masks")
 pl_input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
-pl_is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
-
-#pl_single_input_image = tf.placeholder(t.my_tf_float, shape=(1, image_width, image_height, 1), name="input_images")
-#pl_single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, image_width, image_height, 1), name="input_image_masks")
-#pl_single_input_character = tf.placeholder(tf.int32, shape=(1, None), name="input_characters")
-
+pl_is_training = tf.placeholder(tf.bool, name="is_training")
 
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)

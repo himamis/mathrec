@@ -391,12 +391,6 @@ class Model:
 
         return calculate_h0, calculate_alphas
 
-    def decoder_init(self):
-        pl_init_state_h = tf.placeholder(dtype=t.my_tf_float, shape=(1, self.decoder_units))
-        pl_init_alpha = tf.placeholder(dtype=t.my_tf_float, shape=(1, None, None, 1))
-
-        return pl_init_state_h, pl_init_alpha
-
     def decoder(self, feature_grid, image_masks, input_characters, init_h, init_alphas, summarize=False):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
             embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal,
