@@ -1,23 +1,29 @@
 import numpy as np
 
-def create_predictor(sess, input_params, output_params, encoding_vb, decoding_vb, max_length = 100, k=100, alpha=0.7):
-    single_image, single_image_mask, eval_init_h, \
-    feature_grid_input, masking_input, single_char_input = input_params
-    eval_feature_grid, eval_masking, eval_calculate_h0, eval_output_softmax, \
-    eval_state_h = output_params
+
+def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_output_params,
+                     decoder_input_params, decoder_output_params,
+                     encoding_vb, decoding_vb, max_length=100, k=100, alpha=0.7):
+
+    (pl_single_input_image, pl_single_image_mask) = feature_grid_input_params
+
+    (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas) = \
+        feature_grid_decoder_init_output_params
+
+    (pl_feature_grid, pl_feature_grid_mask, pl_single_input_character,
+     pl_eval_init_h, pl_eval_init_alpha) = decoder_input_params
+
+    (eval_output_softmax, eval_state_h, eval_alpha) = decoder_output_params
 
     def predict_beam_search(image, mask):
         sequence = np.zeros((1,), dtype=np.int32)
         sequence[0] = encoding_vb["<start>"]
 
-        feature_grid, mask, init_h = sess.run([eval_feature_grid, eval_masking,
-                                                       eval_calculate_h0], feed_dict={
-            single_image: image,
-            single_image_mask: mask
-        })
+        dictionary = {pl_single_input_image: image, pl_single_image_mask: mask}
+        feature_grid, mask, h, a = sess.run([eval_feature_grid, eval_masking,
+                                             eval_calculate_h0, eval_calculate_alphas], feed_dict=dictionary)
 
-        h = init_h
-        state = [h]
+        state = [h, a]
 
         sequences = [[[sequence], state, 0.0]]
         finished = [False]
@@ -32,22 +38,25 @@ def create_predictor(sess, input_params, output_params, encoding_vb, decoding_vb
                     continue
                 last = seq[-1]
                 inp = np.reshape(last, (1, -1))
-                h, c, output = sess.run([eval_state_h, eval_output_softmax], feed_dict={
-                    feature_grid_input: feature_grid,
-                    masking_input: mask,
-                    eval_init_h: state[0],
-                    single_char_input: inp
-                })
+                dictionary = {
+                    pl_feature_grid: feature_grid,
+                    pl_feature_grid_mask: mask,
+                    pl_eval_init_h: state[0],
+                    pl_eval_init_alpha: state[1],
+                    pl_single_input_character: inp
+                }
+                h, a, output = sess.run([eval_state_h, eval_alpha, eval_output_softmax], feed_dict=dictionary)
                 top_n_indices = np.argpartition(output[0, 0, :], -k)[-k:]
                 for j in range(k):
                     index = top_n_indices[j]
                     sequence = np.zeros((1,), dtype=np.int32)
                     sequence[0] = index
                     sc = np.log(output[0, 0, index])
-                    candidates.append([seq + [sequence], [h, c], score + sc])
-            def ke(a):
-                return a[2] / np.power(len(a[0]), alpha)
-            ordered = sorted(candidates, key=ke)
+                    candidates.append([seq + [sequence], [h, a], score + sc])
+
+            def key(entry):
+                return entry[2] / np.power(len(entry[0]), alpha)
+            ordered = sorted(candidates, key=key)
             sequences = ordered[-k:]
             finished = []
             for i in range(k):

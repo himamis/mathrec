@@ -201,16 +201,18 @@ class DenseNetCreator:
                            'trainable': self.trainable }
         self.training = is_training
 
-        input_images = (input_images - 127) / 128
+        x = (input_images - 127) / 128
+        m = image_mask
 
         """ Builds the network. """
-        x = conv2d(input_images, self.nb_filter, self.initial_kernel, kernel_initializer='he_normal', padding='same',
+        x = conv2d(x, self.nb_filter, self.initial_kernel, kernel_initializer='he_normal', padding='same',
                    strides=self.initial_strides, use_bias=False, **self.conv_kwargs)
 
         if self.subsample_initial_block:
             x = batch_normalization(x, **self.bn_kwargs)
             x = tf.nn.relu(x)
             x = max_pooling2d(x, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
+            m = max_pooling2d(m, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
 
         # Add dense blocks
         nb_filter = self.nb_filter
@@ -220,6 +222,8 @@ class DenseNetCreator:
                 # add transition_block
                 x = self._transition_block(x, nb_filter)
                 nb_filter = int(nb_filter * self.compression)
+
+                m = average_pooling2d(m, (2, 2), strides=(2, 2), data_format=self.data_format)
 
         # The last dense_block does not have a transition_block
         x, nb_filter = self._dense_block(x, self.final_nb_layer, self.nb_filter)
@@ -232,4 +236,4 @@ class DenseNetCreator:
         if self.include_top:
             x = dense(x, self.nb_classes)
 
-        return x, None
+        return x, m

@@ -50,7 +50,7 @@ if ckpt_dir is not None:
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 4
+batch_size = 20
 epochs = 400
 levels = 5
 decay = 1e-4
@@ -72,14 +72,14 @@ generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
 image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
 generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
-input_images = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_images")
-image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_image_masks")
-input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
-is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
+pl_input_images = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_images")
+pl_image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, None, None, 1), name="input_image_masks")
+pl_input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
+pl_is_training = tf.placeholder(tf.bool, shape=(), name="is_training")
 
-single_input_image = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="input_images")
-single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="input_image_masks")
-single_input_character = tf.placeholder(tf.int32, shape=(1, None), name="input_characters")
+pl_single_input_image = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="input_images")
+pl_single_image_mask = tf.placeholder(t.my_tf_float, shape=(1, None, None, 1), name="input_image_masks")
+pl_single_input_character = tf.placeholder(tf.int32, shape=(1, None), name="input_characters")
 
 
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
@@ -103,14 +103,18 @@ with tf.device(device):
                            dense_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
                            decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float))
     # Training
-    training_output = model.training(input_images, image_masks, input_characters)
+    training_output = model.training(pl_input_images, pl_image_masks, pl_input_characters)
 
     # Evaluating
-    eval_feature_grid, eval_masking = model.feature_grid(single_input_image, single_image_mask, True)
-    eval_calculate_h0 = model.calculate_decoder_init(eval_feature_grid, eval_masking)
-    eval_init_h = model.decoder_init(1)
-    eval_state_h, eval_output = model.decoder(eval_feature_grid, eval_masking,
-                                                            single_input_character, eval_init_h)
+    eval_feature_grid, eval_masking = model.feature_grid(pl_single_input_image, pl_single_image_mask, True)
+    eval_calculate_h0, eval_calculate_alphas = model.calculate_decoder_init(eval_feature_grid, eval_masking)
+
+    pl_eval_init_h, pl_eval_init_alpha = model.decoder_init()
+    pl_feature_grid = tf.placeholder(dtype=t.my_tf_float, shape=eval_feature_grid.shape)
+    pl_feature_grid_mask = tf.placeholder(dtype=t.my_tf_float, shape=eval_masking.shape)
+    eval_output, (eval_state_h, eval_alpha) = model.decoder(pl_feature_grid, pl_feature_grid_mask,
+                                                            pl_single_input_character, pl_eval_init_h,
+                                                            pl_eval_init_alpha)
     eval_output_softmax = tf.nn.softmax(eval_output)
 
 if parameter_count:
@@ -204,15 +208,21 @@ with tf.Session(config=config) as sess:
     if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
         start_epoch = -1
-    predictor = create_predictor(sess, (single_input_image, single_image_mask, eval_init_h, eval_feature_grid, eval_masking,
-                                 single_input_character), (eval_feature_grid, eval_masking, eval_calculate_h0, eval_output_softmax,
-                                                     eval_state_h), encoding_vb, decoding_vb, k=10)
+    else:
+        sess.run(init)
+    predictor = create_predictor(sess,
+                                 (pl_single_input_image, pl_single_image_mask),
+                                 (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas),
+                                 (pl_feature_grid, pl_feature_grid_mask, pl_single_input_character,
+                                  pl_eval_init_h, pl_eval_init_alpha),
+                                 (eval_output_softmax, eval_state_h, eval_alpha),
+                                 encoding_vb, decoding_vb, k=10)
     writer = None
     if tensorboard_log_dir is not None:
         writer = tf.summary.FileWriter(os.path.join(tensorboard_log_dir, tensorboard_name))
         writer.add_graph(sess.graph)
         writer.add_summary(lr_summary)
-    sess.run(init)
+
     for epoch in range(epochs):
 
         print("Current level {}".format(level))
@@ -223,14 +233,14 @@ with tf.Session(config=config) as sess:
         generator.reset()
         for step in range(generator.steps()):
             image, label, observation, masks, label_masks = generator.next_batch()
-            # import cv2
-            # cv2.imshow("image", image[0])
-            # cv2.waitKey(0)
+            import cv2
+            #cv2.imshow("image", image[0])
+            #cv2.waitKey(0)
             dict = {
-                input_images: image,
-                input_characters: observation,
+                pl_input_images: image,
+                pl_input_characters: observation,
                 sequence_masks: label_masks,
-                image_masks: masks,
+                pl_image_masks: masks,
                 y_tensor: label#,
                 #lr: lr_val
             }

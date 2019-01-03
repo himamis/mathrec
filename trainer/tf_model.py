@@ -164,7 +164,7 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
             if self.image_masks is not None:
                 alpha = alpha * self.image_masks
             alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
-            #alpha = tf.Print(alpha, [alpha], summarize=200)
+            alpha = tf.Print(alpha, [alpha], summarize=200)
             #ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
             ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
             #betas = betas + alpha
@@ -279,7 +279,7 @@ class AttentionDecoder:
         self.lstm_recurrent_kernel_initializer = lstm_recurrent_kernel_initializer
 
     #def __call__(self, feature_grid, image_masks, inputs, init_h, init_c, summarize=False):
-    def __call__(self, feature_grid, image_masks, inputs, init_h, summarize=False):
+    def __call__(self, feature_grid, image_masks, inputs, init_h, init_alphas, summarize=False):
         # Simple LSTM Cell
         #rnn_cell = tf.nn.rnn_cell.LSTMCell(self.units)
         #initial_states=tf.nn.rnn_cell.LSTMStateTuple(init_c, init_h)
@@ -292,13 +292,8 @@ class AttentionDecoder:
 
         cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grid,
                                 image_masks, self.dense_initializer, self.dense_bias_initializer)
-        shape = tf.shape(feature_grid[:, :, :, -1])
 
-        alpha_shape = tf.concat([shape, tf.ones(1, dtype=tf.int32)], axis=0)
-        #alphas = tf.ones(alpha_shape, dtype=tf.float32)
-        alphas = tf.zeros(alpha_shape, dtype=tf.float32)
-
-        initial_states = [init_h, alphas]
+        initial_states = [init_h, init_alphas]
         outputs, states = tf.nn.dynamic_rnn(cell, inputs, dtype=t.my_tf_float,
                                             initial_state=initial_states)
 
@@ -373,7 +368,7 @@ class Model:
     def feature_grid(self, input_images, input_image_masks, is_training, summarize=False):
         with tf.variable_scope("convolutional_encoder", reuse=tf.AUTO_REUSE):
             encoded_images, image_masks = self._encoder(input_images=input_images, image_mask=input_image_masks,
-                                           is_training=is_training, summarize=summarize)
+                                                        is_training=is_training, summarize=summarize)
 
         return encoded_images, image_masks
 
@@ -387,25 +382,34 @@ class Model:
             calculate_h0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
                                            units=self.decoder_units)
 
-        return calculate_h0
+            shape = tf.shape(feature_grid[:, :, :, -1])
+            alpha_shape = tf.concat([shape, tf.ones(1, dtype=tf.int32)], axis=0)
+            calculate_alphas = tf.zeros(alpha_shape, dtype=tf.float32)
 
-    def decoder_init(self, batch_size):
-        init_h = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, self.decoder_units))
+        return calculate_h0, calculate_alphas
 
-        return init_h
+    def decoder_init(self):
+        pl_init_state_h = tf.placeholder(dtype=t.my_tf_float, shape=(1, self.decoder_units))
+        #shape = tf.shape(feature_grid[:, :, :, -1])
 
-    def decoder(self, feature_grid, image_masks, input_characters, init_h, summarize=False):
+        #alpha_shape = tf.concat([shape, tf.ones(1, dtype=tf.int32)], axis=0)
+
+        pl_init_alpha = tf.placeholder(dtype=t.my_tf_float, shape=(1, None, None, 1))
+
+        return pl_init_state_h, pl_init_alpha
+
+    def decoder(self, feature_grid, image_masks, input_characters, init_h, init_alphas, summarize=False):
         with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
-            embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal, dtype=t.my_tf_float,
-                                        shape=[self.vocabulary_size, self.embedding_dim])
+            embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal,
+                                        dtype=t.my_tf_float, shape=[self.vocabulary_size, self.embedding_dim])
             embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
-            outputs, state_h = self._decoder(feature_grid=feature_grid, image_masks=image_masks,
-                                             inputs=embedded_characters, init_h=init_h,
-                                             summarize=summarize)
+            outputs, states = self._decoder(feature_grid=feature_grid, image_masks=image_masks,
+                                            inputs=embedded_characters, init_h=init_h, init_alphas=init_alphas,
+                                            summarize=summarize)
 
             output = tf.layers.dense(outputs, self.vocabulary_size - 1, activation=None, name="output")
 
-        return state_h, output
+        return output, states
 
     def training(self, input_images, input_image_masks, input_characters):
         feature_grid, image_masks = self.feature_grid(input_images, input_image_masks, is_training=True, summarize=True)
@@ -414,14 +418,9 @@ class Model:
 
         feature_grid = tf.Print(feature_grid, [tf.shape(feature_grid)], summarize=20)
 
-        calculate_h = self.calculate_decoder_init(feature_grid, image_masks)
+        calculate_h, calculate_alphas = self.calculate_decoder_init(feature_grid, image_masks)
 
-        state_h, output = self.decoder(feature_grid, image_masks, input_characters, calculate_h, summarize=True)
-
-        #tf.summary.histogram("activation_state_h", state_h)
+        output, _ = self.decoder(feature_grid, image_masks, input_characters,
+                                 calculate_h, calculate_alphas, summarize=True)
 
         return output
-
-    def sample(self, feature_grid, previous_character, init_h):
-        outputs = self.decoder(feature_grid, previous_character, init_h)
-        return outputs
