@@ -52,7 +52,7 @@ start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 batch_size = 20
-epochs = 400
+epochs = 1000
 levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
@@ -173,7 +173,7 @@ saver = tf.train.Saver()
 merged_summary = tf.summary.merge_all()
 no_summary_per_epoch = 2
 summary_step = math.floor(generator.steps() / no_summary_per_epoch)
-patience = 6
+patience = 50
 save_epoch = 50
 bad_counter = 0
 best_wer = 999999
@@ -292,8 +292,8 @@ with tf.Session(config=config) as sess:
             bad_counter = 0
             saver.save(sess, save_format.format(epoch))
         else:
-            print("Epoch {}: Not improved, bad counter: {}".format(epoch, bad_counter))
             bad_counter += 1
+            print("Epoch {}: Not improved, bad counter: {}".format(epoch, bad_counter))
 
         if bad_counter == patience:
             print("Early stopping")
