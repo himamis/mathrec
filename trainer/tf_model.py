@@ -164,7 +164,7 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
             if self.image_masks is not None:
                 alpha = alpha * self.image_masks
             alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
-            alpha = tf.Print(alpha, [alpha], summarize=200)
+            #alpha = tf.Print(alpha, [alpha], summarize=200)
             #ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
             ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
             #betas = betas + alpha
@@ -416,7 +416,7 @@ class Model:
 
         tf.summary.histogram("feature_grid", feature_grid)
 
-        feature_grid = tf.Print(feature_grid, [tf.shape(feature_grid)], summarize=20)
+        #feature_grid = tf.Print(feature_grid, [tf.shape(feature_grid)], summarize=20)
 
         calculate_h, calculate_alphas = self.calculate_decoder_init(feature_grid, image_masks)
 

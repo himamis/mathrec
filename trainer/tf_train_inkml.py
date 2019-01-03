@@ -10,6 +10,7 @@ from trainer.tf_predictor import create_predictor
 import trainer.default_type as t
 import random
 import math
+from trainer.metrics import wer, exp_rate
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -56,6 +57,7 @@ levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
+image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
 
 if True:
     image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "overfit.pkl")))
@@ -67,9 +69,11 @@ if True:
     encoding_vb = dict(zip(new_vocab, range(len(new_vocab))))
     decoding_vb = { v: k for k, v in encoding_vb.items() if k != "<start>"}
 
+    image_valid = image
+    truth_valid = truth
+
 generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
 
-image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
 generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
 image_width = None
@@ -219,7 +223,7 @@ with tf.Session(config=config) as sess:
                                  (pl_feature_grid, pl_feature_grid_mask, pl_single_input_character,
                                   pl_eval_init_h, pl_eval_init_alpha),
                                  (eval_output_softmax, eval_state_h, eval_alpha),
-                                 encoding_vb, decoding_vb, k=10)
+                                 encoding_vb, decoding_vb, k=13)
     writer = None
     if tensorboard_log_dir is not None:
         writer = tf.summary.FileWriter(os.path.join(tensorboard_log_dir, tensorboard_name))
@@ -227,7 +231,6 @@ with tf.Session(config=config) as sess:
         writer.add_summary(lr_summary)
 
     for epoch in range(epochs):
-
         print("Current level {}".format(level))
         level_summary.value[0].simple_value = level
         if writer is not None:
@@ -236,16 +239,12 @@ with tf.Session(config=config) as sess:
         generator.reset()
         for step in range(generator.steps()):
             image, label, observation, masks, label_masks = generator.next_batch()
-            import cv2
-            #cv2.imshow("image", image[0])
-            #cv2.waitKey(0)
             dict = {
                 pl_input_images: image,
                 pl_input_characters: observation,
                 sequence_masks: label_masks,
                 pl_image_masks: masks,
-                y_tensor: label#,
-                #lr: lr_val
+                y_tensor: label
             }
             if writer is not None and global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
@@ -262,15 +261,10 @@ with tf.Session(config=config) as sess:
 
             global_step += 1
 
-        if level < levels - 1:
-            level += 1
-            generator.set_level(level)
+        #if level < levels - 1:
+        #    level += 1
+        #    generator.set_level(level)
 
-        # Save interim results for overfitting
-        if epoch % save_epoch == 0:
-            saver.save(sess, save_format.format(epoch))
-
-        continue
         # Validation after each epoch
         wern = 0
         accn = 0
@@ -312,12 +306,16 @@ with tf.Session(config=config) as sess:
             improved = True
 
         if improved:
+            print("Epoch {}: Improved".format(epoch))
             bad_counter = 0
             saver.save(sess, save_format.format(epoch))
         else:
+            print("Epoch {}: Not improved, bad counter: {}".format(epoch, bad_counter))
             bad_counter += 1
+
         if bad_counter == patience:
             print("Early stopping")
             break
 
         generator_valid.reset()
+

@@ -4,9 +4,9 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 
 
-
 def get_masked(mask_value, metric):
     mask_value = K.variable(mask_value)
+
     def masked(y_true, y_pred):
         # find out which timesteps in `y_true` are not the padding character '#'
         mask = K.all(K.equal(y_true, mask_value), axis=-1)
@@ -71,11 +71,12 @@ def wer(r, h):
                 d[i][j] = d[i-1][j-1]
             else:
                 substitution = d[i-1][j-1] + 1
-                insertion    = d[i][j-1] + 1
-                deletion     = d[i-1][j] + 1
+                insertion = d[i][j-1] + 1
+                deletion = d[i-1][j] + 1
                 d[i][j] = min(substitution, insertion, deletion)
 
     return d[len(r)][len(h)]
+
 
 def exp_rate(truth, predicted):
     if len(truth) > len(predicted):
