@@ -85,8 +85,8 @@ pl_image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, image_width, i
 pl_input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
 pl_is_training = tf.placeholder(tf.bool, name="is_training")
 
-pl_r_max = tf.placeholder(t.my_tf_float, name="r_max")
-pl_d_max = tf.placeholder(t.my_tf_float, name="d_max")
+pl_r_max = tf.placeholder(t.my_tf_float, name="r_max", shape=(1,))
+pl_d_max = tf.placeholder(t.my_tf_float, name="d_max", shape=(1,))
 
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
