@@ -205,7 +205,7 @@ with tf.Session(config=config) as sess:
     else:
         sess.run(init)
     predictor = create_predictor(sess,
-                                 (pl_input_images, pl_image_masks, pl_is_training),
+                                 (pl_input_images, pl_image_masks, pl_is_training, pl_r_max, pl_d_max),
                                  (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas),
                                  (pl_input_characters),
                                  (eval_output_softmax, states_h, states_alpha),
@@ -244,9 +244,9 @@ with tf.Session(config=config) as sess:
 
             global_step += 1
 
-            until_step = 2000
-            from_step = 400
-            diff = max(min((global_step - from_step)/(until_step - from_step), 1), 0)
+            from_epoch = 120
+            until_epoch = 300
+            diff = max(min((epoch - from_epoch) / (until_epoch - from_epoch), 1), 0)
             r_max_val = r_max_val_init + 2 * diff
             d_max_val = d_max_val_init + 5 * diff
             print("Step {}: r_max_val {}, d_max_val {}".format(global_step, r_max_val, d_max_val))

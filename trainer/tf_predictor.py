@@ -4,7 +4,7 @@ import numpy as np
 def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_output_params, decoder_input_params,
                      decoder_output_params, encoding_vb, decoding_vb, max_length=100, k=100, alpha=0.7):
 
-    (pl_input_image, pl_image_mask, pl_is_training) = feature_grid_input_params
+    (pl_input_image, pl_image_mask, pl_is_training, pl_r_max, pl_d_max) = feature_grid_input_params
 
     (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas) = \
         feature_grid_decoder_init_output_params
@@ -18,7 +18,9 @@ def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_
         dictionary = {
             pl_input_image: image,
             pl_image_mask: mask,
-            pl_is_training: False
+            pl_is_training: False,
+            pl_r_max: 1,
+            pl_d_max: 0
         }
         feature_grid, mask, h, a = sess.run([eval_feature_grid, eval_masking,
                                              eval_calculate_h0, eval_calculate_alphas], feed_dict=dictionary)
