@@ -46,7 +46,8 @@ class DenseNetCreator:
         self.bn_kwargs = {'fused': True,
                           'axis': self.axis,
                           'training': self.training,
-                          'trainable': self.trainable}
+                          'trainable': self.trainable,
+                          'renorm': True}
 
         self.conv_kwargs = {'data_format': data_format, 'trainable': trainable}
 
@@ -198,7 +199,8 @@ class DenseNetCreator:
         self.bn_kwargs = {'fused': True,
                           'axis': self.axis,
                           'training': self.training,
-                          'trainable': self.trainable}
+                          'trainable': self.trainable,
+                          'renorm': True}
 
         x = (input_images - 127) / 128
         m = image_mask
