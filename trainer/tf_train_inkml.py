@@ -145,7 +145,6 @@ optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
 
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
-    optimizer.minimize()
     grads_and_vars = optimizer.compute_gradients(loss)
     # Gradient clipping
     # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
