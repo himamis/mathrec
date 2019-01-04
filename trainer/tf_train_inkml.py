@@ -244,8 +244,8 @@ with tf.Session(config=config) as sess:
 
             global_step += 1
 
-            from_epoch = 150
-            until_epoch = 380
+            from_epoch = 50
+            until_epoch = 200
             diff = max(min((epoch - from_epoch) / (until_epoch - from_epoch), 1), 0)
             r_max_val = r_max_val_init + 2 * diff
             d_max_val = d_max_val_init + 5 * diff
