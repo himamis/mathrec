@@ -85,6 +85,9 @@ pl_image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, image_width, i
 pl_input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
 pl_is_training = tf.placeholder(tf.bool, name="is_training")
 
+pl_r_max = tf.placeholder(t.my_tf_float, name="r_max")
+pl_d_max = tf.placeholder(t.my_tf_float, name="d_max")
+
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
 with tf.device(device):
@@ -106,7 +109,7 @@ with tf.device(device):
                            dense_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
                            decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float))
     eval_feature_grid, eval_masking = model.feature_grid(pl_input_images, pl_image_masks, is_training=pl_is_training,
-                                                         summarize=False)
+                                                         summarize=False, r_max=pl_r_max, d_max=pl_d_max)
     eval_calculate_h0, eval_calculate_alphas = model.calculate_decoder_init(eval_feature_grid, eval_masking)
     output, (states_h, states_alpha) = model.decoder(eval_feature_grid, eval_masking, pl_input_characters,
                                                      eval_calculate_h0, eval_calculate_alphas, summarize=False)
@@ -174,6 +177,11 @@ best_exp_rate = -1
 #level = 0
 level = 4
 
+r_max_val_init = 1
+d_max_val_init = 0
+r_max_val = r_max_val_init
+d_max_val = d_max_val_init
+
 valid_avg_wer_summary = tf.Summary()
 valid_avg_acc_summary = tf.Summary()
 valid_avg_exp_rate_summary = tf.Summary()
@@ -222,7 +230,9 @@ with tf.Session(config=config) as sess:
                 pl_sequence_masks: label_masks,
                 pl_image_masks: masks,
                 pl_y_tensor: label,
-                pl_is_training: True
+                pl_is_training: True,
+                pl_r_max: r_max_val,
+                pl_d_max: d_max_val
             }
             if writer is not None and global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
@@ -233,6 +243,13 @@ with tf.Session(config=config) as sess:
             print("Loss: {}, Acc: {}".format(vloss, vacc))
 
             global_step += 1
+
+            until_step = 2000
+            from_step = 400
+            diff = max(min((global_step - from_step)/(until_step - from_step), 1), 0)
+            r_max_val = r_max_val_init + 2 * diff
+            d_max_val = d_max_val_init + 5 * diff
+
 
         #if level < levels - 1:
         #    level += 1

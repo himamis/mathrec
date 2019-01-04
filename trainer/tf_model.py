@@ -365,10 +365,11 @@ class Model:
             lstm_recurrent_kernel_initializer=decoder_recurrent_kernel_init
         )
 
-    def feature_grid(self, input_images, input_image_masks, is_training, summarize=False):
+    def feature_grid(self, input_images, input_image_masks, is_training, r_max, d_max, summarize=False):
         with tf.variable_scope("convolutional_encoder", reuse=tf.AUTO_REUSE):
             encoded_images, image_masks = self._encoder(input_images=input_images, image_mask=input_image_masks,
-                                                        is_training=is_training, summarize=summarize)
+                                                        is_training=is_training, summarize=summarize, r_max=r_max,
+                                                        d_max=d_max)
 
             if summarize:
                 tf.summary.histogram('feature_grid', encoded_images)

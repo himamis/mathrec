@@ -43,11 +43,7 @@ class DenseNetCreator:
         self.trainable = trainable
 
         self.bottleneck = bottleneck
-        self.bn_kwargs = {'fused': True,
-                          'axis': self.axis,
-                          'training': self.training,
-                          'trainable': self.trainable,
-                          'renorm': True}
+        self.bn_kwargs = {}
 
         self.conv_kwargs = {'data_format': data_format, 'trainable': trainable}
 
@@ -194,13 +190,18 @@ class DenseNetCreator:
 
         return x
 
-    def __call__(self, input_images, image_mask, is_training, **kwargs):
+    def __call__(self, input_images, image_mask, is_training, r_max, d_max, **kwargs):
         self.training = is_training
         self.bn_kwargs = {'fused': True,
                           'axis': self.axis,
                           'training': self.training,
                           'trainable': self.trainable,
-                          'renorm': True}
+                          'renorm': True,
+                          'renorm_clipping': {
+                              'rmax': r_max,
+                              'rmin': 1/r_max,
+                              'dmax': d_max
+                          }}
 
         x = (input_images - 127) / 128
         m = image_mask
