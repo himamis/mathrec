@@ -51,7 +51,7 @@ if ckpt_dir is not None:
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 10
+batch_size = 128
 epochs = 1000
 levels = 5
 decay = 1e-4
@@ -244,8 +244,8 @@ with tf.Session(config=config) as sess:
 
             global_step += 1
 
-            from_epoch = 20
-            until_epoch = 150
+            from_epoch = 150
+            until_epoch = 250
             diff = max(min((epoch - from_epoch) / (until_epoch - from_epoch), 1), 0)
             r_max_val = r_max_val_init + 2 * diff
             d_max_val = d_max_val_init + 5 * diff
