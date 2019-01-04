@@ -60,7 +60,10 @@ class WrappingFormulaGenerator(FormulaGenerator):
         super().generate(tokens, config)
 
     def vocabulary(self, config=Config()):
-        return super().vocabulary(config)
+        vocab = set()
+        for generator in self.generators:
+            vocab = vocab | generator.vocabulary(config)
+        return vocab
 
 
 class RandomTokenGenerator(FormulaGenerator):
@@ -400,28 +403,14 @@ class RandomGenerator(FormulaGenerator):
         return vocab
 
 
-class GibberishGenerator(FormulaGenerator):
+class GibberishGenerator(WrappingFormulaGenerator):
     """ Generates just unintelligible gibberish. """
 
-    def __init__(self, min_length=4, max_length=20, brckt_p=0.2):
-        """ Create a GibberishGenerator.
-
-        :param min_length: the minimum length of the gibberish
-        :param max_length: the maximum length of the gibberish
-        :param brckt_p: probability of including brackets
-        """
+    def __init__(self, generators, min_length=4, max_length=20, brckt_p=0.2):
+        super().__init__(generators)
         self.min_length = min_length
         self.max_length = max_length
         self.brckt_p = brckt_p
-
-        random_tokens = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-                         '\\Delta', '\\alpha', '\\beta', '\\cos', '\\div', '\\exists', '\\forall', '\\gamma', '\\geq',
-                         '\\gt', '\\in', '\\infty', '\\int', '\\lambda', '\\ldots', '\\leq', '\\lim', '\\log', '\\lt',
-                         '\\mu', '\\neq', '\\phi', '\\pi', '\\pm', '\\prime', '\\rightarrow', '\\sigma', '\\sin',
-                         '\\sqrt', '\\sum', '\\tan', '\\theta', '\\times',
-                         '!', '+', ',', '-', '.', '/', '=']
-        generator = RandomTokenGenerator(c(random_tokens))
-        self.single_token_gen = RandomGenerator([uppercase_character(), lowercase_character(), generator])
         self.brackets = [('(', ')'), ('[', ']'), ('{', '}')]
 
     def generate(self, tokens: List[str], config=Config()):
@@ -433,25 +422,46 @@ class GibberishGenerator(FormulaGenerator):
             opening_bracket = -2
             closing_bracket = -2
 
-        bracket = np.random.choice(self.brackets)
+        bracket_idx = np.random.choice(len(self.brackets))
+        bracket = self.brackets[bracket_idx]
+
         for i in range(0, length):
             if i == opening_bracket:
                 tokens += bracket[0]
             elif i == closing_bracket:
                 tokens += bracket[1]
             else:
-                self.single_token_gen.generate(tokens, config)
+                idx = np.random.choice(len(self.generators))
+                generator = self.generators[idx]
+                generator.generate(tokens, config)
 
     def vocabulary(self, config=Config()):
-        tokens = self.single_token_gen.vocabulary(config)
+        tokens = super().vocabulary(config)
         for bracket in self.brackets:
             tokens |= {bracket[0], bracket[1]}
         return tokens
 
 
+def gibberish_generator(min_length=4, max_length=20, brckt_p=0.2):
+    random_tokens = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                     '\\Delta', '\\alpha', '\\beta', '\\cos', '\\div', '\\exists', '\\forall', '\\gamma', '\\geq',
+                     '\\gt', '\\in', '\\infty', '\\int', '\\lambda', '\\ldots', '\\leq', '\\lim', '\\log', '\\lt',
+                     '\\mu', '\\neq', '\\phi', '\\pi', '\\pm', '\\prime', '\\rightarrow', '\\sigma', '\\sin',
+                     '\\sqrt', '\\sum', '\\tan', '\\theta', '\\times',
+                     '!', '+', ',', '-', '.', '/', '=']
+    generator = RandomTokenGenerator(c(random_tokens))
+    single_token_gen = RandomGenerator([uppercase_character(), lowercase_character(), generator])
+    return GibberishGenerator([single_token_gen], min_length, max_length, brckt_p)
+
+
 square_brackets = ("[", "]")
 round_brackets = ("(", ")")
 curly_brackets = ("{", "}")
+
+
+def numbers():
+    numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9']
+    return RandomTokenGenerator(c(numbers))
 
 
 def uppercase_character():
@@ -564,9 +574,9 @@ def random_generator():
 
 
 def almost_absolutely_random_generator():
-    long_random_generator = GibberishGenerator()
-    short_random_generator = GibberishGenerator(2, 5)
-    very_short_generator = GibberishGenerator(1, 2)
+    long_random_generator = gibberish_generator()
+    short_random_generator = gibberish_generator(2, 5)
+    very_short_generator = gibberish_generator(1, 2)
     bs_frac_generator = fraction_generator(short_random_generator, short_random_generator)
     random_frac_or_nofrac = RandomGenerator([short_random_generator, bs_frac_generator])
     relation_generator = RelationGenerator(left_side=random_frac_or_nofrac, right_side=random_frac_or_nofrac)
@@ -588,3 +598,9 @@ def single_token_generator():
         generators.append(TokenGenerator(chr(char)))
 
     return RandomGenerator(generators)
+
+
+def simple_number_operation_generator():
+    numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+']
+    token = RandomTokenGenerator(c(numbers))
+    return GibberishGenerator([token], 1, 6, 0)

@@ -5,12 +5,15 @@ from numpy.random import seed
 from datetime import datetime
 from os import path
 import os
-from trainer.tf_generator import DataGenerator
+from trainer.tf_generator import DataGenerator, TokenDataGenerator
 from trainer.tf_predictor import create_predictor
 import trainer.default_type as t
 import random
 import math
 from trainer.metrics import wer, exp_rate
+from generator import simple_number_operation_generator, Config
+from token_parser import Parser
+from inkml_graphics import create_graphics_factory
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -51,13 +54,17 @@ if ckpt_dir is not None:
 start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
-batch_size = 128
+batch_size = 32
 epochs = 1000
 levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
+
 image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
 image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
+
+generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
+generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
 if True:
     image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "overfit.pkl")))
@@ -72,9 +79,12 @@ if True:
     image_valid = image
     truth_valid = truth
 
-generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
+    gen = simple_number_operation_generator()
+    conf = Config()
+    parser = Parser(create_graphics_factory(os.path.join(data_base_dir, 'tokengroup.pkl')))
+    generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 100)
+    generator_valid = DataGenerator(image, truth, encoding_vb, batch_size)
 
-generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
 image_width = None
 image_height = None

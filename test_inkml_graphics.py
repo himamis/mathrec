@@ -6,6 +6,8 @@ import inkml_graphics
 import generator
 import random
 import numpy as np
+import file_utils as utils
+import os
 
 random.seed(123)
 np.random.seed(123)
@@ -36,7 +38,9 @@ np.random.seed(123)
 #             return True
 #     return False
 
-gen = generator.random_generator()
+overfit_images, truth, _ = zip(*utils.read_pkl(os.path.join('/Users/balazs/new_data', "overfit.pkl")))
+
+gen = generator.simple_number_operation_generator()
 conf = generator.Config()
 #parser = token_parser.Parser(inkml_graphics.create_graphics_factory('/Users/balazs/export/tokengroup_test2011.pkl'))
 parser = token_parser.Parser(inkml_graphics.create_graphics_factory('/Users/balazs/export/tokengroup.pkl'))
@@ -44,10 +48,15 @@ parser = token_parser.Parser(inkml_graphics.create_graphics_factory('/Users/bala
 while True:
     tokens = []
     gen.generate(tokens, conf)
-    #tokens = ['5', '.', '6', '9', '-', 'y']
     print(tokens)
     image = parser.parse(tokens)
+
+    image = 255 - image
+
+    imid = np.random.choice(len(overfit_images))
+    overfit_im = overfit_images[imid]
     cv2.imshow("Image", image)
+    cv2.imshow("Overfit", overfit_im)
     cv2.waitKey(0)
 # for key in token_traces.keys():
 #     traces = token_traces[key]

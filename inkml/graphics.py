@@ -192,7 +192,7 @@ class Graphics:
             if len(trace) == 1:
                 # It's a point
                 point = trace[0]
-                self._draw_point(image, (point[0], point[1]))
+                self._draw_point(image, (point[0], point[1]), np.random.randint(2, 3))
 
         pts = [np.rint(line) for line in traces]
         pts = [np.asarray(line, dtype=np.int32) for line in pts]
@@ -206,10 +206,11 @@ class Graphics:
             expected_width = 10
         if expected_height is None:
             expected_height = 10
-        new_im = new_image(expected_width + padding, expected_height)
-        self._draw_point(new_im, (int(round(expected_width / 2)), int(round(expected_height / 2))))
+        new_im = new_image(expected_width, expected_height)
+        width, height = int(round(expected_width / 2)), int(round(expected_height / 2))
+        self._draw_point(new_im, (width, height), min(width - padding, height - padding))
 
         return new_im
 
-    def _draw_point(self, image, location):
-        cv2.circle(image, location, np.random.randint(2, 3), (0, 0, 0), -1, lineType=cv2.LINE_AA)
+    def _draw_point(self, image, location, radius):
+        cv2.circle(image, location, radius, (0, 0, 0), -1, lineType=cv2.LINE_AA)

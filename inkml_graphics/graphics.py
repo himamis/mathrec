@@ -17,11 +17,12 @@ class InkmlGraphics(DefaultGraphics):
         traces = self._token_map[token]
         return np.random.choice(traces)
 
-    def _random_image(self, token, expected_width=None, expected_height=None):
+    def _random_image(self, token, expected_width=None, expected_height=None, padding=6):
         trace = self._random_trace(token)
         return graphics_backend.create_token_image(trace,
                                                    expected_width=expected_width,
-                                                   expected_height=expected_height)
+                                                   expected_height=expected_height,
+                                                   padding=padding)
 
     def token(self, token: str):
         if token in high_characters:
@@ -30,11 +31,14 @@ class InkmlGraphics(DefaultGraphics):
         elif token in low_characters:
             image = self._random_image(token, expected_height=65)
             self._concatenator.append(image, 25)
+        elif token == '.':
+            image = self._random_image(token, expected_width=5, expected_height=5, padding=0)
+            self._concatenator.append(image, -8)
         else:
             if token == '-':
                 image = self._random_image(token, expected_width=35)
             elif token == '.':
-                image = self._random_image(token, expected_width=15, expected_height=15)
+                image = self._random_image(token, expected_width=7, expected_height=15, padding=2)
             elif token == '+':
                 image = self._random_image(token, expected_width=35)
             else:

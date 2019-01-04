@@ -40,19 +40,19 @@ class ImageConcatenator(Drawable):
     def __init__(self):
         self._images = []
 
-    def append(self, image, y_center=None):
+    def append(self, image, y_center=None, margins=(0,0)):
         if y_center is None:
             y_center = round(h(image) / 2)
-        self._images.append((image, y_center))
+        self._images.append((image, y_center, margins))
 
     def draw(self) -> np.ndarray:
         width = 0
         height = 0
         paddings = []
-        for image, y_center in self._images:
-            padding = np.random.randint(0, 15)
-            paddings.append(padding)
-            width += w(image) + padding
+        for image, y_center, margins in self._images:
+            #padding = np.random.randint(0, 15)
+            #paddings.append(padding)
+            width += w(image)
             top_missing = abs(min(round(height / 2) - y_center, 0))
             bottom_missing = max(round(height / 2) + (h(image) - y_center) - height, 0)
             missing = max(top_missing, bottom_missing)
@@ -61,7 +61,7 @@ class ImageConcatenator(Drawable):
         concat_image = new_image(width, height)
 
         offset = 0
-        for i, (image, y_center) in enumerate(self._images):
+        for i, (image, y_center, margins) in enumerate(self._images):
             paste(concat_image, image, offset, round(abs(h(concat_image) / 2 - y_center)))
-            offset += w(image) + paddings[i]
+            offset += w(image)# + paddings[i]
         return concat_image
