@@ -4,10 +4,7 @@ import numpy as np
 import cv2
 
 
-
 class DataGenerator:
-
-    # levels is the number of difficulty levels
 
     def __init__(self,
                  images,
@@ -30,7 +27,7 @@ class DataGenerator:
         self.label_chuncks = [labels[i:i + self.batch_size] for i in range(0, len(labels), self.batch_size)]
         self.image_chuncks = [images[i:i + self.batch_size] for i in range(0, len(images), self.batch_size)]
 
-        if len(self.image_chuncks[-1]) != self.batch_size:
+        if len(self.image_chuncks[-1]) == 1:
             del self.image_chuncks[-1]
             del self.label_chuncks[-1]
 
