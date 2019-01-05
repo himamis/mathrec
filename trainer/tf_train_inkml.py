@@ -226,10 +226,11 @@ with tf.Session(config=config) as sess:
         writer.add_graph(sess.graph)
 
     for epoch in range(epochs):
-        print("Current level {}".format(level))
-        level_summary.value[0].simple_value = level
-        if writer is not None:
-            writer.add_summary(level_summary, global_step)
+        print("Staring epoch {}".format(epoch))
+        #print("Current level {}".format(level))
+        #level_summary.value[0].simple_value = level
+        #if writer is not None:
+        #    writer.add_summary(level_summary, global_step)
 
         generator.reset()
         for step in range(generator.steps()):
