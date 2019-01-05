@@ -275,6 +275,7 @@ with tf.Session(config=config) as sess:
         accn = 0
         exprate = 0
         for step in range(generator_valid.steps()):
+            print("Validation step {}".format(step))
             image, label, observation, masks, lengths = generator_valid.next_batch()
             predict = predictor(image, masks)
             re_encoded = [encoding_vb[s] for s in predict]
