@@ -79,11 +79,12 @@ if True:
     image_valid = image
     truth_valid = truth
 
-    gen = simple_number_operation_generator()
-    conf = Config()
-    parser = Parser(create_graphics_factory(os.path.join(data_base_dir, 'tokengroup.pkl')))
-    generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
+    #gen = simple_number_operation_generator()
+    #conf = Config()
+    #parser = Parser(create_graphics_factory(os.path.join(data_base_dir, 'tokengroup.pkl')))
+    #generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
     generator_valid = DataGenerator(image, truth, encoding_vb, 1)
+    generator = DataGenerator(image, truth, encoding_vb, 1)
 
 
 image_width = None
