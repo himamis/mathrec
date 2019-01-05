@@ -2,7 +2,7 @@ import numpy as np
 
 
 def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_output_params, decoder_input_params,
-                     decoder_output_params, encoding_vb, decoding_vb, max_length=100, k=100, alpha=0.7):
+                     decoder_output_params, encoding_vb, decoding_vb, max_length=10, k=50, alpha=0.7):
 
     (pl_input_image, pl_image_mask, pl_is_training, pl_r_max, pl_d_max) = feature_grid_input_params
 
@@ -66,6 +66,7 @@ def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_
                 finish = len(seq) > max_length or seq[-1] == encoding_vb['<end>']
                 finished.append(finish)
             should_continue = not np.all(finished)
+            print([seq for (seq, state, score) in ordered])
 
         sequence = sequences[-1]
         ret = [decoding_vb[s[0]] for s in sequence[0][1:-1]]
