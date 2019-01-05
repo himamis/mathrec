@@ -234,7 +234,7 @@ with tf.Session(config=config) as sess:
 
         generator.reset()
         for step in range(generator.steps()):
-            break
+            #break
             image, label, observation, masks, label_masks = generator.next_batch()
             dict = {
                 pl_input_images: image,
@@ -269,8 +269,8 @@ with tf.Session(config=config) as sess:
         #     generator.set_level(level)
 
         # Validation after each epoch
-        #if (epoch + 1) % 20 != 0:
-        #    continue
+        if (epoch + 1) % 20 != 0:
+            continue
         wern = 0
         accn = 0
         exprate = 0
