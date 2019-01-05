@@ -82,8 +82,8 @@ if True:
     gen = simple_number_operation_generator()
     conf = Config()
     parser = Parser(create_graphics_factory(os.path.join(data_base_dir, 'tokengroup.pkl')))
-    generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 20)
-    generator_valid = DataGenerator(image, truth, encoding_vb, batch_size)
+    generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
+    generator_valid = DataGenerator(image, truth, encoding_vb, 1)
 
 
 image_width = None
@@ -263,12 +263,12 @@ with tf.Session(config=config) as sess:
             print("Step {}: r_max_val {}, d_max_val {}".format(global_step, r_max_val, d_max_val))
 
 
-        #if level < levels - 1:
-        #    level += 1
-        #    generator.set_level(level)
+        # if level < levels - 1:
+        #     level += 1
+        #     generator.set_level(level)
 
         # Validation after each epoch
-        if (epoch + 1) % 40 != 0:
+        if (epoch + 1) % 20 != 0:
             continue
         wern = 0
         accn = 0
