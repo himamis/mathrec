@@ -66,7 +66,6 @@ def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_
                 finish = len(seq) > max_length or seq[-1] == encoding_vb['<end>']
                 finished.append(finish)
             should_continue = not np.all(finished)
-            print([seq for (seq, state, score) in ordered])
 
         sequence = sequences[-1]
         ret = [decoding_vb[s[0]] for s in sequence[0][1:-1]]
