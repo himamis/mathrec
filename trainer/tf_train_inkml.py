@@ -141,7 +141,7 @@ if parameter_count:
 print("Image2Latex: End create model: {}".format(str(datetime.now().time())))
 
 pl_y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
-pl_sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None))
+pl_sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None), name="y_labels_masks")
 
 with tf.name_scope("loss"):
     #tf.summary.histogram("before_softmax", output)
