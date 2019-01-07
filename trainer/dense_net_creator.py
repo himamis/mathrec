@@ -207,7 +207,8 @@ class DenseNetCreator:
                               'dmax': d_max
                           }}
         tf.summary.histogram("input_images", input_images)
-        x = (input_images - 127) / 128
+        #x = (input_images - 127) / 128
+        x = input_images / 255
         tf.summary.histogram("normalized_input_images", x)
         m = image_mask
 
