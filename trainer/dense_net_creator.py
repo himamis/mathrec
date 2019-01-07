@@ -110,7 +110,9 @@ class DenseNetCreator:
         """
 
         def _x(ip):
+            tf.summary.histogram("conv_block_x_before", ip)
             x = batch_normalization(ip, **self.bn_kwargs)
+            tf.summary.histogram("conv_block_x_after", x)
             x = tf.nn.relu(x)
 
             if self.bottleneck:
@@ -118,7 +120,9 @@ class DenseNetCreator:
 
                 x = conv2d(x, inter_channel, (1, 1), kernel_initializer='he_normal', padding='same', use_bias=False,
                            **self.conv_kwargs)
+                tf.summary.histogram("conv_block_x_before_bottleneck", x)
                 x = batch_normalization(x, **self.bn_kwargs)
+                tf.summary.histogram("conv_block_x_after_bottleneck", x)
                 x = tf.nn.relu(x)
 
             x = conv2d(x, nb_filter, (3, 3), kernel_initializer='he_normal', padding='same', use_bias=False,
@@ -213,7 +217,9 @@ class DenseNetCreator:
                               padding='same')
 
         if self.subsample_initial_block:
+            tf.summary.histogram("subsampling_block_before", x)
             x = batch_normalization(x, **self.bn_kwargs)
+            tf.summary.histogram("subsampling_block_after", x)
             x = tf.nn.relu(x)
             x = max_pooling2d(x, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
             m = max_pooling2d(m, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
