@@ -206,8 +206,9 @@ class DenseNetCreator:
                               'rmin': 1/r_max,
                               'dmax': d_max
                           }}
-
+        tf.summary.histogram("input_images", input_images)
         x = (input_images - 127) / 128
+        tf.summary.histogram("normalized_input_images", x)
         m = image_mask
 
         """ Builds the network. """
@@ -224,6 +225,8 @@ class DenseNetCreator:
             x = max_pooling2d(x, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
             m = max_pooling2d(m, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
 
+        tf.summary.histogram("before_dense_blocks", x)
+        tf.summary.histogram("before_dense_blocks_masks", m)
         # Add dense blocks
         nb_filter = self.nb_filter
         for block_idx in range(self.nb_dense_block - 1):
@@ -242,6 +245,9 @@ class DenseNetCreator:
         x = tf.nn.relu(x)
 
         #x = GlobalAveragePooling2D(data_format=self.data_format)(x)
+
+        tf.summary.histogram("after_dense_blocks", x)
+        tf.summary.histogram("after_dense_blocks_masks", m)
 
         if self.include_top:
             x = dense(x, self.nb_classes)
