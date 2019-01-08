@@ -196,10 +196,11 @@ class DenseNetCreator:
 
     def __call__(self, input_images, image_mask, is_training, r_max, d_max, **kwargs):
         self.training = is_training
-        self.bn_kwargs = {'fused': True,
+        self.bn_kwargs = {'fused': False,
                           'axis': self.axis,
                           'training': self.training,
                           'trainable': self.trainable,
+                          'scale': False,
                           'renorm': True,
                           'renorm_clipping': {
                               'rmax': r_max,
