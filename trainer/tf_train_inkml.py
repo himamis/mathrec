@@ -166,9 +166,9 @@ update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
     #train = optimizer.minimize(loss)
     grads_and_vars = optimizer.compute_gradients(loss)
-    #for grad, _ in grads_and_vars:
-        #if "batch" in grad.name:
-            #tf.summary.histogram(grad.name, grad)
+    for grad, _ in grads_and_vars:
+        if "beta" in grad.name:
+            tf.summary.histogram(grad.name, grad)
     # Gradient clipping
     # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     train = optimizer.apply_gradients(grads_and_vars)
