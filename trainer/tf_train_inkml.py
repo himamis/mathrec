@@ -152,9 +152,10 @@ with tf.name_scope("loss"):
     #for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
     #    if not variable.name.startswith('batch_norm'):
     #        loss += decay * tf.reduce_sum(tf.pow(variable, 2))
-    for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+    for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
         if "batch_normalization" in variable.name:
             tf.summary.histogram(variable.name, variable)
+
         #if variable.name.startswith('batch_norm'):
         #    loss += decay * tf.reduce_sum(tf.pow(variable, 2))
     tf.summary.scalar("loss", loss)
