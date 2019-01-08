@@ -202,6 +202,8 @@ class DenseNetCreator:
                           'trainable': self.trainable,
                           'scale': False,
                           'renorm': True,
+                          'gamma_initializer': tf.constant_initializer(8.0, tf.float32),
+                          'beta_initializer': tf.constant_initializer(8.0, tf.float32),
                           'renorm_clipping': {
                               'rmax': r_max,
                               'rmin': 1/r_max,
