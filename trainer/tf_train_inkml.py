@@ -160,15 +160,16 @@ with tf.name_scope("loss"):
         #    loss += decay * tf.reduce_sum(tf.pow(variable, 2))
     tf.summary.scalar("loss", loss)
 
-optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+#optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+optimizer = tf.train.GradientDescentOptimizer(0.001) #tf.train.AdamOptimizer(learning_rate=0.001)
 
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
     #train = optimizer.minimize(loss)
     grads_and_vars = optimizer.compute_gradients(loss)
-    for grad, _ in grads_and_vars:
-        if "beta" in grad.name:
-            tf.summary.histogram(grad.name, grad)
+    #for grad, var in grads_and_vars:
+    #    if "beta" in var.name:
+    #        tf.summary.histogram(grad.name, grad, collections=['grads'])
     # Gradient clipping
     # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     train = optimizer.apply_gradients(grads_and_vars)
@@ -187,6 +188,7 @@ with tf.name_scope("accuracy"):
 saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
+#merged_summary = tf.summary.merge_all('grads')
 no_summary_per_epoch = 2
 summary_step = math.floor(generator.steps() / no_summary_per_epoch)
 patience = 50
