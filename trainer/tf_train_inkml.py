@@ -14,6 +14,7 @@ from trainer.metrics import wer, exp_rate
 from generator import simple_number_operation_generator, Config
 from token_parser import Parser
 from inkml_graphics import create_graphics_factory
+from tensorflow.python import debug as tf_debug
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -220,7 +221,8 @@ print("Image2Latex Start training...")
 global_step = 1
 
 config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
-with tf.Session(config=config) as sess:
+session = tf.Session(config=config)
+with tf_debug.TensorBoardDebugWrapperSession(session, "localhost:6064") as sess:
     if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
         start_epoch = -1
@@ -258,6 +260,8 @@ with tf.Session(config=config) as sess:
                 pl_r_max: r_max_val,
                 pl_d_max: d_max_val
             }
+            # if "beta" in var.name:
+            #        tf.summary.histogram(grad.name, grad, collections=['grads'])
             if writer is not None and global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
                 writer.add_summary(s, global_step)
