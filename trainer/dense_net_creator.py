@@ -111,10 +111,7 @@ class DenseNetCreator:
         """
 
         def _x(ip):
-            tf.summary.histogram("conv_block_x_before", ip)
             x = batch_normalization(ip, **self.bn_kwargs)
-            x = self._bias(x)
-            tf.summary.histogram("conv_block_x_after", x)
             x = tf.nn.relu(x)
 
             if self.bottleneck:
@@ -122,10 +119,7 @@ class DenseNetCreator:
 
                 x = conv2d(x, inter_channel, (1, 1), kernel_initializer='he_normal', padding='same', use_bias=False,
                            **self.conv_kwargs)
-                tf.summary.histogram("conv_block_x_before_bottleneck", x)
                 x = batch_normalization(x, **self.bn_kwargs)
-                x = self._bias(x)
-                tf.summary.histogram("conv_block_x_after_bottleneck", x)
                 x = tf.nn.relu(x)
 
             x = conv2d(x, nb_filter, (3, 3), kernel_initializer='he_normal', padding='same', use_bias=False,
@@ -190,7 +184,6 @@ class DenseNetCreator:
                  tensor, after applying batch_norm, relu-conv, dropout, maxpool
         """
         x = batch_normalization(ip, **self.bn_kwargs)
-        x = self._bias(x)
         x = tf.nn.relu(x)
         x = conv2d(x, int(nb_filter * self.compression), (1, 1), kernel_initializer='he_normal',
                    padding='same', use_bias=False, **self.conv_kwargs)
@@ -198,34 +191,19 @@ class DenseNetCreator:
 
         return x
 
-    def _bias(self, ip):
-        """ Add a bias """
-        bias = tf.get_variable("bias" + str(np.random.randint(0, 20000)), (ip.shape[-1],), tf.float32)
-        x = ip + bias
-        return x
-
     def __call__(self, input_images, image_mask, is_training, r_max, d_max, **kwargs):
         self.training = is_training
         self.bn_kwargs = {'fused': False,
-                          #'momentum': 0.01,
-                          #'axis': self.axis,
                           'training': self.training,
                           'trainable': True,
-                          'scale': False,
-                          'center': False,
-                          #'scale': False,
                           #'renorm': True,
-                          #'gamma_initializer': tf.constant_initializer(8.0, tf.float32),
-                          #'beta_initializer': tf.constant_initializer(8.0, tf.float32),
-                          'renorm_clipping': {
-                              'rmax': r_max,
-                              'rmin': 1/r_max,
-                              'dmax': d_max
-                          }}
-        tf.summary.histogram("input_images", input_images)
+                          #'renorm_clipping': {
+                          #    'rmax': r_max,
+                          #    'rmin': 1/r_max,
+                          #    'dmax': d_max
+                          #}
+                          }
         x = (input_images - 127) / 128
-        #x = input_images / 255
-        tf.summary.histogram("normalized_input_images", x)
         m = image_mask
 
         """ Builds the network. """
@@ -235,16 +213,12 @@ class DenseNetCreator:
                               padding='same')
 
         if self.subsample_initial_block:
-            tf.summary.histogram("subsampling_block_before", x)
             x = batch_normalization(x, **self.bn_kwargs)
-            x = self._bias(x)
-            tf.summary.histogram("subsampling_block_after", x)
             x = tf.nn.relu(x)
+
             x = max_pooling2d(x, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
             m = max_pooling2d(m, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
 
-        tf.summary.histogram("before_dense_blocks", x)
-        tf.summary.histogram("before_dense_blocks_masks", m)
         # Add dense blocks
         nb_filter = self.nb_filter
         for block_idx in range(self.nb_dense_block - 1):
@@ -260,13 +234,9 @@ class DenseNetCreator:
         x, nb_filter = self._dense_block(x, self.final_nb_layer, self.nb_filter)
 
         x = batch_normalization(x, **self.bn_kwargs)
-        x = self._bias(x)
         x = tf.nn.relu(x)
 
         #x = GlobalAveragePooling2D(data_format=self.data_format)(x)
-
-        tf.summary.histogram("after_dense_blocks", x)
-        tf.summary.histogram("after_dense_blocks_masks", m)
 
         if self.include_top:
             x = dense(x, self.nb_classes)
