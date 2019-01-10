@@ -164,8 +164,14 @@ update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
     grads_and_vars = optimizer.compute_gradients(loss)
 
+    for i in range(len(grads_and_vars)):
+        grad, var = grads_and_vars[i]
+        #if "gamma" in var.name:
+        grad = tf.Print(grad, [grad], var.name)
+        grads_and_vars[i] = (grad, var)
+
     # Gradient clipping
-    grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+    # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     train = optimizer.apply_gradients(grads_and_vars)
 
 

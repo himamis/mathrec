@@ -203,7 +203,6 @@ class DenseNetCreator:
                           #}
                           }
         x = (input_images - 127) / 128
-        x = tf.random_normal(shape=tf.shape(x), mean=0.0, stddev=0.31622776601, dtype=tf.float32)
         m = image_mask
 
         """ Builds the network. """

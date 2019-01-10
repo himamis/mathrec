@@ -123,7 +123,7 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
                                              shape=[att_dim], dtype=t.my_tf_float)
 
         # Past attention probabilities
-        self.alpha_past_filter = tf.get_variable(name="alpha_past_filter", shape=(3, 3, 1, att_dim))
+        # self.alpha_past_filter = tf.get_variable(name="alpha_past_filter", shape=(3, 3, 1, att_dim))
 
     @property
     def wrapped_cell(self):
@@ -149,25 +149,22 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
             h_tm1 = state
         betas = state[1]
 
-        with tf.name_scope("ctx"):
-            # Coverage vector
-            ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
-            coverage_vector = tf.tensordot(ft, self.u_f, axes=1) + self.u_f_b
+        # Coverage vector
+        #ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
+        #coverage_vector = tf.tensordot(ft, self.u_f, axes=1) + self.u_f_b
 
-            # context vector
-            speller_vector = tf.tensordot(h_tm1, self.attention_w, axes=1) + self.attention_w_b
+        # context vector
+        speller_vector = tf.tensordot(h_tm1, self.attention_w, axes=1) + self.attention_w_b
 
-            #tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
-            tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)  # [batch, h, w, dim_attend]
-            e_ti = tf.tensordot(tanh_vector, self.attention_v_a, axes=1) + self.attention_v_a_b  # [batch, h, w, 1]
-            alpha = tf.exp(e_ti)
-            if self.image_masks is not None:
-                alpha = alpha * self.image_masks
-            alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
-            #alpha = tf.Print(alpha, [alpha], summarize=200)
-            #ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
-            ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
-            betas = betas + alpha
+        tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
+        # tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)  # [batch, h, w, dim_attend]
+        e_ti = tf.tensordot(tanh_vector, self.attention_v_a, axes=1) + self.attention_v_a_b  # [batch, h, w, 1]
+        alpha = tf.exp(e_ti)
+        alpha = alpha * self.image_masks
+        alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
+        # ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
+        ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
+        # betas = betas + alpha
 
         output, new_state = self.cell(tf.concat([inputs, ctx], 1), h_tm1, scope=scope)
 
@@ -341,18 +338,18 @@ class Model:
         #    activation=conv_activation,
         #    cnn_block=cnn_block
         #)
-        self._row_encoder = RowEncoder(
-            encoder_size=encoder_size,
-            kernel_init=encoder_kernel_init,
-            recurrent_init=decoder_recurrent_kernel_init,
-            bidirectional=bidirectional
-        )
-        if multi_scale_attention:
-            self._row_encoder_scale = RowEncoder(
-                encoder_size=int(encoder_size / 2),
-                kernel_init=encoder_kernel_init,
-                bidirectional=bidirectional
-            )
+        #self._row_encoder = RowEncoder(
+        #    encoder_size=encoder_size,
+        ##    kernel_init=encoder_kernel_init,
+        #    recurrent_init=decoder_recurrent_kernel_init,
+        #    bidirectional=bidirectional
+        #)
+        #if multi_scale_attention:
+        #    self._row_encoder_scale = RowEncoder(
+        #        encoder_size=int(encoder_size / 2),
+        #        kernel_init=encoder_kernel_init,
+        #        bidirectional=bidirectional
+        #    )
         self._decoder = AttentionDecoder(
             vocabulary_size=vocabulary_size,
             units=decoder_units,
@@ -366,7 +363,7 @@ class Model:
         )
 
     def feature_grid(self, input_images, input_image_masks, is_training, r_max, d_max, summarize=False):
-        with tf.variable_scope("convolutional_encoder", reuse=tf.AUTO_REUSE):
+        with tf.name_scope("convolutional_encoder"):
             encoded_images, image_masks = self._encoder(input_images=input_images, image_mask=input_image_masks,
                                                         is_training=is_training, summarize=summarize, r_max=r_max,
                                                         d_max=d_max)
@@ -377,14 +374,13 @@ class Model:
         return encoded_images, image_masks
 
     def calculate_decoder_init(self, feature_grid, image_masks):
-        with tf.variable_scope("decoder_initializer", reuse=tf.AUTO_REUSE):
+        with tf.name_scope("decoder_initializer"):
             if image_masks is not None:
                 encoded_mean = tf.reduce_sum(feature_grid * image_masks, axis=[1, 2]) / \
                                tf.reduce_sum(image_masks, axis=[1, 2])
             else:
                 encoded_mean = tf.reduce_mean(feature_grid, axis=[1, 2])
-            calculate_h0 = tf.layers.dense(encoded_mean, use_bias=True, activation=tf.nn.tanh,
-                                           units=self.decoder_units)
+            calculate_h0 = tf.layers.dense(encoded_mean, activation=tf.nn.tanh, units=self.decoder_units)
 
             shape = tf.shape(feature_grid[:, :, :, -1])
             alpha_shape = tf.concat([shape, tf.ones(1, dtype=tf.int32)], axis=0)
@@ -393,7 +389,7 @@ class Model:
         return calculate_h0, calculate_alphas
 
     def decoder(self, feature_grid, image_masks, input_characters, init_h, init_alphas, summarize=False):
-        with tf.variable_scope("decoder", reuse=tf.AUTO_REUSE):
+        with tf.name_scope("decoder"):
             embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal,
                                         dtype=t.my_tf_float, shape=[self.vocabulary_size, self.embedding_dim])
             embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
