@@ -2,6 +2,7 @@ import tensorflow as tf
 
 from tensorflow.layers import average_pooling2d, batch_normalization, conv2d, dense, dropout, max_pooling2d
 from tensorflow.keras.layers import concatenate, GlobalAveragePooling2D
+import numpy as np
 
 
 class DenseNetCreator:
@@ -112,6 +113,7 @@ class DenseNetCreator:
         def _x(ip):
             tf.summary.histogram("conv_block_x_before", ip)
             x = batch_normalization(ip, **self.bn_kwargs)
+            x = self._bias(x)
             tf.summary.histogram("conv_block_x_after", x)
             x = tf.nn.relu(x)
 
@@ -122,6 +124,7 @@ class DenseNetCreator:
                            **self.conv_kwargs)
                 tf.summary.histogram("conv_block_x_before_bottleneck", x)
                 x = batch_normalization(x, **self.bn_kwargs)
+                x = self._bias(x)
                 tf.summary.histogram("conv_block_x_after_bottleneck", x)
                 x = tf.nn.relu(x)
 
@@ -187,11 +190,18 @@ class DenseNetCreator:
                  tensor, after applying batch_norm, relu-conv, dropout, maxpool
         """
         x = batch_normalization(ip, **self.bn_kwargs)
+        x = self._bias(x)
         x = tf.nn.relu(x)
         x = conv2d(x, int(nb_filter * self.compression), (1, 1), kernel_initializer='he_normal',
                    padding='same', use_bias=False, **self.conv_kwargs)
         x = average_pooling2d(x, (2, 2), strides=(2, 2), data_format=self.data_format)
 
+        return x
+
+    def _bias(self, ip):
+        """ Add a bias """
+        bias = tf.get_variable("bias" + str(np.random.randint(0, 20000)), (ip.shape[-1],), tf.float32)
+        x = ip + bias
         return x
 
     def __call__(self, input_images, image_mask, is_training, r_max, d_max, **kwargs):
@@ -201,18 +211,20 @@ class DenseNetCreator:
                           #'axis': self.axis,
                           'training': self.training,
                           'trainable': True,
+                          'scale': False,
+                          'center': False,
                           #'scale': False,
                           #'renorm': True,
-                          'gamma_initializer': tf.constant_initializer(8.0, tf.float32),
-                          'beta_initializer': tf.constant_initializer(8.0, tf.float32),
+                          #'gamma_initializer': tf.constant_initializer(8.0, tf.float32),
+                          #'beta_initializer': tf.constant_initializer(8.0, tf.float32),
                           'renorm_clipping': {
                               'rmax': r_max,
                               'rmin': 1/r_max,
                               'dmax': d_max
                           }}
         tf.summary.histogram("input_images", input_images)
-        #x = (input_images - 127) / 128
-        x = input_images / 255
+        x = (input_images - 127) / 128
+        #x = input_images / 255
         tf.summary.histogram("normalized_input_images", x)
         m = image_mask
 
@@ -225,6 +237,7 @@ class DenseNetCreator:
         if self.subsample_initial_block:
             tf.summary.histogram("subsampling_block_before", x)
             x = batch_normalization(x, **self.bn_kwargs)
+            x = self._bias(x)
             tf.summary.histogram("subsampling_block_after", x)
             x = tf.nn.relu(x)
             x = max_pooling2d(x, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
@@ -247,6 +260,7 @@ class DenseNetCreator:
         x, nb_filter = self._dense_block(x, self.final_nb_layer, self.nb_filter)
 
         x = batch_normalization(x, **self.bn_kwargs)
+        x = self._bias(x)
         x = tf.nn.relu(x)
 
         #x = GlobalAveragePooling2D(data_format=self.data_format)(x)

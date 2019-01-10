@@ -154,8 +154,7 @@ with tf.name_scope("loss"):
     #    if not variable.name.startswith('batch_norm'):
     #        loss += decay * tf.reduce_sum(tf.pow(variable, 2))
     for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
-        if "batch_normalization" in variable.name:
-            tf.summary.histogram(variable.name, variable)
+        tf.summary.histogram(variable.name, variable)
 
         #if variable.name.startswith('batch_norm'):
         #    loss += decay * tf.reduce_sum(tf.pow(variable, 2))
@@ -168,8 +167,8 @@ update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
     #train = optimizer.minimize(loss)
     grads_and_vars = optimizer.compute_gradients(loss)
-    #for grad, var in grads_and_vars:
-    #    if "beta" in var.name:
+
+
     #        tf.summary.histogram(grad.name, grad, collections=['grads'])
     # Gradient clipping
     # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
@@ -221,8 +220,8 @@ print("Image2Latex Start training...")
 global_step = 1
 
 config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
-session = tf.Session(config=config)
-with tf_debug.TensorBoardDebugWrapperSession(session, "localhost:6064") as sess:
+#session = tf.Session(config=config)
+with tf.Session(config=config) as sess:
     if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
         start_epoch = -1
