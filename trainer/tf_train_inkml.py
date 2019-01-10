@@ -149,9 +149,10 @@ with tf.name_scope("loss"):
     loss = tf.contrib.seq2seq.sequence_loss(output, pl_y_tensor, pl_sequence_masks)
 
     # L2 regularization
-    #for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-    #    if not variable.name.startswith('batch_norm'):
-    #        loss += decay * tf.reduce_sum(tf.pow(variable, 2))
+    for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+        #if not variable.name.startswith('batch_norm'):
+        if not "batch_norm" in variable.name:
+            loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
     tf.summary.scalar("loss", loss)
 
@@ -164,7 +165,7 @@ with tf.control_dependencies(update_ops):
     grads_and_vars = optimizer.compute_gradients(loss)
 
     # Gradient clipping
-    # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+    grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     train = optimizer.apply_gradients(grads_and_vars)
 
 
