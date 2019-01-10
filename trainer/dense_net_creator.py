@@ -2,7 +2,6 @@ import tensorflow as tf
 
 from tensorflow.layers import average_pooling2d, batch_normalization, conv2d, dense, dropout, max_pooling2d
 from tensorflow.keras.layers import concatenate, GlobalAveragePooling2D
-import numpy as np
 
 
 class DenseNetCreator:
@@ -204,6 +203,7 @@ class DenseNetCreator:
                           #}
                           }
         x = (input_images - 127) / 128
+        x = tf.random_normal(shape=tf.shape(x), mean=0.0, stddev=0.31622776601, dtype=tf.float32)
         m = image_mask
 
         """ Builds the network. """

@@ -146,49 +146,37 @@ pl_y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_l
 pl_sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None), name="y_labels_masks")
 
 with tf.name_scope("loss"):
-    #tf.summary.histogram("before_softmax", output)
     loss = tf.contrib.seq2seq.sequence_loss(output, pl_y_tensor, pl_sequence_masks)
 
     # L2 regularization
     #for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
     #    if not variable.name.startswith('batch_norm'):
     #        loss += decay * tf.reduce_sum(tf.pow(variable, 2))
-    for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
-        tf.summary.histogram(variable.name, variable)
 
-        #if variable.name.startswith('batch_norm'):
-        #    loss += decay * tf.reduce_sum(tf.pow(variable, 2))
     tf.summary.scalar("loss", loss)
 
-#optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
-optimizer = tf.train.GradientDescentOptimizer(0.001) #tf.train.AdamOptimizer(learning_rate=0.001)
+for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
+    tf.summary.histogram(variable.name, variable)
 
+optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
-    #train = optimizer.minimize(loss)
     grads_and_vars = optimizer.compute_gradients(loss)
 
-
-    #        tf.summary.histogram(grad.name, grad, collections=['grads'])
     # Gradient clipping
     # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     train = optimizer.apply_gradients(grads_and_vars)
 
-#tf.summary.merge(
-#    [tf.summary.histogram("gradient-{}".format(g[1].name), g[0]) for g in grads_and_vars if g[0] is not None])
 
 with tf.name_scope("accuracy"):
     result = tf.argmax(tf.nn.softmax(output), output_type=tf.int32, axis=2)
 
     accuracy = tf.contrib.metrics.accuracy(result, pl_y_tensor, pl_sequence_masks)
-    #accuracy = tf.Print(accuracy, [pl_is_training, result, pl_y_tensor, pl_sequence_masks],
-    #                    "Training, Res, Tens, Maks", summarize=20)
     tf.summary.scalar("accuracy", accuracy)
 
 saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
-#merged_summary = tf.summary.merge_all('grads')
 no_summary_per_epoch = 2
 summary_step = math.floor(generator.steps() / no_summary_per_epoch)
 patience = 50
@@ -247,8 +235,11 @@ with tf.Session(config=config) as sess:
 
         generator.reset()
         for step in range(generator.steps()):
-            #break
             image, label, observation, masks, label_masks = generator.next_batch()
+            import cv2
+
+            cv2.imshow('image', image[0])
+            cv2.waitKey(0)
             dict = {
                 pl_input_images: image,
                 pl_input_characters: observation,
