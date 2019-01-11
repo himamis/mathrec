@@ -86,17 +86,12 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         self.cell = cell
         self.feature_grid_dim = feature_grid.shape[3]
         self.feature_grid = feature_grid
-        self.image_masks = image_masks
-        self.attention_us = []
-        self.attention_u_bs = []
-        self.attention_v_as = []
-        self.attention_v_a_bs = []
-        self.watch_vectors = []
-
-        self.u_f = tf.get_variable(name="u_f", initializer=tf.initializers.random_normal,
-                                   shape=(att_dim, att_dim), dtype=t.my_tf_float)
-        self.u_f_b = tf.get_variable(name="U_f_b", initializer=tf.initializers.zeros,
-                                     shape=(att_dim,), dtype=t.my_tf_float)
+        # self.image_masks = image_masks
+        #
+        # self.u_f = tf.get_variable(name="u_f", initializer=tf.initializers.random_normal,
+        #                            shape=(att_dim, att_dim), dtype=t.my_tf_float)
+        # self.u_f_b = tf.get_variable(name="U_f_b", initializer=tf.initializers.zeros,
+        #                              shape=(att_dim,), dtype=t.my_tf_float)
 
         self.attention_u = tf.get_variable(name="decoder_attention_u_scale",
                                            initializer=dense_initializer,
@@ -150,8 +145,8 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         betas = state[1]
 
         # Coverage vector
-        #ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
-        #coverage_vector = tf.tensordot(ft, self.u_f, axes=1) + self.u_f_b
+        # ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
+        # coverage_vector = tf.tensordot(ft, self.u_f, axes=1) + self.u_f_b
 
         # context vector
         speller_vector = tf.tensordot(h_tm1, self.attention_w, axes=1) + self.attention_w_b
@@ -160,13 +155,20 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         # tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)  # [batch, h, w, dim_attend]
         e_ti = tf.tensordot(tanh_vector, self.attention_v_a, axes=1) + self.attention_v_a_b  # [batch, h, w, 1]
         alpha = tf.exp(e_ti)
-        alpha = alpha * self.image_masks
+        # alpha = alpha * self.image_masks
         alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
         # ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
+        # alpha = tf.Print(alpha, [alpha], "Alpha", summarize=500)
+
+        # szorzat = self.feature_grid * alpha
+        # szorzat = tf.Print(szorzat, [szorzat], "Szorzat", summarize=100)
+
         ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
+        #ctx = tf.Print(ctx, [ctx], "Reduced Sum", summarize=100)
         # betas = betas + alpha
 
-        output, new_state = self.cell(tf.concat([inputs, ctx], 1), h_tm1, scope=scope)
+        cell_input = tf.concat([inputs, ctx], 1)
+        output, new_state = self.cell(cell_input, h_tm1, scope=scope)
 
         return [output, [new_state, betas]]
 
@@ -189,15 +191,7 @@ class CNNEncoder:
         if cnn_block is None:
             raise ValueError("cnn_block must not be None")
 
-    def __call__(self, input_images, image_mask, is_training, summarize=False):
-        # import tensorflow.contrib.slim.nets as nets
-        # _, outputs = nets.resnet_v2.resnet_v2_50(input_images)
-        # last = outputs.popitem()
-        # for index in range(len(self.filter_sizes) + 1):
-        #     image_mask = image_mask[:, 0::2, 0::2]
-        #
-        # return last, image_mask
-
+    def __call__(self, input_images, image_mask, is_training, summarize=False, **kwargs):
         convolutions = []
         conv = (input_images - 128) / 128
         prev_size = 1
@@ -214,7 +208,7 @@ class CNNEncoder:
 
             convolutions.append(conv)
 
-        return convolutions, image_mask
+        return convolutions[-1], image_mask
 
 
 class RowEncoder:
@@ -275,26 +269,17 @@ class AttentionDecoder:
         self.dense_bias_initializer = dense_bias_initializer
         self.lstm_recurrent_kernel_initializer = lstm_recurrent_kernel_initializer
 
-    #def __call__(self, feature_grid, image_masks, inputs, init_h, init_c, summarize=False):
     def __call__(self, feature_grid, image_masks, inputs, init_h, init_alphas, summarize=False):
-        # Simple LSTM Cell
-        #rnn_cell = tf.nn.rnn_cell.LSTMCell(self.units)
-        #initial_states=tf.nn.rnn_cell.LSTMStateTuple(init_c, init_h)
-
-        # Nested LSTM Cell
-        #rnn_cell = NLSTMCell(self.units, 2)
-        #initial_states = (init_h, init_c, tf.zeros_like(init_c))
-
         rnn_cell = tf.nn.rnn_cell.GRUCell(self.units)
 
-        cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grid,
-                                image_masks, self.dense_initializer, self.dense_bias_initializer)
+        #cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grid,
+        #                        image_masks, self.dense_initializer, self.dense_bias_initializer)
 
-        initial_states = [init_h, init_alphas]
-        outputs, states = tf.nn.dynamic_rnn(cell, inputs, dtype=t.my_tf_float,
-                                            initial_state=initial_states)
+        # initial_states = [init_h, init_alphas]
+        initial_states = init_h
+        outputs, states = tf.nn.dynamic_rnn(rnn_cell, inputs, dtype=t.my_tf_float, initial_state=initial_states)
 
-        return [outputs, states]
+        return [outputs, [states, init_alphas]]
 
 
 class Model:
@@ -324,20 +309,20 @@ class Model:
             filter_sizes = [64, 128, 256, 512]
         self.decoder_units = decoder_units
         self.embedding_dim = embedding_dim
-        self._encoder = DenseNetCreator(data_format='channels_last',
-                                        efficient=False, growth_rate=12,
-                                        include_top=False,
-                                        bottleneck=False,
-                                        depth=40,
-                                        subsample_initial_block=True,
-                                        nb_dense_block=3)
-        #self._encoder = CNNEncoder(
-        #    filter_sizes=filter_sizes,
-        #    kernel_init=conv_kernel_init,
-        #    bias_init=conv_bias_init,
-        #    activation=conv_activation,
-        #    cnn_block=cnn_block
-        #)
+        # self._encoder = DenseNetCreator(data_format='channels_last',
+        #                                 efficient=False, growth_rate=12,
+        #                                 include_top=False,
+        #                                 bottleneck=False,
+        #                                 depth=40,
+        #                                 subsample_initial_block=True,
+        #                                 nb_dense_block=3)
+        self._encoder = CNNEncoder(
+           filter_sizes=filter_sizes,
+           kernel_init=conv_kernel_init,
+           bias_init=conv_bias_init,
+           activation=conv_activation,
+           cnn_block=cnn_block
+        )
         #self._row_encoder = RowEncoder(
         #    encoder_size=encoder_size,
         ##    kernel_init=encoder_kernel_init,
@@ -363,7 +348,7 @@ class Model:
         )
 
     def feature_grid(self, input_images, input_image_masks, is_training, r_max, d_max, summarize=False):
-        with tf.name_scope("convolutional_encoder"):
+        with tf.name_scope("encoder"):
             encoded_images, image_masks = self._encoder(input_images=input_images, image_mask=input_image_masks,
                                                         is_training=is_training, summarize=summarize, r_max=r_max,
                                                         d_max=d_max)
@@ -375,11 +360,11 @@ class Model:
 
     def calculate_decoder_init(self, feature_grid, image_masks):
         with tf.name_scope("decoder_initializer"):
-            if image_masks is not None:
-                encoded_mean = tf.reduce_sum(feature_grid * image_masks, axis=[1, 2]) / \
-                               tf.reduce_sum(image_masks, axis=[1, 2])
-            else:
-                encoded_mean = tf.reduce_mean(feature_grid, axis=[1, 2])
+            #if image_masks is not None:
+            #    encoded_mean = tf.reduce_sum(feature_grid * image_masks, axis=[1, 2]) / \
+            #                   tf.reduce_sum(image_masks, axis=[1, 2])
+            #else:
+            encoded_mean = tf.reduce_mean(feature_grid, axis=[1, 2])
             calculate_h0 = tf.layers.dense(encoded_mean, activation=tf.nn.tanh, units=self.decoder_units)
 
             shape = tf.shape(feature_grid[:, :, :, -1])
