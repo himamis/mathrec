@@ -149,10 +149,10 @@ with tf.name_scope("loss"):
     loss = tf.contrib.seq2seq.sequence_loss(output, pl_y_tensor, pl_sequence_masks)
 
     # L2 regularization
-    for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-        #if not variable.name.startswith('batch_norm'):
-        if not "batch_norm" in variable.name:
-            loss += decay * tf.reduce_sum(tf.pow(variable, 2))
+    # for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+    #     #if not variable.name.startswith('batch_norm'):
+    #     if not "batch_norm" in variable.name:
+    #         loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
     tf.summary.scalar("loss", loss)
 
@@ -160,18 +160,17 @@ for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
     tf.summary.histogram(variable.name, variable)
 
 optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+grads_and_vars = optimizer.compute_gradients(loss)
+
+# for i in range(len(grads_and_vars)):
+#     grad, var = grads_and_vars[i]
+#     grad = tf.Print(grad, [grad], var.name)
+#     grads_and_vars[i] = (grad, var)
+
+# Gradient clipping
+# grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
-    grads_and_vars = optimizer.compute_gradients(loss)
-
-    for i in range(len(grads_and_vars)):
-       grad, var = grads_and_vars[i]
-       #if "gamma" in var.name:
-       grad = tf.Print(grad, [grad], var.name)
-       grads_and_vars[i] = (grad, var)
-
-    # Gradient clipping
-    # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     train = optimizer.apply_gradients(grads_and_vars)
 
 
@@ -215,7 +214,6 @@ print("Image2Latex Start training...")
 global_step = 1
 
 config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
-#session = tf.Session(config=config)
 with tf.Session(config=config) as sess:
     if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
@@ -235,10 +233,6 @@ with tf.Session(config=config) as sess:
 
     for epoch in range(epochs):
         print("Staring epoch {}".format(epoch))
-        #print("Current level {}".format(level))
-        #level_summary.value[0].simple_value = level
-        #if writer is not None:
-        #    writer.add_summary(level_summary, global_step)
 
         generator.reset()
         for step in range(generator.steps()):
@@ -253,15 +247,6 @@ with tf.Session(config=config) as sess:
                 pl_r_max: r_max_val,
                 pl_d_max: d_max_val
             }
-            # if "beta" in var.name:
-            #        tf.summary.histogram(grad.name, grad, collections=['grads'])
-            # for grad, var in grads_and_vars:
-            #     print(var.name)
-            #     print("inputs")
-            #     for input in grad.op.inputs:
-            #         print(input.name)
-            #         val = sess.run(input, feed_dict=dict)
-            #         print(val)
             if writer is not None and global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
                 writer.add_summary(s, global_step)

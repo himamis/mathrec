@@ -4,7 +4,6 @@ import trainer.default_type as t
 from trainer.dense_net_creator import DenseNetCreator
 
 
-
 def default_cnn_block(**kwargs):
     filter_size = kwargs['filter_size']
     kernel_init = kwargs['kernel_init']
@@ -37,6 +36,7 @@ def default_cnn_block(**kwargs):
         tf.summary.histogram('activations_2', act_2)
 
     return act_2
+
 
 # VGG-net style
 def dense_cnn_block_creator(dense_size=4, dropout=0.2):
@@ -82,8 +82,8 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         self.cell = cell
         self.feature_grid_dim = feature_grid.shape[3]
         self.feature_grid = feature_grid
-        # self.image_masks = image_masks
-        #
+        self.image_masks = image_masks
+
         # self.u_f = tf.get_variable(name="u_f", initializer=tf.initializers.random_normal,
         #                            shape=(att_dim, att_dim), dtype=t.my_tf_float)
         # self.u_f_b = tf.get_variable(name="U_f_b", initializer=tf.initializers.zeros,
@@ -151,16 +151,14 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         # tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)  # [batch, h, w, dim_attend]
         e_ti = tf.tensordot(tanh_vector, self.attention_v_a, axes=1) + self.attention_v_a_b  # [batch, h, w, 1]
         alpha = tf.exp(e_ti)
-        # alpha = alpha * self.image_masks
+        alpha = alpha * self.image_masks
         alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
         # ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
-        # alpha = tf.Print(alpha, [alpha], "Alpha", summarize=500)
 
         # szorzat = self.feature_grid * alpha
         # szorzat = tf.Print(szorzat, [szorzat], "Szorzat", summarize=100)
 
         ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
-        #ctx = tf.Print(ctx, [ctx], "Reduced Sum", summarize=100)
         # betas = betas + alpha
 
         cell_input = tf.concat([inputs, ctx], 1)
@@ -265,14 +263,13 @@ class AttentionDecoder:
     def __call__(self, feature_grid, image_masks, inputs, init_h, init_alphas, summarize=False):
         rnn_cell = tf.nn.rnn_cell.GRUCell(self.units)
 
-        #cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grid,
-        #                        image_masks, self.dense_initializer, self.dense_bias_initializer)
+        rnn_cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grid,
+                                    image_masks, self.dense_initializer, self.dense_bias_initializer)
 
-        # initial_states = [init_h, init_alphas]
-        initial_states = init_h
+        initial_states = [init_h, init_alphas]
         outputs, states = tf.nn.dynamic_rnn(rnn_cell, inputs, dtype=t.my_tf_float, initial_state=initial_states)
 
-        return [outputs, [states, init_alphas]]
+        return [outputs, states]
 
 
 class Model:
@@ -302,20 +299,20 @@ class Model:
             filter_sizes = [64, 128, 256, 512]
         self.decoder_units = decoder_units
         self.embedding_dim = embedding_dim
-        # self._encoder = DenseNetCreator(data_format='channels_last',
-        #                                 efficient=False, growth_rate=12,
-        #                                 include_top=False,
-        #                                 bottleneck=False,
-        #                                 depth=40,
-        #                                 subsample_initial_block=True,
-        #                                 nb_dense_block=3)
-        self._encoder = CNNEncoder(
-           filter_sizes=filter_sizes,
-           kernel_init=conv_kernel_init,
-           bias_init=conv_bias_init,
-           activation=conv_activation,
-           cnn_block=cnn_block
-        )
+        self._encoder = DenseNetCreator(data_format='channels_last',
+                                        efficient=False, growth_rate=12,
+                                        include_top=False,
+                                        bottleneck=False,
+                                        depth=40,
+                                        subsample_initial_block=True,
+                                        nb_dense_block=3)
+        # self._encoder = CNNEncoder(
+        #    filter_sizes=filter_sizes,
+        #    kernel_init=conv_kernel_init,
+        #    bias_init=conv_bias_init,
+        #    activation=conv_activation,
+        #    cnn_block=cnn_block
+        # )
         #self._row_encoder = RowEncoder(
         #    encoder_size=encoder_size,
         ##    kernel_init=encoder_kernel_init,
@@ -353,11 +350,11 @@ class Model:
 
     def calculate_decoder_init(self, feature_grid, image_masks):
         with tf.name_scope("decoder_initializer"):
-            #if image_masks is not None:
-            #    encoded_mean = tf.reduce_sum(feature_grid * image_masks, axis=[1, 2]) / \
-            #                   tf.reduce_sum(image_masks, axis=[1, 2])
-            #else:
-            encoded_mean = tf.reduce_mean(feature_grid, axis=[1, 2])
+            if image_masks is not None:
+                encoded_mean = tf.reduce_sum(feature_grid * image_masks, axis=[1, 2]) / \
+                               tf.reduce_sum(image_masks, axis=[1, 2])
+            else:
+                encoded_mean = tf.reduce_mean(feature_grid, axis=[1, 2])
             calculate_h0 = tf.layers.dense(encoded_mean, activation=tf.nn.tanh, units=self.decoder_units)
 
             shape = tf.shape(feature_grid[:, :, :, -1])
