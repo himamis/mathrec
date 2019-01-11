@@ -195,12 +195,10 @@ class DenseNetCreator:
         self.bn_kwargs = {'fused': False,
                           'training': self.training,
                           'trainable': True,
-                          #'renorm': True,
-                          #'renorm_clipping': {
-                          #    'rmax': r_max,
-                          #    'rmin': 1/r_max,
-                          #    'dmax': d_max
-                          #}
+                          'renorm': True,
+                          'renorm_clipping': {'rmax': r_max,
+                                              'rmin': 1/r_max,
+                                              'dmax': d_max}
                           }
         x = (input_images - 127) / 128
         m = image_mask
