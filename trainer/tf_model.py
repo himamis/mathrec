@@ -13,15 +13,11 @@ def default_cnn_block(**kwargs):
     activation = kwargs['activation']
     is_training = kwargs['is_training']
     summarize = kwargs['summarize']
-    w_1 = tf.get_variable("kernel_1", shape=(3, 3, kwargs['prev_filter_size'], filter_size),
-                          initializer=kernel_init, dtype=t.my_tf_float)
-    b_1 = tf.get_variable("bias_1", shape=[filter_size], initializer=bias_init,
-                          dtype=t.my_tf_float)
+    w_1 = tf.get_variable("kernel_1", shape=(3, 3, kwargs['prev_filter_size'], filter_size), dtype=t.my_tf_float)
+    b_1 = tf.get_variable("bias_1", shape=[filter_size], dtype=t.my_tf_float)
 
-    w_2 = tf.get_variable("kernel_2", shape=(3, 3, filter_size, filter_size),
-                          initializer=kernel_init, dtype=t.my_tf_float)
-    b_2 = tf.get_variable("bias_2", shape=[filter_size], initializer=bias_init,
-                          dtype=t.my_tf_float)
+    w_2 = tf.get_variable("kernel_2", shape=(3, 3, filter_size, filter_size), dtype=t.my_tf_float)
+    b_2 = tf.get_variable("bias_2", shape=[filter_size], dtype=t.my_tf_float)
 
     conv_1 = tf.nn.conv2d(conv, w_1, strides=[1, 1, 1, 1], padding='SAME') + b_1
     act_1 = activation(conv_1)
@@ -192,7 +188,6 @@ class CNNEncoder:
             raise ValueError("cnn_block must not be None")
 
     def __call__(self, input_images, image_mask, is_training, summarize=False, **kwargs):
-        convolutions = []
         conv = (input_images - 128) / 128
         prev_size = 1
         for index, filter_size in enumerate(self.filter_sizes):
@@ -206,9 +201,7 @@ class CNNEncoder:
                                       name='max_pool_{}'.format(filter_size))
                 image_mask = image_mask[:, 0::2, 0::2]
 
-            convolutions.append(conv)
-
-        return convolutions[-1], image_mask
+        return conv, image_mask
 
 
 class RowEncoder:

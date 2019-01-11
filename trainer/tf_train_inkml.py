@@ -165,10 +165,10 @@ with tf.control_dependencies(update_ops):
     grads_and_vars = optimizer.compute_gradients(loss)
 
     for i in range(len(grads_and_vars)):
-        grad, var = grads_and_vars[i]
-        #if "gamma" in var.name:
-        grad = tf.Print(grad, [grad], var.name)
-        grads_and_vars[i] = (grad, var)
+       grad, var = grads_and_vars[i]
+       #if "gamma" in var.name:
+       grad = tf.Print(grad, [grad], var.name)
+       grads_and_vars[i] = (grad, var)
 
     # Gradient clipping
     # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
@@ -255,6 +255,13 @@ with tf.Session(config=config) as sess:
             }
             # if "beta" in var.name:
             #        tf.summary.histogram(grad.name, grad, collections=['grads'])
+            # for grad, var in grads_and_vars:
+            #     print(var.name)
+            #     print("inputs")
+            #     for input in grad.op.inputs:
+            #         print(input.name)
+            #         val = sess.run(input, feed_dict=dict)
+            #         print(val)
             if writer is not None and global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
                 writer.add_summary(s, global_step)
