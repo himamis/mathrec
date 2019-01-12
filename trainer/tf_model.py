@@ -84,10 +84,10 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         self.feature_grid = feature_grid
         self.image_masks = image_masks
 
-        # self.u_f = tf.get_variable(name="u_f", initializer=tf.initializers.random_normal,
-        #                            shape=(att_dim, att_dim), dtype=t.my_tf_float)
-        # self.u_f_b = tf.get_variable(name="U_f_b", initializer=tf.initializers.zeros,
-        #                              shape=(att_dim,), dtype=t.my_tf_float)
+        self.u_f = tf.get_variable(name="u_f", initializer=tf.initializers.random_normal,
+                                   shape=(att_dim, att_dim), dtype=t.my_tf_float)
+        self.u_f_b = tf.get_variable(name="U_f_b", initializer=tf.initializers.zeros,
+                                     shape=(att_dim,), dtype=t.my_tf_float)
 
         self.attention_u = tf.get_variable(name="decoder_attention_u_scale",
                                            initializer=dense_initializer,
@@ -114,7 +114,7 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
                                              shape=[att_dim], dtype=t.my_tf_float)
 
         # Past attention probabilities
-        # self.alpha_past_filter = tf.get_variable(name="alpha_past_filter", shape=(3, 3, 1, att_dim))
+        self.alpha_past_filter = tf.get_variable(name="alpha_past_filter", shape=(3, 3, 1, att_dim))
 
     @property
     def wrapped_cell(self):
@@ -141,25 +141,21 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         betas = state[1]
 
         # Coverage vector
-        # ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
-        # coverage_vector = tf.tensordot(ft, self.u_f, axes=1) + self.u_f_b
+        ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
+        coverage_vector = tf.tensordot(ft, self.u_f, axes=1) + self.u_f_b
 
         # context vector
         speller_vector = tf.tensordot(h_tm1, self.attention_w, axes=1) + self.attention_w_b
 
-        tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
-        # tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)  # [batch, h, w, dim_attend]
+        # tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
+        tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)  # [batch, h, w, dim_attend]
         e_ti = tf.tensordot(tanh_vector, self.attention_v_a, axes=1) + self.attention_v_a_b  # [batch, h, w, 1]
         alpha = tf.exp(e_ti)
         alpha = alpha * self.image_masks
         alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
         # ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
-
-        # szorzat = self.feature_grid * alpha
-        # szorzat = tf.Print(szorzat, [szorzat], "Szorzat", summarize=100)
-
         ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
-        # betas = betas + alpha
+        betas = betas + alpha
 
         cell_input = tf.concat([inputs, ctx], 1)
         output, new_state = self.cell(cell_input, h_tm1, scope=scope)
@@ -306,7 +302,7 @@ class Model:
                                         depth=40,
                                         subsample_initial_block=True,
                                         nb_dense_block=3,
-                                        activation=selu)
+                                        activation=bn_relu)
         # self._encoder = CNNEncoder(
         #    filter_sizes=filter_sizes,
         #    kernel_init=conv_kernel_init,
