@@ -161,14 +161,16 @@ class TokenDataGenerator(BaseGenerator):
             tokens = []
             self.generator.generate(tokens, self.config)
             image = self.parser.parse(tokens)
-            grayscale = self._augmentor.grayscale(image)
+            image = self._augmentor.grayscale(image)
+            image = 255 - image
 
-            images.append(grayscale)
+            images.append(image)
             labels.append(tokens)
 
         images, image_masks = _normalize_images(images)
         encoded_sequences = _encode_sequences(labels, self.encoding_vb)
-        sequences, sequence_masks = _normalize_sequences(encoded_sequences, self._end_id)
+        labels = _add_end_symbol(encoded_sequences, self._end_id)
+        sequences, sequence_masks = _normalize_sequences(labels, self._end_id)
         observations = _create_observations(sequences, self._start_id)
 
         return images, sequences, observations, image_masks, sequence_masks
