@@ -100,143 +100,139 @@ pl_is_training = tf.placeholder(tf.bool, name="is_training")
 pl_r_max = tf.placeholder(t.my_tf_float, name="r_max", shape=())
 pl_d_max = tf.placeholder(t.my_tf_float, name="d_max", shape=())
 
-tf.summary.image("input_images", pl_input_images)
+global_step = tf.train.get_or_create_global_step()
+summary_writer = tf.contrib.summary.create_file_writer(os.path.join(tensorboard_log_dir, tensorboard_name),
+                                                       flush_millis=10000)
 
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
-device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
-with tf.device(device):
-    model = tf_model.Model(len(encoding_vb),
-                           filter_sizes=[32, 64],
-                           encoder_size=256,
-                           decoder_units=512,
-                           attention_dim=512,
-                           embedding_dim=512,
-                           bidirectional=True,
-                           conv_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
-                           conv_bias_init=tf.initializers.random_normal(),
-                           conv_activation=tf.nn.relu,
-                           cnn_block=tf_model.default_cnn_block,
-                           encoder_kernel_init=tf.initializers.random_normal(dtype=t.my_tf_float),
-                           decoder_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
-                           decoder_bias_init=tf.initializers.constant(1/4, dtype=t.my_tf_float),
-                           dense_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
-                           dense_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
-                           decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float))
-    eval_feature_grid, eval_masking = model.feature_grid(pl_input_images, pl_image_masks, is_training=pl_is_training,
-                                                         summarize=False, r_max=pl_r_max, d_max=pl_d_max)
-    eval_calculate_h0, eval_calculate_alphas = model.calculate_decoder_init(eval_feature_grid, eval_masking)
-    output, (states_h, states_alpha) = model.decoder(eval_feature_grid, eval_masking, pl_input_characters,
-                                                     eval_calculate_h0, eval_calculate_alphas, summarize=True,
-                                                     input_images=pl_input_images)
 
-    eval_output_softmax = tf.nn.softmax(output)
+with summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
 
-if parameter_count:
-    total_parameters = 0
-    for variable in tf.trainable_variables():
-        # shape is an array of tf.Dimension
-        shape = variable.get_shape()
-        variable_parameters = 1
-        for dim in shape:
-            variable_parameters *= dim.value
-        total_parameters += variable_parameters
-    print("Total parameter num: {}".format(total_parameters))
+    device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
+    with tf.device(device):
+        tf.contrib.summary.image("input_images", pl_input_images)
 
+        model = tf_model.Model(len(encoding_vb),
+                               filter_sizes=[32, 64],
+                               encoder_size=256,
+                               decoder_units=512,
+                               attention_dim=512,
+                               embedding_dim=512,
+                               bidirectional=True,
+                               conv_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
+                               conv_bias_init=tf.initializers.random_normal(),
+                               conv_activation=tf.nn.relu,
+                               cnn_block=tf_model.default_cnn_block,
+                               encoder_kernel_init=tf.initializers.random_normal(dtype=t.my_tf_float),
+                               decoder_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
+                               decoder_bias_init=tf.initializers.constant(1/4, dtype=t.my_tf_float),
+                               dense_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
+                               dense_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
+                               decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float))
+        eval_feature_grid, eval_masking = model.feature_grid(pl_input_images, pl_image_masks, is_training=pl_is_training,
+                                                             summarize=False, r_max=pl_r_max, d_max=pl_d_max)
+        eval_calculate_h0, eval_calculate_alphas = model.calculate_decoder_init(eval_feature_grid, eval_masking)
+        output, (states_h, states_alpha) = model.decoder(eval_feature_grid, eval_masking, pl_input_characters,
+                                                         eval_calculate_h0, eval_calculate_alphas, summarize=True,
+                                                         input_images=pl_input_images)
 
-print("Image2Latex: End create model: {}".format(str(datetime.now().time())))
+        eval_output_softmax = tf.nn.softmax(output)
 
-pl_y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
-pl_sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None), name="y_labels_masks")
+    if parameter_count:
+        total_parameters = 0
+        for variable in tf.trainable_variables():
+            # shape is an array of tf.Dimension
+            shape = variable.get_shape()
+            variable_parameters = 1
+            for dim in shape:
+                variable_parameters *= dim.value
+            total_parameters += variable_parameters
+        print("Total parameter num: {}".format(total_parameters))
 
-with tf.name_scope("loss"):
-    loss = tf.contrib.seq2seq.sequence_loss(output, pl_y_tensor, pl_sequence_masks)
+    print("Image2Latex: End create model: {}".format(str(datetime.now().time())))
 
-    # L2 regularization
-    # for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-    #     #if not variable.name.startswith('batch_norm'):
-    #     if not "batch_norm" in variable.name:
-    #         loss += decay * tf.reduce_sum(tf.pow(variable, 2))
+    pl_y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
+    pl_sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None), name="y_labels_masks")
 
-    tf.summary.scalar("loss", loss)
+    with tf.name_scope("loss"):
+        loss = tf.contrib.seq2seq.sequence_loss(output, pl_y_tensor, pl_sequence_masks)
 
-for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
-    tf.summary.histogram(variable.name, variable)
+        # L2 regularization
+        # for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+        #     #if not variable.name.startswith('batch_norm'):
+        #     if not "batch_norm" in variable.name:
+        #         loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
-optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
-grads_and_vars = optimizer.compute_gradients(loss)
+        tf.summary.scalar("loss", loss)
 
-for grad, var in grads_and_vars:
-    tf.summary.histogram("gradient/" + var.name, grad)
-#for i in range(len(grads_and_vars)):
-     #grad, var = grads_and_vars[i]
- ##    tf.summary.histogram(var.name)
-  #   grad = tf.Print(grad, [grad], var.name)
-  #   grads_and_vars[i] = (grad, var)
+    for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
+        tf.contrib.summary.histogram(variable.name, variable)
 
-# Gradient clipping
-# grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
-update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-with tf.control_dependencies(update_ops):
-    train = optimizer.apply_gradients(grads_and_vars)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+    grads_and_vars = optimizer.compute_gradients(loss)
 
+    for grad, var in grads_and_vars:
+        tf.contrib.summary.histogram("gradient/" + var.name, grad)
 
-with tf.name_scope("accuracy"):
-    result = tf.argmax(tf.nn.softmax(output), output_type=tf.int32, axis=2)
+    # Gradient clipping
+    # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies(update_ops):
+        train = optimizer.apply_gradients(grads_and_vars)
 
-    accuracy = tf.contrib.metrics.accuracy(result, pl_y_tensor, pl_sequence_masks)
-    tf.summary.scalar("accuracy", accuracy)
+    with tf.name_scope("accuracy"):
+        result = tf.argmax(tf.nn.softmax(output), output_type=tf.int32, axis=2)
 
-saver = tf.train.Saver()
+        accuracy = tf.contrib.metrics.accuracy(result, pl_y_tensor, pl_sequence_masks)
+        tf.summary.scalar("accuracy", accuracy)
 
-merged_summary = tf.summary.merge_all()
-no_summary_per_epoch = 2
-summary_step = math.floor(generator.steps() / no_summary_per_epoch)
-patience = 50
-save_epoch = 50
-bad_counter = 0
-best_wer = 999999
-best_exp_rate = -1
-#level = 0
-level = 4
+    saver = tf.train.Saver()
 
-r_max_val_init = 1
-d_max_val_init = 0
-r_max_val = r_max_val_init
-d_max_val = d_max_val_init
+    merged_summary = tf.summary.merge_all()
+    no_summary_per_epoch = 2
+    summary_step = math.floor(generator.steps() / no_summary_per_epoch)
+    patience = 50
+    save_epoch = 50
+    bad_counter = 0
+    best_wer = 999999
+    best_exp_rate = -1
+    #level = 0
+    level = 4
 
-valid_avg_wer_summary = tf.Summary()
-valid_avg_acc_summary = tf.Summary()
-valid_avg_exp_rate_summary = tf.Summary()
-level_summary = tf.Summary()
+    r_max_val_init = 1
+    d_max_val_init = 0
+    r_max_val = r_max_val_init
+    d_max_val = d_max_val_init
 
-valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=None)
-valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=None)
-valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=None)
-level_summary.value.add(tag="level", simple_value=None)
+    valid_avg_wer_summary = tf.Summary()
+    valid_avg_acc_summary = tf.Summary()
+    valid_avg_exp_rate_summary = tf.Summary()
+    level_summary = tf.Summary()
 
-init = tf.global_variables_initializer()
+    valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=None)
+    valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=None)
+    valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=None)
+    level_summary.value.add(tag="level", simple_value=None)
 
 print("Image2Latex Start training...")
 global_step = 1
 
 config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
 with tf.Session(config=config) as sess:
+    summary_writer.set_as_default()
     if start_epoch != -1:
         saver.restore(sess, save_format.format(start_epoch))
         start_epoch = -1
     else:
-        sess.run(init)
+        tf.global_variables_initializer().run()
     predictor = create_predictor(sess,
                                  (pl_input_images, pl_image_masks, pl_is_training, pl_r_max, pl_d_max),
                                  (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas),
                                  (pl_input_characters),
                                  (eval_output_softmax, states_h, states_alpha),
                                  encoding_vb, decoding_vb, k=10, max_length=10)
-    writer = None
-    if tensorboard_log_dir is not None:
-        writer = tf.summary.FileWriter(os.path.join(tensorboard_log_dir, tensorboard_name))
-        writer.add_graph(sess.graph)
 
+    tf.contrib.summary.initialize(graph=tf.get_default_graph())
     for epoch in range(epochs):
         print("Staring epoch {}".format(epoch))
 
@@ -256,9 +252,8 @@ with tf.Session(config=config) as sess:
                 pl_r_max: r_max_val,
                 pl_d_max: d_max_val
             }
-            if writer is not None and global_step % summary_step == 0:
-                vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=dict)
-                writer.add_summary(s, global_step)
+            if summary_writer is not None and global_step % summary_step == 0:
+                vloss, vacc, s, _ = sess.run([loss, accuracy, tf.contrib.summary.all_summary_ops(), train], feed_dict=dict)
             else:
                 vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=dict)
 
@@ -305,11 +300,11 @@ with tf.Session(config=config) as sess:
         valid_avg_wer_summary.value[0].simple_value = avg_wer
         valid_avg_acc_summary.value[0].simple_value = avg_acc
         valid_avg_exp_rate_summary.value[0].simple_value = avg_exp_rate
-        if writer is not None:
-            writer.add_summary(valid_avg_wer_summary, epoch)
-            writer.add_summary(valid_avg_acc_summary, epoch)
-            writer.add_summary(valid_avg_exp_rate_summary, epoch)
-            writer.flush()
+        if summary_writer is not None:
+            summary_writer.add_summary(valid_avg_wer_summary, epoch)
+            summary_writer.add_summary(valid_avg_acc_summary, epoch)
+            summary_writer.add_summary(valid_avg_exp_rate_summary, epoch)
+            summary_writer.flush()
 
         improved = False
 

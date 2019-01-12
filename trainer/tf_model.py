@@ -26,14 +26,14 @@ def default_cnn_block(**kwargs):
     act_2 = activation(bn)
 
     if summarize:
-        tf.summary.histogram('weights_1', w_1)
-        tf.summary.histogram('weights_2', w_2)
+        tf.contrib.summary.histogram('weights_1', w_1)
+        tf.contrib.summary.histogram('weights_2', w_2)
 
-        tf.summary.histogram('biases_1', b_1)
-        tf.summary.histogram('biases_2', b_2)
+        tf.contrib.summary.histogram('biases_1', b_1)
+        tf.contrib.summary.histogram('biases_2', b_2)
 
-        tf.summary.histogram('activations_1', act_1)
-        tf.summary.histogram('activations_2', act_2)
+        tf.contrib.summary.histogram('activations_1', act_1)
+        tf.contrib.summary.histogram('activations_2', act_2)
 
     return act_2
 
@@ -66,9 +66,9 @@ def dense_cnn_block_creator(dense_size=4, dropout=0.2):
                     conv = tf.layers.dropout(conv, rate=dropout, training=is_training)
 
                 if summarize:
-                    tf.summary.histogram('kernel', w)
-                    tf.summary.histogram('bias', b)
-                    tf.summary.histogram('activation', conv)
+                    tf.contrib.summary.histogram('kernel', w)
+                    tf.contrib.summary.histogram('bias', b)
+                    tf.contrib.summary.histogram('activation', conv)
 
         return conv
 
@@ -240,10 +240,10 @@ class RowEncoder:
             batch_first = tf.transpose(output, [1, 0, 2, 3])
 
             if summarize:
-                tf.summary.histogram("feature_grid_encoder", feature_grid)
-                tf.summary.histogram("masked_grid_encoder", masked_feature_grid)
-                tf.summary.histogram("height_f", height_first)
-                tf.summary.histogram("batch_first", batch_first)
+                tf.contrib.summary.histogram("feature_grid_encoder", feature_grid)
+                tf.contrib.summary.histogram("masked_grid_encoder", masked_feature_grid)
+                tf.contrib.summary.histogram("height_f", height_first)
+                tf.contrib.summary.histogram("batch_first", batch_first)
 
         return batch_first
 
@@ -354,7 +354,7 @@ class Model:
                                                         d_max=d_max)
 
             if summarize:
-                tf.summary.histogram('feature_grid', encoded_images)
+                tf.contrib.summary.histogram('feature_grid', encoded_images)
 
         return encoded_images, image_masks
 
