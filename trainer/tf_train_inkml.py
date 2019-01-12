@@ -100,6 +100,8 @@ pl_is_training = tf.placeholder(tf.bool, name="is_training")
 pl_r_max = tf.placeholder(t.my_tf_float, name="r_max", shape=())
 pl_d_max = tf.placeholder(t.my_tf_float, name="d_max", shape=())
 
+tf.summary.image("input_images", pl_input_images)
+
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
 with tf.device(device):
