@@ -45,7 +45,8 @@ def create_predictor(sess, feature_grid_input_params, feature_grid_decoder_init_
                     eval_masking: mask,
                     eval_calculate_h0: state[0],
                     eval_calculate_alphas: state[1],
-                    pl_input_characters: inp
+                    pl_input_characters: inp,
+                    pl_input_image: image
                 }
                 h, a, output = sess.run([states_h, states_alpha, eval_output_softmax], feed_dict=dictionary)
                 p = min(k, np.shape(output)[2])

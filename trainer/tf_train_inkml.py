@@ -163,7 +163,7 @@ with summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
         #     if not "batch_norm" in variable.name:
         #         loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
-        tf.summary.scalar("loss", loss)
+        tf.contrib.summary.scalar("loss", loss)
 
     for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
         tf.contrib.summary.histogram(variable.name, variable)
@@ -184,7 +184,7 @@ with summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
         result = tf.argmax(tf.nn.softmax(output), output_type=tf.int32, axis=2)
 
         accuracy = tf.contrib.metrics.accuracy(result, pl_y_tensor, pl_sequence_masks)
-        tf.summary.scalar("accuracy", accuracy)
+        tf.contrib.summary.scalar("accuracy", accuracy)
 
     saver = tf.train.Saver()
 
