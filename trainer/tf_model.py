@@ -1,7 +1,7 @@
 import tensorflow as tf
 import trainer.tf_initializers as tfi
 import trainer.default_type as t
-from trainer.dense_net_creator import DenseNetCreator
+from trainer.dense_net_creator import DenseNetCreator, selu, bn_relu
 
 
 def default_cnn_block(**kwargs):
@@ -305,7 +305,8 @@ class Model:
                                         bottleneck=False,
                                         depth=40,
                                         subsample_initial_block=True,
-                                        nb_dense_block=3)
+                                        nb_dense_block=3,
+                                        activation=selu)
         # self._encoder = CNNEncoder(
         #    filter_sizes=filter_sizes,
         #    kernel_init=conv_kernel_init,

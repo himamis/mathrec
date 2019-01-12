@@ -4,10 +4,22 @@ from tensorflow.layers import average_pooling2d, batch_normalization, conv2d, de
 from tensorflow.keras.layers import concatenate, GlobalAveragePooling2D
 
 
+def bn_relu(ip, **kwargs):
+    """ Activation with batch normalization and relu. """
+    x = batch_normalization(ip, **kwargs)
+    return tf.nn.relu(x)
+
+
+def selu(ip, **kwargs):
+    """ Activation using SELU """
+    return tf.nn.selu(ip)
+
+
 class DenseNetCreator:
     def __init__(self, nb_classes=None, bottleneck=False, data_format='channels_first', depth=40, dropout_rate=0.,
                  efficient=False, growth_rate=12, include_top=True, nb_dense_block=3, nb_filter=-1,
-                 nb_layers_per_block=-1, training=True, trainable=True, reduction=0.0, subsample_initial_block=False):
+                 nb_layers_per_block=-1, training=True, trainable=True, reduction=0.0, subsample_initial_block=False,
+                 activation=bn_relu):
         """ Initialise the DenseNet model creator.
 
             Args:
@@ -35,6 +47,7 @@ class DenseNetCreator:
                                                 inverted to compute compression
                 subsample_initial_block (bool, defualt: False): Set to True to subsample the initial convolution and
                         add a MaxPool2D before the dense blocks are added.
+                activation (callable, default: bn_relu): the activation of the layers
 
         """
         self.axis = 1 if data_format == 'channels_first' else 3
@@ -62,6 +75,7 @@ class DenseNetCreator:
         self.nb_filter = nb_filter
 
         self.subsample_initial_block = subsample_initial_block
+        self.activation = activation
 
         if reduction != 0.0:
             assert 0 < reduction <= 1.0, 'reduction value must lie between 0.0 and 1.0'
@@ -110,16 +124,14 @@ class DenseNetCreator:
         """
 
         def _x(ip):
-            x = batch_normalization(ip, **self.bn_kwargs)
-            x = tf.nn.relu(x)
+            x = self.activation(ip, **self.bn_kwargs)
 
             if self.bottleneck:
                 inter_channel = nb_filter * 4
 
                 x = conv2d(x, inter_channel, (1, 1), kernel_initializer='he_normal', padding='same', use_bias=False,
                            **self.conv_kwargs)
-                x = batch_normalization(x, **self.bn_kwargs)
-                x = tf.nn.relu(x)
+                x = self.activation(x, **self.bn_kwargs)
 
             x = conv2d(x, nb_filter, (3, 3), kernel_initializer='he_normal', padding='same', use_bias=False,
                        **self.conv_kwargs)
@@ -182,8 +194,7 @@ class DenseNetCreator:
             Returns:
                  tensor, after applying batch_norm, relu-conv, dropout, maxpool
         """
-        x = batch_normalization(ip, **self.bn_kwargs)
-        x = tf.nn.relu(x)
+        x = self.activation(ip, **self.bn_kwargs)
         x = conv2d(x, int(nb_filter * self.compression), (1, 1), kernel_initializer='he_normal',
                    padding='same', use_bias=False, **self.conv_kwargs)
         x = average_pooling2d(x, (2, 2), strides=(2, 2), data_format=self.data_format)
@@ -210,8 +221,7 @@ class DenseNetCreator:
                               padding='same')
 
         if self.subsample_initial_block:
-            x = batch_normalization(x, **self.bn_kwargs)
-            x = tf.nn.relu(x)
+            x = self.activation(x, **self.bn_kwargs)
 
             x = max_pooling2d(x, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
             m = max_pooling2d(m, (3, 3), data_format=self.data_format, strides=(2, 2), padding='same')
@@ -230,12 +240,10 @@ class DenseNetCreator:
         # The last dense_block does not have a transition_block
         x, nb_filter = self._dense_block(x, self.final_nb_layer, self.nb_filter)
 
-        x = batch_normalization(x, **self.bn_kwargs)
-        x = tf.nn.relu(x)
-
-        #x = GlobalAveragePooling2D(data_format=self.data_format)(x)
+        x = self.activation(x, **self.bn_kwargs)
 
         if self.include_top:
+            x = GlobalAveragePooling2D(data_format=self.data_format)(x)
             x = dense(x, self.nb_classes)
 
         return x, m
