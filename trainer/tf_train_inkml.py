@@ -225,7 +225,7 @@ with tf.Session(config=config) as sess:
                                  (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas),
                                  (pl_input_characters),
                                  (eval_output_softmax, states_h, states_alpha),
-                                 encoding_vb, decoding_vb, k=10, max_length=10)
+                                 encoding_vb, decoding_vb, k=100, max_length=10)
     writer = None
     if tensorboard_log_dir is not None:
         writer = tf.summary.FileWriter(os.path.join(tensorboard_log_dir, tensorboard_name))
