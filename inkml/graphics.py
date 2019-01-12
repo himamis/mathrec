@@ -197,7 +197,7 @@ class Graphics:
         pts = [np.rint(line) for line in traces]
         pts = [np.asarray(line, dtype=np.int32) for line in pts]
         pts = [np.reshape(np.array(line), (-1, 1, 2)) for line in pts]
-        cv2.polylines(image, pts, False, (0, 0, 0), 2, lineType=cv2.LINE_AA)
+        cv2.polylines(image, pts, False, (0, 0, 0), 2, lineType=cv2.LINE_4)
 
         return image
 
