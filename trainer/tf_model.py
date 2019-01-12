@@ -77,7 +77,8 @@ def dense_cnn_block_creator(dense_size=4, dropout=0.2):
 
 class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
 
-    def __init__(self, cell, att_dim, units, feature_grid, image_masks, dense_initializer, dense_bias_initializer):
+    def __init__(self, cell, att_dim, units, feature_grid, image_masks, dense_initializer, dense_bias_initializer,
+                 input_images=None, summarize=False):
         super(AttentionWrapper, self).__init__()
         self.cell = cell
         self.feature_grid_dim = feature_grid.shape[3]
@@ -115,6 +116,11 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
 
         # Past attention probabilities
         self.alpha_past_filter = tf.get_variable(name="alpha_past_filter", shape=(3, 3, 1, att_dim))
+
+        self.input_images = input_images
+        self.summarize = summarize
+        if self.summarize:
+            assert self.input_images is not None
 
     @property
     def wrapped_cell(self):
@@ -159,6 +165,12 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
 
         cell_input = tf.concat([inputs, ctx], 1)
         output, new_state = self.cell(cell_input, h_tm1, scope=scope)
+
+        if self.summarize:
+            resized_alpha = tf.image.resize_area(alpha, tf.shape(self.input_images)[1:3])
+            attention_images = resized_alpha * self.input_images
+            tf.contrib.summary.image("attention images", attention_images)
+            #tf.contrib.summary.histogram("alpha", alpha)
 
         return [output, [new_state, betas]]
 
@@ -256,11 +268,12 @@ class AttentionDecoder:
         self.dense_bias_initializer = dense_bias_initializer
         self.lstm_recurrent_kernel_initializer = lstm_recurrent_kernel_initializer
 
-    def __call__(self, feature_grid, image_masks, inputs, init_h, init_alphas, summarize=False):
+    def __call__(self, feature_grid, image_masks, inputs, init_h, init_alphas, summarize=False, input_images=None):
         rnn_cell = tf.nn.rnn_cell.GRUCell(self.units)
 
         rnn_cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grid,
-                                    image_masks, self.dense_initializer, self.dense_bias_initializer)
+                                    image_masks, self.dense_initializer, self.dense_bias_initializer,
+                                    summarize=summarize, input_images=input_images)
 
         initial_states = [init_h, init_alphas]
         outputs, states = tf.nn.dynamic_rnn(rnn_cell, inputs, dtype=t.my_tf_float, initial_state=initial_states)
@@ -360,14 +373,15 @@ class Model:
 
         return calculate_h0, calculate_alphas
 
-    def decoder(self, feature_grid, image_masks, input_characters, init_h, init_alphas, summarize=False):
+    def decoder(self, feature_grid, image_masks, input_characters, init_h, init_alphas,
+                summarize=False, input_images=None):
         with tf.name_scope("decoder"):
             embedding = tf.get_variable(name="embedding", initializer=tf.initializers.random_normal,
                                         dtype=t.my_tf_float, shape=[self.vocabulary_size, self.embedding_dim])
             embedded_characters = tf.nn.embedding_lookup(embedding, input_characters)
             outputs, states = self._decoder(feature_grid=feature_grid, image_masks=image_masks,
                                             inputs=embedded_characters, init_h=init_h, init_alphas=init_alphas,
-                                            summarize=summarize)
+                                            summarize=summarize, input_images=input_images)
 
             output = tf.layers.dense(outputs, self.vocabulary_size - 1, activation=None, name="output")
 

@@ -124,7 +124,8 @@ with tf.device(device):
                                                          summarize=False, r_max=pl_r_max, d_max=pl_d_max)
     eval_calculate_h0, eval_calculate_alphas = model.calculate_decoder_init(eval_feature_grid, eval_masking)
     output, (states_h, states_alpha) = model.decoder(eval_feature_grid, eval_masking, pl_input_characters,
-                                                     eval_calculate_h0, eval_calculate_alphas, summarize=False)
+                                                     eval_calculate_h0, eval_calculate_alphas, summarize=True,
+                                                     input_images=pl_input_images)
 
     eval_output_softmax = tf.nn.softmax(output)
 
