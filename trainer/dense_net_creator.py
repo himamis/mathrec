@@ -208,8 +208,8 @@ class DenseNetCreator:
                           'trainable': True,
                           'scale': False,
                           'renorm': True,
-                          'momentum': 0.9,
-                          'renorm_momentum': 0.9,
+                          'momentum': 0.8,
+                          'renorm_momentum': 0.8,
                           'renorm_clipping': {'rmax': r_max,
                                               'rmin': 1/r_max,
                                               'dmax': d_max}
