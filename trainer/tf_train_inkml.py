@@ -83,9 +83,9 @@ if True:
     gen = simple_number_operation_generator()
     conf = Config()
     parser = Parser(create_graphics_factory(os.path.join(data_base_dir, 'tokengroup.pkl')))
-    generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
+    #generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
     generator_valid = DataGenerator(image, truth, encoding_vb, 1)
-    #generator = DataGenerator(image, truth, encoding_vb, batch_size)
+    generator = DataGenerator(image, truth, encoding_vb, batch_size)
 
 
 image_width = None
