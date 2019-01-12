@@ -162,10 +162,13 @@ for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
 optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
 grads_and_vars = optimizer.compute_gradients(loss)
 
-# for i in range(len(grads_and_vars)):
-#     grad, var = grads_and_vars[i]
-#     grad = tf.Print(grad, [grad], var.name)
-#     grads_and_vars[i] = (grad, var)
+for grad, var in grads_and_vars:
+    tf.summary.histogram("gradient/" + var.name, grad)
+#for i in range(len(grads_and_vars)):
+     #grad, var = grads_and_vars[i]
+ ##    tf.summary.histogram(var.name)
+  #   grad = tf.Print(grad, [grad], var.name)
+  #   grads_and_vars[i] = (grad, var)
 
 # Gradient clipping
 # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
