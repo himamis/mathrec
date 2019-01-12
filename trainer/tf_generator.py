@@ -274,7 +274,6 @@ class DifficultyDataGenerator:
             image_mask[top:(top + h), left:(left+w),:] = 1.0
             image_masks.append(image_mask)
 
-
         # create labels and observations
         start_id = self.encoding_vb['<start>']
         end_id = self.encoding_vb['<end>']
