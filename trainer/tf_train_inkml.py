@@ -14,7 +14,6 @@ from trainer.metrics import wer, exp_rate
 from generator import simple_number_operation_generator, Config
 from token_parser import Parser
 from inkml_graphics import create_graphics_factory
-from tensorflow.python import debug as tf_debug
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -24,6 +23,8 @@ seed(1337)
 set_random_seed(1337)
 
 parameter_count = True
+overfit_testing = False
+epoch_per_validation = 10
 
 date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 folder_str = 'model-inkml-' + date_str
@@ -56,8 +57,9 @@ start_time = datetime.now()
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 batch_size = 32
+step_per_summary = int(math.ceil(100 / batch_size))
 epochs = 1000
-levels = 5
+# levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
 
@@ -67,7 +69,7 @@ image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data
 generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
 generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
-if True:
+if overfit_testing:
     image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "overfit.pkl")))
     new_vocab = "1234567890-+"
     new_vocab = list(new_vocab)
@@ -83,10 +85,9 @@ if True:
     gen = simple_number_operation_generator()
     conf = Config()
     parser = Parser(create_graphics_factory(os.path.join(data_base_dir, 'tokengroup.pkl')))
-    #generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
+    generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
     generator_valid = DataGenerator(image, truth, encoding_vb, 1)
-    generator = DataGenerator(image, truth, encoding_vb, batch_size)
-
+    # generator = DataGenerator(image, truth, encoding_vb, batch_size)
 
 image_width = None
 image_height = None
@@ -102,23 +103,20 @@ pl_d_max = tf.placeholder(t.my_tf_float, name="d_max", shape=())
 
 global_step = tf.train.get_or_create_global_step()
 summary_writer = tf.contrib.summary.create_file_writer(os.path.join(tensorboard_log_dir, tensorboard_name),
-                                                       flush_millis=10000)
-
+                                                       flush_millis=20000)
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
-
-with summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
-
+with summary_writer.as_default(), tf.contrib.summary.record_summaries_every_n_global_steps(step_per_summary, global_step):
     device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
     with tf.device(device):
         tf.contrib.summary.image("input_images", pl_input_images)
 
         model = tf_model.Model(len(encoding_vb),
-                               filter_sizes=[32, 64],
+                               # filter_sizes=[32, 64],
                                encoder_size=256,
                                decoder_units=512,
                                attention_dim=512,
                                embedding_dim=512,
-                               bidirectional=True,
+                               # bidirectional=True,
                                conv_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float),
                                conv_bias_init=tf.initializers.random_normal(),
                                conv_activation=tf.nn.relu,
@@ -158,10 +156,9 @@ with summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
         loss = tf.contrib.seq2seq.sequence_loss(output, pl_y_tensor, pl_sequence_masks)
 
         # L2 regularization
-        # for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-        #     #if not variable.name.startswith('batch_norm'):
-        #     if not "batch_norm" in variable.name:
-        #         loss += decay * tf.reduce_sum(tf.pow(variable, 2))
+        for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+            if not "batch_norm" in variable.name:
+                loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
         tf.contrib.summary.scalar("loss", loss)
 
@@ -178,7 +175,7 @@ with summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
     # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
     update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
     with tf.control_dependencies(update_ops):
-        train = optimizer.apply_gradients(grads_and_vars)
+        train = optimizer.apply_gradients(grads_and_vars, global_step=global_step)
 
     with tf.name_scope("accuracy"):
         result = tf.argmax(tf.nn.softmax(output), output_type=tf.int32, axis=2)
@@ -188,16 +185,16 @@ with summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
 
     saver = tf.train.Saver()
 
-    merged_summary = tf.summary.merge_all()
-    no_summary_per_epoch = 2
-    summary_step = math.floor(generator.steps() / no_summary_per_epoch)
-    patience = 50
+    # merged_summary = tf.summary.merge_all()
+    # no_summary_per_epoch = 2
+    # summary_step = math.floor(generator.steps() / no_summary_per_epoch)
+    patience = 10
     save_epoch = 50
     bad_counter = 0
     best_wer = 999999
     best_exp_rate = -1
-    #level = 0
-    level = 4
+    # level = 0
+    # level = 4
 
     r_max_val_init = 1
     d_max_val_init = 0
@@ -215,7 +212,6 @@ with summary_writer.as_default(), tf.contrib.summary.always_record_summaries():
     level_summary.value.add(tag="level", simple_value=None)
 
 print("Image2Latex Start training...")
-global_step = 1
 
 config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
 with tf.Session(config=config) as sess:
@@ -234,15 +230,12 @@ with tf.Session(config=config) as sess:
 
     tf.contrib.summary.initialize(graph=tf.get_default_graph())
     for epoch in range(epochs):
-        print("Staring epoch {}".format(epoch))
+        print("Staring epoch {}".format(epoch + 1))
 
         generator.reset()
         for step in range(generator.steps()):
             image, label, observation, masks, label_masks = generator.next_batch()
-            # import cv2
-            # cv2.imshow("Image", image[0])
-            # cv2.waitKey(0)
-            dict = {
+            feed_dict = {
                 pl_input_images: image,
                 pl_input_characters: observation,
                 pl_sequence_masks: label_masks,
@@ -252,29 +245,20 @@ with tf.Session(config=config) as sess:
                 pl_r_max: r_max_val,
                 pl_d_max: d_max_val
             }
-            if summary_writer is not None and global_step % summary_step == 0:
-                vloss, vacc, s, _ = sess.run([loss, accuracy, tf.contrib.summary.all_summary_ops(), train], feed_dict=dict)
-            else:
-                vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=dict)
+            vloss, vacc, _, _, vglobal_step = sess.run([loss, accuracy, tf.contrib.summary.all_summary_ops(),
+                                                       train, global_step], feed_dict=feed_dict)
 
             print("Loss: {}, Acc: {}".format(vloss, vacc))
-
-            global_step += 1
 
             from_epoch = 250
             until_epoch = 500
             diff = max(min((epoch - from_epoch) / (until_epoch - from_epoch), 1), 0)
             r_max_val = r_max_val_init + 2 * diff
             d_max_val = d_max_val_init + 5 * diff
-            print("Step {}: r_max_val {}, d_max_val {}".format(global_step, r_max_val, d_max_val))
-
-
-        # if level < levels - 1:
-        #     level += 1
-        #     generator.set_level(level)
+            print("Step {}: r_max_val {}, d_max_val {}".format(vglobal_step, r_max_val, d_max_val))
 
         # Validation after each epoch
-        if (epoch + 1) % 20 != 0:
+        if (epoch + 1) % epoch_per_validation != 0:
             continue
         wern = 0
         accn = 0
@@ -308,9 +292,9 @@ with tf.Session(config=config) as sess:
 
         improved = False
 
-        #if avg_exp_rate > best_exp_rate:
-        #    best_exp_rate = avg_exp_rate
-        #    improved = True
+        # if avg_exp_rate > best_exp_rate:
+        #     best_exp_rate = avg_exp_rate
+        #     improved = True
 
         if avg_wer < best_wer:
             best_wer = avg_wer

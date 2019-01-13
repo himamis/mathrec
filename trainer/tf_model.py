@@ -2,6 +2,7 @@ import tensorflow as tf
 import trainer.tf_initializers as tfi
 import trainer.default_type as t
 from trainer.dense_net_creator import DenseNetCreator, selu, bn_relu
+from trainer.tf_summary import gif_summary_v2
 
 
 def default_cnn_block(**kwargs):
@@ -145,6 +146,8 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         else:
             h_tm1 = state
         betas = state[1]
+        # if self.summarize:
+        #     alphas = state[2]
 
         # Coverage vector
         ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
@@ -166,14 +169,18 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         cell_input = tf.concat([inputs, ctx], 1)
         output, new_state = self.cell(cell_input, h_tm1, scope=scope)
 
+        ret_state = [new_state, betas]
+
         if self.summarize:
             resized_alpha = tf.image.resize_area(alpha, tf.shape(self.input_images)[1:3])
             attention_images = resized_alpha * self.input_images
             tf.contrib.summary.image("attention images", attention_images)
-            tf.contrib.summary.image("attention", resized_alpha * 255)
-            #tf.contrib.summary.histogram("alpha", alpha)
+            # alpha_image = resized_alpha * 255
+            # tf.contrib.summary.image("attention", resized_alpha * 255)
+            # tf.contrib.summary.histogram("alpha", alpha)
+            # ret_state.append(alphas)
 
-        return [output, [new_state, betas]]
+        return [output, ret_state]
 
 
 class CNNEncoder:
@@ -277,7 +284,17 @@ class AttentionDecoder:
                                     summarize=summarize, input_images=input_images)
 
         initial_states = [init_h, init_alphas]
+        # if summarize:
+        #     zeros = tf.zeros_like(input_images)[:, None, :]
+        #     zeros = tf.tile(zeros, [1, tf.shape(inputs)[1], 1, 1, 1])
+        #     initial_states.append(zeros)
+
         outputs, states = tf.nn.dynamic_rnn(rnn_cell, inputs, dtype=t.my_tf_float, initial_state=initial_states)
+
+        # if summarize:
+        #     alphas = states[-1]
+        #     gif_summary_v2("alphas", alphas, 10, 1)
+        #     states = states[:-1]
 
         return [outputs, states]
 
@@ -312,7 +329,8 @@ class Model:
         self._encoder = DenseNetCreator(data_format='channels_last',
                                         efficient=False, growth_rate=12,
                                         include_top=False,
-                                        bottleneck=False,
+                                        bottleneck=True,
+                                        dropout_rate=0.2,
                                         depth=40,
                                         subsample_initial_block=True,
                                         nb_dense_block=3,
