@@ -50,7 +50,7 @@ start_time = datetime.now()
 
 batch_size = 10
 step_per_summary = int(math.ceil(100 / batch_size))
-epochs = 50
+epochs = 200
 # levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(params.data_base_dir, "vocabulary.pkl"))
@@ -180,7 +180,6 @@ merged_summary = tf.summary.merge_all()
 no_summary_per_epoch = 40
 summary_step = math.floor(generator.steps() / no_summary_per_epoch)
 patience = 10
-save_epoch = 50
 bad_counter = 0
 best_wer = 999999
 best_exp_rate = -1
