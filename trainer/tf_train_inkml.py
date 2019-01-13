@@ -163,7 +163,7 @@ if params.verbose_summary:
         tf.summary.histogram("gradient/" + var.name, grad)
 
 # Gradient clipping
-# grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
 update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
 with tf.control_dependencies(update_ops):
     train = optimizer.apply_gradients(grads_and_vars)
