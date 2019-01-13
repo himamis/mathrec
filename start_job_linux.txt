@@ -58,7 +58,7 @@ gcloud ml-engine jobs submit training $JOB_NAME \
     --gcs $BUCKET_NAME \
     --data-base-dir $DATA_URL \
     --model-dir $OUTPUT_URL \
-    --start-epoch -1 \
+    --start-epoch 0 \
     --git-hexsha `git rev-parse HEAD` \
     --use-gpu 0 \
     --tb $TB_PATH \

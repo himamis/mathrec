@@ -54,6 +54,7 @@ epochs = 1000
 # levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(params.data_base_dir, "vocabulary.pkl"))
+decoding_vb = {k: v for k, v in decoding_vb.items() if v != "<start>"}
 
 image, truth, _ = zip(*utils.read_pkl(path.join(params.data_base_dir, "data_train.pkl")))
 image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(params.data_base_dir, "data_validate.pkl")))
