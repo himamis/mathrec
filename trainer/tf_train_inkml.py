@@ -1,6 +1,5 @@
 import file_utils as utils
 from trainer import tf_model
-from utilities import parse_arg
 from numpy.random import seed
 from datetime import datetime
 from os import path
@@ -14,6 +13,7 @@ from trainer.metrics import wer, exp_rate
 from generator import simple_number_operation_generator, Config
 from token_parser import Parser
 from inkml_graphics import create_graphics_factory
+from trainer import params
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -33,44 +33,36 @@ history_fname = 'history.pkl'
 results_fname = 'results.pkl'
 checkpoint_fname = 'checkpoint_epoch_{}.ckpt'
 
-gcs = parse_arg('--gcs', required=False)
-use_gpu = parse_arg('--gpu', default='n', required=False)
-start_epoch = int(parse_arg('--start-epoch', -1))
-ckpt_dir = parse_arg('--ckpt-dir', None, required=False)
-data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/new_data')
-model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/tf_model')
-tensorboard_log_dir = parse_arg('--tb', None, required=False)
-tensorboard_name = parse_arg('--tbn', "adam", required=False)
-folder_str = folder_str + '-' + tensorboard_name
-base_dir = path.join(model_checkpoint_dir, folder_str)
+
+folder_str = folder_str + '-' + params.tensorboard_name
+base_dir = path.join(params.model_checkpoint_dir, folder_str)
 save_format = path.join(base_dir, checkpoint_fname)
-if gcs is not None:
-    save_format = os.path.join("gs://{}".format(gcs), save_format)
-if ckpt_dir is not None:
-    save_format = os.path.join(ckpt_dir, checkpoint_fname)
+if params.gcs is not None:
+    save_format = os.path.join("gs://{}".format(params.gcs), save_format)
+if params.ckpt_dir is not None:
+    save_format = os.path.join(params.ckpt_dir, checkpoint_fname)
 
 #if not path.exists(base_dir):
 #    os.mkdir(base_dir)
 
 
 start_time = datetime.now()
-git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 batch_size = 32
 step_per_summary = int(math.ceil(100 / batch_size))
 epochs = 1000
 # levels = 5
 decay = 1e-4
-encoding_vb, decoding_vb = utils.read_pkl(path.join(data_base_dir, "vocabulary.pkl"))
+encoding_vb, decoding_vb = utils.read_pkl(path.join(params.data_base_dir, "vocabulary.pkl"))
 
-image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_train.pkl")))
-image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(data_base_dir, "data_validate.pkl")))
+image, truth, _ = zip(*utils.read_pkl(path.join(params.data_base_dir, "data_train.pkl")))
+image_valid, truth_valid, _ = zip(*utils.read_pkl(path.join(params.data_base_dir, "data_validate.pkl")))
 
 generator = DataGenerator(image, truth, encoding_vb, batch_size=batch_size)
 generator_valid = DataGenerator(image_valid, truth_valid, encoding_vb, 1)
 
 if overfit_testing:
-    image, truth, _ = zip(*utils.read_pkl(path.join(data_base_dir, "overfit.pkl")))
+    image, truth, _ = zip(*utils.read_pkl(path.join(params.data_base_dir, "overfit.pkl")))
     new_vocab = "1234567890-+"
     new_vocab = list(new_vocab)
     new_vocab.append("<end>")
@@ -84,7 +76,7 @@ if overfit_testing:
 
     gen = simple_number_operation_generator()
     conf = Config()
-    parser = Parser(create_graphics_factory(os.path.join(data_base_dir, 'tokengroup.pkl')))
+    parser = Parser(create_graphics_factory(os.path.join(params.data_base_dir, 'tokengroup.pkl')))
     generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
     generator_valid = DataGenerator(image, truth, encoding_vb, 1)
     # generator = DataGenerator(image, truth, encoding_vb, batch_size)
@@ -102,11 +94,11 @@ pl_r_max = tf.placeholder(t.my_tf_float, name="r_max", shape=())
 pl_d_max = tf.placeholder(t.my_tf_float, name="d_max", shape=())
 
 global_step = tf.train.get_or_create_global_step()
-summary_writer = tf.contrib.summary.create_file_writer(os.path.join(tensorboard_log_dir, tensorboard_name),
+summary_writer = tf.contrib.summary.create_file_writer(os.path.join(params.tensorboard_log_dir, params.tensorboard_name),
                                                        flush_millis=20000)
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
 with summary_writer.as_default(), tf.contrib.summary.record_summaries_every_n_global_steps(step_per_summary, global_step):
-    device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
+    device = '/cpu:0' if params.use_gpu == 'n' else '/gpu:{}'.format(params.use_gpu)
     with tf.device(device):
         tf.contrib.summary.image("input_images", pl_input_images)
 
@@ -162,14 +154,16 @@ with summary_writer.as_default(), tf.contrib.summary.record_summaries_every_n_gl
 
         tf.contrib.summary.scalar("loss", loss)
 
-    for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
-        tf.contrib.summary.histogram(variable.name, variable)
+    if params.verbose_summary:
+        for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
+            tf.contrib.summary.histogram(variable.name, variable)
 
     optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
     grads_and_vars = optimizer.compute_gradients(loss)
 
-    for grad, var in grads_and_vars:
-        tf.contrib.summary.histogram("gradient/" + var.name, grad)
+    if params.verbose_summary:
+        for grad, var in grads_and_vars:
+            tf.contrib.summary.histogram("gradient/" + var.name, grad)
 
     # Gradient clipping
     # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
@@ -216,9 +210,8 @@ print("Image2Latex Start training...")
 config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
 with tf.Session(config=config) as sess:
     summary_writer.set_as_default()
-    if start_epoch != -1:
-        saver.restore(sess, save_format.format(start_epoch))
-        start_epoch = -1
+    if params.start_epoch != 0:
+        saver.restore(sess, save_format.format(params.start_epoch))
     else:
         tf.global_variables_initializer().run()
     predictor = create_predictor(sess,
@@ -229,7 +222,7 @@ with tf.Session(config=config) as sess:
                                  encoding_vb, decoding_vb, k=10, max_length=10)
 
     tf.contrib.summary.initialize(graph=tf.get_default_graph())
-    for epoch in range(epochs):
+    for epoch in range(params.start_epoch, epochs):
         print("Staring epoch {}".format(epoch + 1))
 
         generator.reset()
