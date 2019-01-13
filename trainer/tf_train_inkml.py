@@ -24,7 +24,7 @@ set_random_seed(1337)
 
 parameter_count = True
 overfit_testing = False
-epoch_per_validation = 10
+epoch_per_validation = 1
 
 date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
 folder_str = 'model-inkml-' + date_str
@@ -50,7 +50,7 @@ start_time = datetime.now()
 
 batch_size = 10
 step_per_summary = int(math.ceil(100 / batch_size))
-epochs = 1000
+epochs = 50
 # levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(params.data_base_dir, "vocabulary.pkl"))
@@ -177,15 +177,13 @@ with tf.name_scope("accuracy"):
 saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
-no_summary_per_epoch = 10
+no_summary_per_epoch = 40
 summary_step = math.floor(generator.steps() / no_summary_per_epoch)
 patience = 10
 save_epoch = 50
 bad_counter = 0
 best_wer = 999999
 best_exp_rate = -1
-# level = 0
-# level = 4
 
 r_max_val_init = 1
 d_max_val_init = 0
