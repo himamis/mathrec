@@ -174,7 +174,7 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         if self.summarize:
             resized_alpha = tf.image.resize_area(alpha, tf.shape(self.input_images)[1:3])
             attention_images = resized_alpha * self.input_images
-            tf.summary.image("attention_images", attention_images)
+            tf.contrib.summary.image("attention_images", attention_images)
             # alpha_image = resized_alpha * 255
             # tf.summary.image("attention", resized_alpha * 255)
             # tf.summary.histogram("alpha", alpha)
