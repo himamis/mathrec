@@ -600,7 +600,7 @@ def single_token_generator():
     return RandomGenerator(generators)
 
 
-def simple_number_operation_generator():
+def simple_number_operation_generator() -> GibberishGenerator:
     numbers = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-', '+']
     token = RandomTokenGenerator(c(numbers))
     return GibberishGenerator([token], 1, 6, 0)

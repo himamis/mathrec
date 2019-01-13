@@ -164,6 +164,10 @@ class TokenDataGenerator(BaseGenerator):
             image = self._augmentor.grayscale(image)
             image = 255 - image
 
+            # Add random paddings
+            top, bottom, left, right = np.random.randint(0, 14, 4)
+            image = utils.pad_image(image, top, left, bottom, right, 0, 1, operation=cv2.bitwise_or)
+
             images.append(image)
             labels.append(tokens)
 

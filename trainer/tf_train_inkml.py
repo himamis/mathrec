@@ -17,13 +17,15 @@ from trainer import params
 
 from tensorflow import set_random_seed
 import tensorflow as tf
+import numpy as np
 
 random.seed(1337)
 seed(1337)
 set_random_seed(1337)
 
 parameter_count = True
-overfit_testing = False
+overfit_testing = True
+token_generator = True
 epoch_per_validation = 1
 
 date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -50,7 +52,7 @@ start_time = datetime.now()
 
 batch_size = 10
 step_per_summary = int(math.ceil(100 / batch_size))
-epochs = 200
+epochs = 600
 # levels = 5
 decay = 1e-4
 encoding_vb, decoding_vb = utils.read_pkl(path.join(params.data_base_dir, "vocabulary.pkl"))
@@ -75,12 +77,14 @@ if overfit_testing:
     image_valid = image
     truth_valid = truth
 
-    gen = simple_number_operation_generator()
-    conf = Config()
-    parser = Parser(create_graphics_factory(os.path.join(params.data_base_dir, 'tokengroup.pkl')))
-    generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
+    if token_generator:
+        gen = simple_number_operation_generator()
+        conf = Config()
+        parser = Parser(create_graphics_factory(os.path.join(params.data_base_dir, 'tokengroup.pkl')))
+        generator = TokenDataGenerator(gen, parser, conf, encoding_vb, batch_size, 10)
+    else:
+        generator = DataGenerator(image, truth, encoding_vb, batch_size)
     generator_valid = DataGenerator(image, truth, encoding_vb, 1)
-    # generator = DataGenerator(image, truth, encoding_vb, batch_size)
 
 image_width = None
 image_height = None
@@ -178,7 +182,7 @@ saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
 no_summary_per_epoch = 40
-summary_step = math.floor(generator.steps() / no_summary_per_epoch)
+summary_step = max(math.floor(generator.steps() / no_summary_per_epoch), 1)
 patience = 10
 bad_counter = 0
 best_wer = 999999
@@ -223,7 +227,19 @@ with tf.Session(config=config) as sess:
 
         generator.reset()
         for step in range(generator.steps()):
+
+            # Generate same lengths per batch
+            if overfit_testing and token_generator:
+                length = np.random.randint(1, 7)
+                gen.min_length = length
+                gen.max_length = length + 1
+
             image, label, observation, masks, label_masks = generator.next_batch()
+
+            # import cv2
+            # cv2.imshow("image", image[0])
+            # cv2.waitKey(0)
+
             feed_dict = {
                 pl_input_images: image,
                 pl_input_characters: observation,
@@ -243,8 +259,8 @@ with tf.Session(config=config) as sess:
 
             print("Loss: {}, Acc: {}".format(vloss, vacc))
 
-            from_epoch = 250
-            until_epoch = 500
+            from_epoch = 200
+            until_epoch = 400
             diff = max(min((epoch - from_epoch) / (until_epoch - from_epoch), 1), 0)
             r_max_val = r_max_val_init + 2 * diff
             d_max_val = d_max_val_init + 5 * diff
