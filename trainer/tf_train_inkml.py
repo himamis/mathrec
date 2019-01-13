@@ -177,7 +177,7 @@ with tf.name_scope("accuracy"):
 saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
-no_summary_per_epoch = 2
+no_summary_per_epoch = 10
 summary_step = math.floor(generator.steps() / no_summary_per_epoch)
 patience = 10
 save_epoch = 50
