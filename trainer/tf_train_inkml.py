@@ -48,7 +48,7 @@ if params.ckpt_dir is not None:
 
 start_time = datetime.now()
 
-batch_size = 32
+batch_size = 10
 step_per_summary = int(math.ceil(100 / batch_size))
 epochs = 1000
 # levels = 5
