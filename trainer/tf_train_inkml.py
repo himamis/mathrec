@@ -244,9 +244,6 @@ with tf.Session(config=config) as sess:
             else:
                 vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=feed_dict)
 
-            # vloss, vacc, _, _, vglobal_step = sess.run([loss, accuracy, tf.summary.all_summary_ops(),
-            #                                            train, global_step], feed_dict=feed_dict)
-
             print("Loss: {}, Acc: {}".format(vloss, vacc))
 
             from_epoch = 250
@@ -284,11 +281,11 @@ with tf.Session(config=config) as sess:
         valid_avg_wer_summary.value[0].simple_value = avg_wer
         valid_avg_acc_summary.value[0].simple_value = avg_acc
         valid_avg_exp_rate_summary.value[0].simple_value = avg_exp_rate
-        if summary_writer is not None:
-            summary_writer.add_summary(valid_avg_wer_summary, epoch)
-            summary_writer.add_summary(valid_avg_acc_summary, epoch)
-            summary_writer.add_summary(valid_avg_exp_rate_summary, epoch)
-            summary_writer.flush()
+        if writer is not None:
+            writer.add_summary(valid_avg_wer_summary, epoch)
+            writer.add_summary(valid_avg_acc_summary, epoch)
+            writer.add_summary(valid_avg_exp_rate_summary, epoch)
+            writer.flush()
 
         improved = False
 
