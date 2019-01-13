@@ -17,6 +17,9 @@ elif [ $2 == "4" ] ; then
 elif [ $2 == "2" ] ; then
     PROJECT_ID="true-eye-223916"
     BUCKET_NAME="image2latex3"
+elif [ $2 == "1" ] ; then
+    PROJECT_ID="image2latex"
+    BUCKET_NAME="image2latex-mlengine"
 else
     echo "Unknown project index"
     exit 1
@@ -49,7 +52,7 @@ echo "Job: "$JOB_NAME" running on: "$OUTPUT_PATH
 gcloud config set project $PROJECT_ID
 gcloud ml-engine jobs submit training $JOB_NAME \
     --job-dir $OUTPUT_PATH \
-    --runtime-version 1.9\
+    --runtime-version 1.12\
     --module-name trainer.tf_train_inkml \
     --package-path trainer/ \
     --region $REGION \

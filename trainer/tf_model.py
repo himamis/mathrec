@@ -327,7 +327,7 @@ class Model:
         self.decoder_units = decoder_units
         self.embedding_dim = embedding_dim
         self._encoder = DenseNetCreator(data_format='channels_last',
-                                        efficient=False, growth_rate=12,
+                                        efficient=True, growth_rate=12,
                                         include_top=False,
                                         bottleneck=True,
                                         dropout_rate=0.2,

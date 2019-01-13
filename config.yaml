@@ -1,7 +1,7 @@
 trainingInput:
     scaleTier: CUSTOM
-    masterType: standard_v100
+#    masterType: standard_v100
     #masterType: standard
-    #masterType: standard_gpu
+    masterType: standard_gpu
     #masterType: standard_p100
     pythonVersion: "3.5"
