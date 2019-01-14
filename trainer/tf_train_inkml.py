@@ -27,7 +27,7 @@ set_random_seed(1337)
 parameter_count = True
 overfit_testing = False
 token_generator = True
-measure_time = True
+measure_time = False
 epoch_per_validation = 1
 
 date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -219,7 +219,7 @@ with tf.Session(config=config) as sess:
                                  (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas),
                                  (pl_input_characters),
                                  (eval_output_softmax, states_h, states_alpha),
-                                 encoding_vb, decoding_vb, k=10, max_length=10)
+                                 encoding_vb, decoding_vb, k=100, max_length=100)
 
     writer = tf.summary.FileWriter(os.path.join(params.tensorboard_log_dir, params.tensorboard_name))
     writer.add_graph(sess.graph)
@@ -274,8 +274,8 @@ with tf.Session(config=config) as sess:
 
             print("Loss: {}, Acc: {}".format(vloss, vacc))
 
-            from_epoch = 200
-            until_epoch = 400
+            from_epoch = 40
+            until_epoch = 80
             diff = max(min((epoch - from_epoch) / (until_epoch - from_epoch), 1), 0)
             r_max_val = r_max_val_init + 2 * diff
             d_max_val = d_max_val_init + 5 * diff
