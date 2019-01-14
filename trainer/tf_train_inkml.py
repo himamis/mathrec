@@ -14,6 +14,7 @@ from generator import simple_number_operation_generator, Config
 from token_parser import Parser
 from inkml_graphics import create_graphics_factory
 from trainer import params
+import time
 
 from tensorflow import set_random_seed
 import tensorflow as tf
@@ -26,6 +27,7 @@ set_random_seed(1337)
 parameter_count = True
 overfit_testing = False
 token_generator = True
+measure_time = True
 epoch_per_validation = 1
 
 date_str = datetime.now().strftime("%Y-%m-%d_%H:%M:%S")
@@ -234,7 +236,14 @@ with tf.Session(config=config) as sess:
                 gen.min_length = length
                 gen.max_length = length + 1
 
+            # Measure runtime
+            if measure_time:
+                start_time = time.time()
+
             image, label, observation, masks, label_masks = generator.next_batch()
+
+            if measure_time:
+                print("Data fetch \t %s \t seconds" % (time.time() - start_time))
 
             # import cv2
             # cv2.imshow("image", image[0])
@@ -251,11 +260,17 @@ with tf.Session(config=config) as sess:
                 pl_d_max: d_max_val
             }
 
+            if measure_time:
+                start_time = time.time()
+
             if global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=feed_dict)
                 writer.add_summary(s, global_step)
             else:
                 vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=feed_dict)
+
+            if measure_time:
+                print("Training step \t %s \t seconds" % (time.time() - start_time))
 
             print("Loss: {}, Acc: {}".format(vloss, vacc))
 
