@@ -1,8 +1,7 @@
 import tensorflow as tf
 
-from tensorflow.layers import average_pooling2d, conv2d, dense, dropout, max_pooling2d
+from tensorflow.layers import average_pooling2d, conv2d, dense, dropout, max_pooling2d, batch_normalization
 from tensorflow.keras.layers import concatenate, GlobalAveragePooling2D
-from tensorflow.contrib.layers import batch_norm as batch_normalization
 
 
 def bn_relu(ip, **kwargs):
@@ -204,28 +203,17 @@ class DenseNetCreator:
 
     def __call__(self, input_images, image_mask, is_training, r_max, d_max, **kwargs):
         self.training = is_training
-        # self.bn_kwargs = {'fused': False,
-        #                   'training': self.training,
-        #                   'trainable': True,
-        #                   'scale': False,
-        #                   'renorm': True,
-        #                   'momentum': 0.9,
-        #                   'renorm_momentum': 0.9,
-        #                   'renorm_clipping': {'rmax': r_max,
-        #                                       'rmin': 1/r_max,
-        #                                       'dmax': d_max}
-        #                   }
-        self.bn_kwargs = { 'fused': False,
-                           'is_training': self.training,
-                           'trainable': True,
-                           'scale': False,
-                           'renorm': True,
-                           'decay': 0.9,
-                           'renorm_decay': 0.9,
-                           'renorm_clipping': { 'rmax': r_max,
-                                                'rmin': 1 / r_max,
-                                                'dmax': d_max }
-                           }
+        self.bn_kwargs = {'fused': False,
+                          'training': self.training,
+                          'trainable': True,
+                          'scale': False,
+                          'renorm': True,
+                          'momentum': 0.9,
+                          'renorm_momentum': 0.9,
+                          'renorm_clipping': {'rmax': r_max,
+                                              'rmin': 1/r_max,
+                                              'dmax': d_max}
+                          }
         x = (input_images - 127) / 128
         m = image_mask
 
