@@ -284,7 +284,7 @@ class AttentionDecoder:
             else:
                 rnn_cell = tf.nn.rnn_cell.GRUCell(self.units)
         else:
-            rnn_cell = tf.contrib.cudnn_rnn.CudnnGRU(self.units)
+            rnn_cell = tf.contrib.cudnn_rnn.CudnnCompatibleGRUCell(self.units)
 
         rnn_cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grid,
                                     image_masks, self.dense_initializer, self.dense_bias_initializer,
