@@ -3,6 +3,7 @@ import trainer.tf_initializers as tfi
 import trainer.default_type as t
 from trainer.dense_net_creator import DenseNetCreator, selu, bn_relu
 from trainer.tf_summary import gif_summary_v2
+from trainer import params
 
 
 def default_cnn_block(**kwargs):
@@ -277,7 +278,13 @@ class AttentionDecoder:
         self.lstm_recurrent_kernel_initializer = lstm_recurrent_kernel_initializer
 
     def __call__(self, feature_grid, image_masks, inputs, init_h, init_alphas, summarize=False, input_images=None):
-        rnn_cell = tf.nn.rnn_cell.GRUCell(self.units)
+        if params.use_gpu == "n":
+            if params.use_new_rnn:
+                rnn_cell = tf.contrib.rnn.GRUBlockCellV2(self.units)
+            else:
+                rnn_cell = tf.nn.rnn_cell.GRUCell(self.units)
+        else:
+            rnn_cell = tf.contrib.cudnn_rnn.CudnnGRU(self.units)
 
         rnn_cell = AttentionWrapper(rnn_cell, self.att_dim, self.units, feature_grid,
                                     image_masks, self.dense_initializer, self.dense_bias_initializer,
