@@ -1,7 +1,8 @@
 import tensorflow as tf
 
-from tensorflow.layers import average_pooling2d, batch_normalization, conv2d, dense, dropout, max_pooling2d
+from tensorflow.layers import average_pooling2d, conv2d, dense, dropout, max_pooling2d
 from tensorflow.keras.layers import concatenate, GlobalAveragePooling2D
+from tensorflow.contrib.layers import batch_norm as batch_normalization
 
 
 def bn_relu(ip, **kwargs):
