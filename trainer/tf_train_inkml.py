@@ -24,7 +24,7 @@ seed(1337)
 set_random_seed(1337)
 
 parameter_count = True
-overfit_testing = True
+overfit_testing = False
 token_generator = True
 epoch_per_validation = 1
 
