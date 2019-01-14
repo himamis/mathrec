@@ -103,7 +103,7 @@ pl_d_max = tf.placeholder(t.my_tf_float, name="d_max", shape=())
 print("Image2Latex: Start create model: {}".format(str(datetime.now().time())))
 device = '/cpu:0' if params.use_gpu == 'n' else '/gpu:{}'.format(params.use_gpu)
 with tf.device(device):
-    tf.summary.image("input_images", pl_input_images)
+    # tf.summary.image("input_images", pl_input_images)
 
     model = tf_model.Model(len(encoding_vb),
                            # filter_sizes=[32, 64],
