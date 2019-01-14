@@ -205,7 +205,7 @@ class DenseNetCreator:
     def __call__(self, input_images, image_mask, is_training, r_max, d_max, **kwargs):
         self.training = is_training
         self.bn_kwargs = {'fused': False,
-                          'training': self.training,
+                          'is_training': self.training,
                           'trainable': True,
                           'scale': False,
                           'renorm': True,
