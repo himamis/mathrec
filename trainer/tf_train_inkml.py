@@ -208,7 +208,7 @@ level_summary.value.add(tag="level", simple_value=None)
 print("Image2Latex Start training...")
 
 global_step = 1
-config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=True)
+config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=False)
 with tf.Session(config=config) as sess:
     if params.start_epoch != 0:
         saver.restore(sess, save_format.format(params.start_epoch))
