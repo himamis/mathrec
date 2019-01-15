@@ -192,14 +192,7 @@ merged_summary = tf.summary.merge_all()
 no_summary_per_epoch = 40
 summary_step = max(math.floor(generator.steps() / no_summary_per_epoch), 1)
 patience = 10
-bad_counter = 0
-best_wer = 999999
 best_exp_rate = -1
-
-r_max_val_init = 1
-d_max_val_init = 0
-r_max_val = r_max_val_init
-d_max_val = d_max_val_init
 
 valid_avg_wer_summary = tf.Summary()
 valid_avg_acc_summary = tf.Summary()
@@ -214,7 +207,15 @@ level_summary.value.add(tag="level", simple_value=None)
 
 def main_training(sess: tf.Session, pctx, opts):
     """ Main function that runs the training"""
+
+    # Initialize some variables
     global_step = 1
+    r_max_val_init = 1
+    d_max_val_init = 0
+    r_max_val = r_max_val_init
+    d_max_val = d_max_val_init
+    bad_counter = 0
+    best_wer = 999999
 
     if params.start_epoch != 0:
         saver.restore(sess, save_format.format(params.start_epoch))
