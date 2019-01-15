@@ -358,7 +358,7 @@ print("Image2Latex Start training...")
 builder = tf.profiler.ProfileOptionBuilder
 opts = builder(builder.time_and_memory()).order_by('micros').build()
 with tf.contrib.tfprof.ProfileContext(params.profiling, enabled=params.profiling != 'n') as pctx:
-    config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=params.allow_soft_placement)
+    config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=params.allow_soft_placement)
     with tf.Session(config=config) as sess:
         main_training(sess, pctx, opts)
 
