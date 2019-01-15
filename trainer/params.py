@@ -19,3 +19,4 @@ git_hexsha = parse_arg('--git-hexsha', 'NAN')
 
 verbose_summary = _parse_boolean('--verbose-summary', default=False)
 use_new_rnn = _parse_boolean('--new-rnn', default=False)
+allow_soft_placement = _parse_boolean('--allow-soft-placement', default=False)
