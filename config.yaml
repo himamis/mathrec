@@ -1,6 +1,8 @@
 trainingInput:
     scaleTier: CUSTOM
+    # More expensive
 #    masterType: standard_v100
     masterType: standard_gpu
+    # Less expensive
 #    masterType: standard_p100
     pythonVersion: "3.5"

@@ -15,6 +15,7 @@ model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/tf_mod
 tensorboard_log_dir = parse_arg('--tb', None, required=False)
 tensorboard_name = parse_arg('--tbn', "adam", required=False)
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
+profiling = parse_arg('--profiling', default='n', required=False)
 
 
 verbose_summary = _parse_boolean('--verbose-summary', default=False)

@@ -49,10 +49,9 @@ if params.ckpt_dir is not None:
 #if not path.exists(base_dir):
 #    os.mkdir(base_dir)
 
-
 start_time = datetime.now()
 
-batch_size = 10
+batch_size = 6
 step_per_summary = int(math.ceil(100 / batch_size))
 epochs = 600
 # levels = 5
@@ -212,11 +211,11 @@ valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=None)
 valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=None)
 level_summary.value.add(tag="level", simple_value=None)
 
-print("Image2Latex Start training...")
 
-global_step = 1
-config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=params.allow_soft_placement)
-with tf.Session(config=config) as sess:
+def main_training(sess: tf.Session, pctx, opts):
+    """ Main function that runs the training"""
+    global_step = 1
+
     if params.start_epoch != 0:
         saver.restore(sess, save_format.format(params.start_epoch))
     else:
@@ -270,11 +269,18 @@ with tf.Session(config=config) as sess:
             if measure_time:
                 start_time = time.time()
 
+            # Enable tracing for next session.run.
+            pctx.trace_next_step()
+            # Dump the profile after the step.
+            pctx.dump_next_step()
+
             if global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=feed_dict)
                 writer.add_summary(s, global_step)
             else:
                 vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=feed_dict)
+
+            pctx.profiler.profile_operations(options=opts)
 
             if measure_time:
                 print("Training step \t %s \t seconds" % (time.time() - start_time))
@@ -345,4 +351,19 @@ with tf.Session(config=config) as sess:
             break
 
         generator_valid.reset()
+
+if params.profiling != 'n':
+    builder = tf.profiler.ProfileOptionBuilder
+    opts = builder(builder.time_and_memory()).order_by('micros').build()
+    profiling_context = tf.contrib.tfprof.ProfileContext(params.profiling)
+    profiling_context
+
+print("Image2Latex Start training...")
+
+builder = tf.profiler.ProfileOptionBuilder
+opts = builder(builder.time_and_memory()).order_by('micros').build()
+with tf.contrib.tfprof.ProfileContext(params.profiling, enabled=params.profiling != 'n') as pctx:
+    config = tf.ConfigProto(log_device_placement=True, allow_soft_placement=params.allow_soft_placement)
+    with tf.Session(config=config) as sess:
+        main_training(sess, pctx, opts)
 
