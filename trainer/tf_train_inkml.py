@@ -147,40 +147,47 @@ print("Image2Latex: End create model: {}".format(str(datetime.now().time())))
 pl_y_tensor = tf.placeholder(dtype=tf.int32, shape=(batch_size, None), name="y_labels")
 pl_sequence_masks = tf.placeholder(dtype=t.my_tf_float, shape=(batch_size, None), name="y_labels_masks")
 
-with tf.name_scope("loss"):
-    loss = tf.contrib.seq2seq.sequence_loss(output, pl_y_tensor, pl_sequence_masks)
+with tf.device(device):
+    with tf.name_scope("loss"):
+        loss = tf.contrib.seq2seq.sequence_loss(output, pl_y_tensor, pl_sequence_masks)
 
-    # L2 regularization
-    for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-        if not "batch_norm" in variable.name:
-            loss += decay * tf.reduce_sum(tf.pow(variable, 2))
+        # L2 regularization
+        for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+            if not "batch_norm" in variable.name:
+                loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
+with tf.device('/cpu:0'):
     tf.summary.scalar("loss", loss)
 
-if params.verbose_summary:
-    for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
-        tf.summary.histogram(variable.name, variable)
+    if params.verbose_summary:
+        for variable in tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES):
+            tf.summary.histogram(variable.name, variable)
 
-optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
-grads_and_vars = optimizer.compute_gradients(loss)
+with tf.device(device):
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+    grads_and_vars = optimizer.compute_gradients(loss)
 
-if params.verbose_summary:
-    for grad, var in grads_and_vars:
-        tf.summary.histogram("gradient/" + var.name, grad)
+    with tf.device('/cpu:0'):
+        if params.verbose_summary:
+            for grad, var in grads_and_vars:
+                tf.summary.histogram("gradient/" + var.name, grad)
 
-# Gradient clipping
-grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
-update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-with tf.control_dependencies(update_ops):
-    train = optimizer.apply_gradients(grads_and_vars)
+    # Gradient clipping
+    grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
+    update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+    with tf.control_dependencies(update_ops):
+        train = optimizer.apply_gradients(grads_and_vars)
 
-with tf.name_scope("accuracy"):
-    result = tf.argmax(tf.nn.softmax(output), output_type=tf.int32, axis=2)
+    with tf.name_scope("accuracy"):
+        result = tf.argmax(tf.nn.softmax(output), output_type=tf.int32, axis=2)
 
-    accuracy = tf.contrib.metrics.accuracy(result, pl_y_tensor, pl_sequence_masks)
-    tf.summary.scalar("accuracy", accuracy)
+        accuracy = tf.contrib.metrics.accuracy(result, pl_y_tensor, pl_sequence_masks)
 
-saver = tf.train.Saver()
+        with tf.device('/cpu:0'):
+            tf.summary.scalar("accuracy", accuracy)
+
+with tf.device('/cpu:0'):
+    saver = tf.train.Saver()
 
 merged_summary = tf.summary.merge_all()
 no_summary_per_epoch = 40
