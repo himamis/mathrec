@@ -107,7 +107,8 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
                                                shape=[1], dtype=t.my_tf_float)
 
         # Can be precomputed
-        self.watch_vector = tf.tensordot(self.feature_grid, self.attention_u, axes=1) + self.attention_u_b  # [batch, h, w, dim_attend]
+        # [batch, h, w, dim_attend]
+        self.watch_vector = tf.einsum('bhwc,cf->bhwf', self.feature_grid, self.attention_u) + self.attention_u_b
 
         self.attention_w = tf.get_variable(name="decoder_attention_w",
                                            initializer=dense_initializer,
@@ -152,14 +153,15 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
 
         # Coverage vector
         ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
-        coverage_vector = tf.tensordot(ft, self.u_f, axes=1) + self.u_f_b
+        coverage_vector = tf.einsum('bhwc,cf->bhwf', ft, self.u_f) + self.u_f_b
 
         # context vector
-        speller_vector = tf.tensordot(h_tm1, self.attention_w, axes=1) + self.attention_w_b
+        speller_vector = tf.matmul(h_tm1, self.attention_w) + self.attention_w_b
 
         # tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
         tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)  # [batch, h, w, dim_attend]
-        e_ti = tf.tensordot(tanh_vector, self.attention_v_a, axes=1) + self.attention_v_a_b  # [batch, h, w, 1]
+        # e_ti = tf.tensordot(tanh_vector, self.attention_v_a, axes=1) + self.attention_v_a_b  # [batch, h, w, 1]
+        e_ti = tf.einsum('bhwc,cf->bhwf', tanh_vector, self.attention_v_a) + self.attention_v_a_b # [batch, h, w, 1]
         alpha = tf.exp(e_ti)
         alpha = alpha * self.image_masks
         alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
@@ -172,10 +174,10 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
 
         ret_state = [new_state, betas]
 
-        if self.summarize:
-            resized_alpha = tf.image.resize_area(alpha, tf.shape(self.input_images)[1:3])
-            attention_images = resized_alpha * self.input_images
-            tf.contrib.summary.image("attention_images", attention_images)
+        # if self.summarize:
+            # resized_alpha = tf.image.resize_area(alpha, tf.shape(self.input_images)[1:3])
+            # attention_images = resized_alpha * self.input_images
+            # tf.contrib.summary.image("attention_images", attention_images)
             # alpha_image = resized_alpha * 255
             # tf.summary.image("attention", resized_alpha * 255)
             # tf.summary.histogram("alpha", alpha)
@@ -409,6 +411,8 @@ class Model:
                                             inputs=embedded_characters, init_h=init_h, init_alphas=init_alphas,
                                             summarize=summarize, input_images=input_images)
 
-            output = tf.layers.dense(outputs, self.vocabulary_size - 1, activation=None, name="output")
+            dense_kernel = tf.get_variable(name="kernel_output_dense", dtype=t.my_tf_float,
+                                            shape=[self.decoder_units, self.vocabulary_size - 1])
+            output = tf.einsum("btf,fv->btv", outputs, dense_kernel, name="output")
 
         return output, states
