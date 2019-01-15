@@ -352,11 +352,6 @@ def main_training(sess: tf.Session, pctx, opts):
 
         generator_valid.reset()
 
-if params.profiling != 'n':
-    builder = tf.profiler.ProfileOptionBuilder
-    opts = builder(builder.time_and_memory()).order_by('micros').build()
-    profiling_context = tf.contrib.tfprof.ProfileContext(params.profiling)
-    profiling_context
 
 print("Image2Latex Start training...")
 
