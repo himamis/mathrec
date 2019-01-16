@@ -91,8 +91,12 @@ image_width = None
 image_height = None
 batch_size = None
 
-pl_input_images = tf.placeholder(t.my_tf_float, shape=(batch_size, image_width, image_height, 1), name="input_images")
-pl_image_masks = tf.placeholder(t.my_tf_float, shape=(batch_size, image_width, image_height, 1), name="input_image_masks")
+input_image_shape = (batch_size, image_width, image_height, 1)
+if params.data_format != 'channels_last':
+    input_image_shape = (batch_size, 1, image_width, image_height)
+
+pl_input_images = tf.placeholder(t.my_tf_float, shape=input_image_shape, name="input_images")
+pl_image_masks = tf.placeholder(t.my_tf_float, shape=input_image_shape, name="input_image_masks")
 pl_input_characters = tf.placeholder(tf.int32, shape=(batch_size, None), name="input_characters")
 pl_is_training = tf.placeholder(tf.bool, name="is_training")
 

@@ -16,6 +16,10 @@ tensorboard_log_dir = parse_arg('--tb', None, required=False)
 tensorboard_name = parse_arg('--tbn', "adam", required=False)
 git_hexsha = parse_arg('--git-hexsha', 'NAN')
 profiling = parse_arg('--profiling', default='n', required=False)
+data_format = parse_arg('--data-format', default='channels_last')
+if use_gpu == 'n':
+    data_format = 'channels_last'
+    print('Changing data_format because cpu is used')
 
 
 verbose_summary = _parse_boolean('--verbose-summary', default=False)

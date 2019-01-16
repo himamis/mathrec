@@ -83,9 +83,15 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
                  input_images=None, summarize=False):
         super(AttentionWrapper, self).__init__()
         self.cell = cell
-        self.feature_grid_dim = feature_grid.shape[3]
+        self.feature_grid_dim = feature_grid.shape[1] if params.data_format != 'channels_last' else feature_grid.shape[3]
         self.feature_grid = feature_grid
         self.image_masks = image_masks
+        self.att_dim = att_dim
+        self.conv_einsum = 'bhwc,cf->bhwf'
+        self.conv_features = [1, 2]
+        if params.data_format != 'channels_last':
+            self.conv_einsum = 'bchw,cf->bfhw'
+            self.conv_features = [2, 3]
 
         self.u_f = tf.get_variable(name="u_f", initializer=tf.initializers.random_normal,
                                    shape=(att_dim, att_dim), dtype=t.my_tf_float)
@@ -108,7 +114,7 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
 
         # Can be precomputed
         # [batch, h, w, dim_attend]
-        self.watch_vector = tf.einsum('bhwc,cf->bhwf', self.feature_grid, self.attention_u) + self.attention_u_b
+        self.watch_vector = tf.einsum(self.conv_einsum, self.feature_grid, self.attention_u) + self.attention_u_b
 
         self.attention_w = tf.get_variable(name="decoder_attention_w",
                                            initializer=dense_initializer,
@@ -116,9 +122,6 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         self.attention_w_b = tf.get_variable(name="decoder_attention_w_b",
                                              initializer=dense_bias_initializer,
                                              shape=[att_dim], dtype=t.my_tf_float)
-
-        # Past attention probabilities
-        self.alpha_past_filter = tf.get_variable(name="alpha_past_filter", shape=(3, 3, 1, att_dim))
 
         self.input_images = input_images
         self.summarize = summarize
@@ -148,25 +151,29 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         else:
             h_tm1 = state
         betas = state[1]
+
         # if self.summarize:
         #     alphas = state[2]
 
         # Coverage vector
-        ft = tf.nn.conv2d(betas, filter=self.alpha_past_filter, strides=[1, 1, 1, 1], padding="SAME")
-        coverage_vector = tf.einsum('bhwc,cf->bhwf', ft, self.u_f) + self.u_f_b
+        ft = tf.layers.conv2d(betas, self.att_dim, strides=(1, 1), padding='SAME', data_format=params.data_format,
+                              kernel_size=(3, 3))
+        coverage_vector = tf.einsum(self.conv_einsum, ft, self.u_f) + self.u_f_b
 
         # context vector
         speller_vector = tf.matmul(h_tm1, self.attention_w) + self.attention_w_b
 
         # tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
-        tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)  # [batch, h, w, dim_attend]
-        # e_ti = tf.tensordot(tanh_vector, self.attention_v_a, axes=1) + self.attention_v_a_b  # [batch, h, w, 1]
-        e_ti = tf.einsum('bhwc,cf->bhwf', tanh_vector, self.attention_v_a) + self.attention_v_a_b # [batch, h, w, 1]
+        # [batch] + params.data_format
+        tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)
+
+        # [batch, h, w, 1]
+        e_ti = tf.einsum(self.conv_einsum, tanh_vector, self.attention_v_a) + self.attention_v_a_b
         alpha = tf.exp(e_ti)
         alpha = alpha * self.image_masks
-        alpha = alpha / tf.reduce_sum(alpha, axis=[1, 2], keepdims=True)
+        alpha = alpha / tf.reduce_sum(alpha, axis=self.conv_features, keepdims=True)
         # ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
-        ctx = tf.reduce_sum(self.feature_grid * alpha, axis=[1, 2])
+        ctx = tf.reduce_sum(self.feature_grid * alpha, axis=self.conv_features)
         betas = betas + alpha
 
         cell_input = tf.concat([inputs, ctx], 1)
@@ -335,7 +342,10 @@ class Model:
             filter_sizes = [64, 128, 256, 512]
         self.decoder_units = decoder_units
         self.embedding_dim = embedding_dim
-        self._encoder = DenseNetCreator(data_format='channels_last',
+        self.conv_features = [1, 2]
+        if params.data_format != 'channels_last':
+            self.conv_features = [2, 3]
+        self._encoder = DenseNetCreator(data_format=params.data_format,
                                         efficient=True, growth_rate=12,
                                         include_top=False,
                                         bottleneck=True,
@@ -389,14 +399,20 @@ class Model:
     def calculate_decoder_init(self, feature_grid, image_masks):
         with tf.name_scope("decoder_initializer"):
             if image_masks is not None:
-                encoded_mean = tf.reduce_sum(feature_grid * image_masks, axis=[1, 2]) / \
-                               tf.reduce_sum(image_masks, axis=[1, 2])
+                encoded_mean = tf.reduce_sum(feature_grid * image_masks, axis=self.conv_features) / \
+                               tf.reduce_sum(image_masks, axis=self.conv_features)
             else:
-                encoded_mean = tf.reduce_mean(feature_grid, axis=[1, 2])
+                encoded_mean = tf.reduce_mean(feature_grid, axis=self.conv_features)
             calculate_h0 = tf.layers.dense(encoded_mean, activation=tf.nn.tanh, units=self.decoder_units)
 
-            shape = tf.shape(feature_grid[:, :, :, -1])
-            alpha_shape = tf.concat([shape, tf.ones(1, dtype=tf.int32)], axis=0)
+            one = tf.ones(1, dtype=tf.int32)
+            if params.data_format != 'channels_last':
+                batch_size = tf.shape(feature_grid[:, -1, -1, -1])
+                height_width = tf.shape(feature_grid[-1, -1, :, :])
+                alpha_shape = tf.concat([batch_size, one, height_width], axis=0)
+            else:
+                shape = tf.shape(feature_grid[:, :, :, -1])
+                alpha_shape = tf.concat([shape, one], axis=0)
             calculate_alphas = tf.zeros(alpha_shape, dtype=tf.float32)
 
         return calculate_h0, calculate_alphas

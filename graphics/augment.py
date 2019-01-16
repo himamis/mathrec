@@ -1,7 +1,8 @@
 import file_utils
 from graphics.utils import *
 import math
-from imgaug import augmenters as aa
+# from imgaug import augmenters as aa
+
 
 def _rotate_bound(image, angle):
     # grab the dimensions of the image and then determine the
@@ -37,15 +38,15 @@ class Augmentor:
             self.grid_images = [x for x in file_utils.list_files(grid_images) if x.lower().endswith(".jpg") or x.lower().endswith('jpeg')]
         self.grid_percentage = 0.7
         self.shadow_percentage = 0.5
-        self.pers = aa.PerspectiveTransform(scale=(0.01, 0.1))
-        self.noise = aa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255))
+        # self.pers = aa.PerspectiveTransform(scale=(0.01, 0.1))
+        # self.noise = aa.AdditiveGaussianNoise(loc=0, scale=(0.0, 0.05*255))
 
     def augment(self, image):
         image = self._background(image)
         image = self._shadow(image)
         image = self._blur(image)
         image = self._static(image)
-        image = self._grayscale(image)
+        image = self.grayscale(image)
         image = self._perspective(image)
         return image
 
@@ -119,10 +120,12 @@ class Augmentor:
         return shadow
 
     def _static(self, image):
-        return self.noise.augment_image(image)
+        return image
+        # return self.noise.augment_image(image)
 
     def grayscale(self, image):
         return np.expand_dims(cv2.cvtColor(image, cv2.COLOR_BGR2GRAY), 2)
 
     def _perspective(self, image):
-        return self.pers.augment_image(image)
+        return image
+        # return self.pers.augment_image(image)

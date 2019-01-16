@@ -3,6 +3,7 @@ from sklearn.utils import shuffle
 import numpy as np
 import cv2
 from graphics.augment import Augmentor
+from trainer import params
 
 
 def _normalize_images(images):
@@ -134,6 +135,9 @@ class DataGenerator(BaseImageGenerator):
         labels = _add_end_symbol(encoded_sequences, self._end_id)
         sequences, sequence_masks = _normalize_sequences(labels, self._end_id)
         observations = _create_observations(sequences, self._start_id)
+        if params.data_format != 'channels_last':
+            images = [np.moveaxis(image, 2, 0) for image in images]
+            image_masks = [np.moveaxis(mask, 2, 0) for mask in image_masks]
 
         return images, sequences, observations, image_masks, sequence_masks
 
