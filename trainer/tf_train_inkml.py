@@ -39,6 +39,8 @@ checkpoint_fname = 'checkpoint_epoch_{}.ckpt'
 
 
 folder_str = folder_str + '-' + params.tensorboard_name
+if params.restore_weights_dir is not None:
+    folder_str = params.restore_weights_dir
 base_dir = path.join(params.model_checkpoint_dir, folder_str)
 save_format = path.join(base_dir, checkpoint_fname)
 if params.gcs is not None:
