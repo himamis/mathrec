@@ -114,7 +114,11 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
 
         # Can be precomputed
         # [batch, h, w, dim_attend]
-        self.watch_vector = tf.einsum(self.conv_einsum, self.feature_grid, self.attention_u) + self.attention_u_b
+        self.watch_vector = tf.einsum(self.conv_einsum, self.feature_grid, self.attention_u)
+        if params.data_format != 'channels_last':
+            self.watch_vector += self.attention_u_b[:, None, None]
+        else:
+            self.watch_vector += self.attention_u_b
 
         self.attention_w = tf.get_variable(name="decoder_attention_w",
                                            initializer=dense_initializer,
@@ -157,8 +161,12 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
 
         # Coverage vector
         ft = tf.layers.conv2d(betas, self.att_dim, strides=(1, 1), padding='SAME', data_format=params.data_format,
-                              kernel_size=(3, 3))
-        coverage_vector = tf.einsum(self.conv_einsum, ft, self.u_f) + self.u_f_b
+                              kernel_size=(3, 3), use_bias=False)
+        coverage_vector = tf.einsum(self.conv_einsum, ft, self.u_f)
+        if params.data_format != 'channels_last':
+            coverage_vector += self.u_f_b[:, None, None]
+        else:
+            coverage_vector += self.u_f_b
 
         # context vector
         speller_vector = tf.matmul(h_tm1, self.attention_w) + self.attention_w_b
@@ -168,7 +176,11 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)
 
         # [batch, h, w, 1]
-        e_ti = tf.einsum(self.conv_einsum, tanh_vector, self.attention_v_a) + self.attention_v_a_b
+        e_ti = tf.einsum(self.conv_einsum, tanh_vector, self.attention_v_a)
+        if params.data_format != 'channels_last':
+            e_ti += self.attention_v_a_b[:, None, None]
+        else:
+            e_ti += self.attention_v_a_b
         alpha = tf.exp(e_ti)
         alpha = alpha * self.image_masks
         alpha = alpha / tf.reduce_sum(alpha, axis=self.conv_features, keepdims=True)
