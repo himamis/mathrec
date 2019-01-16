@@ -274,10 +274,11 @@ def main_training(sess: tf.Session, pctx, opts):
             if measure_time:
                 start_time = time.time()
 
-            # Enable tracing for next session.run.
-            pctx.trace_next_step()
-            # Dump the profile after the step.
-            pctx.dump_next_step()
+            if params.profiling != 'n':
+                # Enable tracing for next session.run.
+                pctx.trace_next_step()
+                # Dump the profile after the step.
+                pctx.dump_next_step()
 
             if global_step % summary_step == 0:
                 vloss, vacc, s, _ = sess.run([loss, accuracy, merged_summary, train], feed_dict=feed_dict)
@@ -285,7 +286,8 @@ def main_training(sess: tf.Session, pctx, opts):
             else:
                 vloss, vacc, _ = sess.run([loss, accuracy, train], feed_dict=feed_dict)
 
-            pctx.profiler.profile_operations(options=opts)
+            if params.profiling != 'n':
+                pctx.profiler.profile_operations(options=opts)
 
             if measure_time:
                 print("Training step \t %s \t seconds" % (time.time() - start_time))
