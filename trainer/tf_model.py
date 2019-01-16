@@ -173,7 +173,11 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
 
         # tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :])  # [batch, h, w, dim_attend]
         # [batch] + params.data_format
-        tanh_vector = tf.tanh(self.watch_vector + speller_vector[:, None, None, :] + coverage_vector)
+        if params.data_format != 'channels_last':
+            expanded_speller_vector = speller_vector[:, :, None, None]
+        else:
+            expanded_speller_vector = speller_vector[:, None, None, :]
+        tanh_vector = tf.tanh(self.watch_vector + expanded_speller_vector + coverage_vector)
 
         # [batch, h, w, 1]
         e_ti = tf.einsum(self.conv_einsum, tanh_vector, self.attention_v_a)
