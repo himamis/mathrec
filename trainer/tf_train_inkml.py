@@ -232,7 +232,7 @@ def main_training(sess: tf.Session, pctx, opts):
                                  (eval_feature_grid, eval_masking, eval_calculate_h0, eval_calculate_alphas),
                                  (pl_input_characters),
                                  (eval_output_softmax, states_h, states_alpha),
-                                 encoding_vb, decoding_vb, k=100, max_length=100)
+                                 encoding_vb, decoding_vb, k=10, max_length=300)
 
     writer = tf.summary.FileWriter(os.path.join(params.tensorboard_log_dir, params.tensorboard_name))
     writer.add_graph(sess.graph)
