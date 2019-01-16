@@ -221,7 +221,7 @@ def main_training(sess: tf.Session, pctx, opts):
     bad_counter = 0
     best_wer = 999999
 
-    if params.start_epoch != 0:
+    if params.start_epoch != -1:
         saver.restore(sess, save_format.format(params.start_epoch))
     else:
         tf.global_variables_initializer().run()
@@ -235,7 +235,7 @@ def main_training(sess: tf.Session, pctx, opts):
     writer = tf.summary.FileWriter(os.path.join(params.tensorboard_log_dir, params.tensorboard_name))
     writer.add_graph(sess.graph)
 
-    for epoch in range(params.start_epoch, epochs):
+    for epoch in range(params.start_epoch + 1, epochs):
         print("Staring epoch {}".format(epoch + 1))
 
         generator.reset()

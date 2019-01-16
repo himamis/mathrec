@@ -8,7 +8,7 @@ def _parse_boolean(name, required=False, default=False):
 
 gcs = parse_arg('--gcs', required=False)
 use_gpu = parse_arg('--gpu', default='n', required=False)
-start_epoch = int(parse_arg('--start-epoch', 0))
+start_epoch = int(parse_arg('--start-epoch', -1))
 ckpt_dir = parse_arg('--ckpt-dir', None, required=False)
 data_base_dir = parse_arg('--data-base-dir', '/Users/balazs/new_data')
 model_checkpoint_dir = parse_arg('--model-dir', '/Users/balazs/university/tf_model')
