@@ -25,8 +25,8 @@ seed(1337)
 set_random_seed(1337)
 
 parameter_count = True
-overfit_testing = False
-token_generator = True
+overfit_testing = params.overfit
+token_generator = False
 measure_time = False
 epoch_per_validation = 1
 
