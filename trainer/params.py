@@ -19,10 +19,15 @@ git_hexsha = parse_arg('--git-hexsha', 'NAN')
 profiling = parse_arg('--profiling', default='n', required=False)
 data_format = parse_arg('--data-format', default='channels_last')
 if use_gpu == 'n':
-    data_format = 'channels_last'
-    print('Changing data_format because cpu is used')
+    assert data_format == 'channels_last', "Only channels_last data format is availabel with CPU"
 
 
 verbose_summary = _parse_boolean('--verbose-summary', default=False)
 use_new_rnn = _parse_boolean('--new-rnn', default=False)
 allow_soft_placement = _parse_boolean('--allow-soft-placement', default=False)
+
+# Spatial transformer parameters
+use_spatial_transformer = _parse_boolean('--st', default=False)
+
+if use_spatial_transformer:
+    assert data_format == 'channels_last', 'Only channels_last data format is compatible with spatial transformers'

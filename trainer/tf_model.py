@@ -1,9 +1,10 @@
 import tensorflow as tf
+import numpy as np
 import trainer.tf_initializers as tfi
 import trainer.default_type as t
-from trainer.dense_net_creator import DenseNetCreator, selu, bn_relu
-from trainer.tf_summary import gif_summary_v2
+from trainer.dense_net_creator import DenseNetCreator, bn_relu
 from trainer import params
+from trainer.transformer import spatial_transformer_network as transformer
 
 
 def default_cnn_block(**kwargs):
@@ -132,6 +133,18 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         if self.summarize:
             assert self.input_images is not None
 
+        if params.use_spatial_transformer:
+            theta_n = 6
+            self.transformer_w = tf.get_variable(name="transformer_w",
+                                                 initializer=tf.initializers.zeros(dtype=t.my_tf_float),
+                                                 shape=[self.feature_grid_dim, theta_n], dtype=t.my_tf_float)
+
+            bias_initial = np.array([[1., 0, 0], [0, 1., 0]])
+            bias_initial = bias_initial.astype(np.float32).flatten()
+            self.transformer_b = tf.get_variable(name="transformer_b",
+                                                 initializer=tf.initializers.constant(bias_initial),
+                                                 shape=[theta_n], dtype=t.my_tf_float)
+
     @property
     def wrapped_cell(self):
         return self.cell
@@ -189,7 +202,14 @@ class AttentionWrapper(tf.nn.rnn_cell.RNNCell):
         alpha = alpha * self.image_masks
         alpha = alpha / tf.reduce_sum(alpha, axis=self.conv_features, keepdims=True)
         # ctx = tf.reduce_sum(self.feature_grid * betas * alpha, axis=[1, 2])
-        ctx = tf.reduce_sum(self.feature_grid * alpha, axis=self.conv_features)
+        filtered_feature_grid = self.feature_grid * alpha
+        if params.use_spatial_transformer:
+            pooling = tf.reduce_mean(filtered_feature_grid, axis=self.conv_features)
+            theta = tf.matmul(pooling, self.transformer_w) + self.transformer_b
+            ctx = transformer(filtered_feature_grid, theta, (1, 1))
+            ctx = tf.squeeze(ctx, axis=self.conv_features)
+        else:
+            ctx = tf.reduce_sum(filtered_feature_grid, axis=self.conv_features)
         betas = betas + alpha
 
         cell_input = tf.concat([inputs, ctx], 1)
