@@ -53,7 +53,7 @@ if params.ckpt_dir is not None:
 
 start_time = datetime.now()
 
-batch_size = 6
+batch_size = 10
 step_per_summary = int(math.ceil(100 / batch_size))
 epochs = 600
 # levels = 5
@@ -197,7 +197,7 @@ with tf.device('/cpu:0'):
 merged_summary = tf.summary.merge_all()
 no_summary_per_epoch = 40
 summary_step = max(math.floor(generator.steps() / no_summary_per_epoch), 1)
-patience = 10
+patience = 15
 best_exp_rate = -1
 
 valid_avg_wer_summary = tf.Summary()

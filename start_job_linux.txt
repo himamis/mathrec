@@ -67,7 +67,8 @@ gcloud ml-engine jobs submit training $JOB_NAME \
     --gpu 0 \
     --tb $TB_PATH \
     --tbn $JOB_NAME \
-    --profiling $PROF_PATH
+    --st t \
+    --data_format channels_last
 
 echo "To look on the results in tensorboard, go to http://localhost:800"$2
 echo "If tensorboard is not started, call \`tensorboard --logdir "$TB_PATH" --port 800"$2"\`"
