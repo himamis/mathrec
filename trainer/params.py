@@ -33,3 +33,4 @@ if use_spatial_transformer:
     assert data_format == 'channels_last', 'Only channels_last data format is compatible with spatial transformers'
 
 overfit = _parse_boolean('--overfit', default=False)
+patience = int(parse_arg('--patience', default=15))

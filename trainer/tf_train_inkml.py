@@ -128,11 +128,11 @@ with tf.device(device):
                            dense_bias_init=tf.initializers.zeros(dtype=t.my_tf_float),
                            decoder_recurrent_kernel_init=tf.contrib.layers.xavier_initializer(dtype=t.my_tf_float))
     eval_feature_grid, eval_masking = model.feature_grid(pl_input_images, pl_image_masks, is_training=pl_is_training,
-                                                         summarize=False, r_max=pl_r_max, d_max=pl_d_max)
+                                                         summarize=params.verbose_summary, r_max=pl_r_max, d_max=pl_d_max)
     eval_calculate_h0, eval_calculate_alphas = model.calculate_decoder_init(eval_feature_grid, eval_masking)
     output, (states_h, states_alpha) = model.decoder(eval_feature_grid, eval_masking, pl_input_characters,
-                                                     eval_calculate_h0, eval_calculate_alphas, summarize=True,
-                                                     input_images=pl_input_images)
+                                                     eval_calculate_h0, eval_calculate_alphas,
+                                                     summarize=params.verbose_summary, input_images=pl_input_images)
 
     eval_output_softmax = tf.nn.softmax(output)
 
@@ -197,7 +197,7 @@ with tf.device('/cpu:0'):
 merged_summary = tf.summary.merge_all()
 no_summary_per_epoch = 40
 summary_step = max(math.floor(generator.steps() / no_summary_per_epoch), 1)
-patience = 15
+patience = params.patience
 best_exp_rate = -1
 
 valid_avg_wer_summary = tf.Summary()
