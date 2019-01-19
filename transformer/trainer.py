@@ -10,7 +10,7 @@ from transformer import generator
 from transformer import model
 from transformer import vocabulary
 from trainer.metrics import wer, exp_rate
-
+from utilities import progress_bar
 
 random.seed(123)
 tf.set_random_seed(123)
@@ -77,14 +77,14 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
 
         training.reset()
 
-        if epoch % params.epoch_per_validation != 0:
+        if epoch + 1 % params.epoch_per_validation != 0:
             continue
 
         wern = 0
         exprate = 0
         accn = 0
         for validation_step in range(testing.steps()):
-            print("Validation step {}".format(validation_step + 1))
+            progress_bar("Validating", validation_step + 1, testing.steps())
             encoded_tokens, bounding_boxes, encoded_formulas, _ = testing.next_batch()
             feed_dict = {
                 tokens_placeholder: encoded_tokens,
