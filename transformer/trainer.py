@@ -9,6 +9,7 @@ from os import path
 from transformer import generator
 from transformer import model
 from transformer import vocabulary
+from trainer.metrics import wer, exp_rate
 
 
 random.seed(123)
@@ -21,7 +22,7 @@ def create_generators(batch_size=32):
     training_generator = generator.DataGenerator(training, batch_size)
 
     testing = read_pkl(path.join(params.data_base_dir, 'testing_data.pkl'))
-    testing_generator = generator.DataGenerator(training, 1)
+    testing_generator = generator.DataGenerator(testing, 1)
 
     return training_generator, testing_generator
 
@@ -31,7 +32,7 @@ def create_model():
     return model.TransformerLatex(len(encoding_vb))
 
 
-def train_loop(sess, train, tokens_placeholder, bounding_box_placeholder, output_placeholder, output_masks_placeholder):
+def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, output_masks_placeholder):
     training, testing = create_generators(params.batch_size)
     no_summary_per_epoch = 40
     summary_step = max(math.floor(training.steps() / no_summary_per_epoch), 1)
@@ -47,6 +48,14 @@ def train_loop(sess, train, tokens_placeholder, bounding_box_placeholder, output
     else:
         tf.global_variables_initializer().run()
     merged_summary = tf.summary.merge_all()
+
+    valid_avg_wer_summary = tf.Summary()
+    valid_avg_acc_summary = tf.Summary()
+    valid_avg_exp_rate_summary = tf.Summary()
+
+    valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=None)
+    valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=None)
+    valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=None)
 
     for epoch in range(params.start_epoch + 1, params.epochs):
         print("Staring epoch {}".format(epoch + 1))
@@ -67,6 +76,41 @@ def train_loop(sess, train, tokens_placeholder, bounding_box_placeholder, output
             global_step += 1
 
         training.reset()
+
+        wern = 0
+        exprate = 0
+        accn = 0
+        for validation_step in range(testing.steps()):
+            encoded_tokens, bounding_boxes, encoded_formulas, _ = testing.next_batch()
+            feed_dict = {
+                tokens_placeholder: encoded_tokens,
+                bounding_box_placeholder: bounding_boxes,
+                output_placeholder: encoded_formulas # ,
+                # output_masks_placeholder: encoded_formulas_masks
+            }
+            outputs = sess.run(eval_fn, feed_dict)
+            result = outputs['outputs'][0]
+            target = encoded_formulas[0]
+            cwer = wer(result, target) / max(len(target), len(result))
+            wern += cwer
+            exprate += exp_rate(target, result)
+            if abs(cwer) < 1e-6:
+                accn += 1
+
+        testing.reset()
+
+        avg_wer = float(wern) / float(testing.steps())
+        avg_acc = float(accn) / float(testing.steps())
+        avg_exp_rate = float(exprate) / float(testing.steps())
+
+        valid_avg_wer_summary.value[0].simple_value = avg_wer
+        valid_avg_acc_summary.value[0].simple_value = avg_acc
+        valid_avg_exp_rate_summary.value[0].simple_value = avg_exp_rate
+        writer.add_summary(valid_avg_wer_summary, epoch)
+        writer.add_summary(valid_avg_acc_summary, epoch)
+        writer.add_summary(valid_avg_exp_rate_summary, epoch)
+        writer.flush()
+
 
 
 def main():
@@ -96,7 +140,7 @@ def main():
         result = tf.argmax(tf.nn.softmax(logits), output_type=tf.int32, axis=2)
         accuracy = tf.contrib.metrics.accuracy(result, output_placeholder, output_masks_placeholder)
 
-        # eval_fn = model(tokens_placeholder)
+        eval_fn = model(tokens_placeholder, bounding_box_placeholder)
 
     # Summarization ops
     if params.verbose_summary:
@@ -108,7 +152,8 @@ def main():
 
     config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=params.allow_soft_placement)
     with tf.Session(config=config) as sess:
-        train_loop(sess, train, tokens_placeholder, bounding_box_placeholder, output_placeholder, output_masks_placeholder)
+        train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
+                   output_masks_placeholder)
 
 
 main()
