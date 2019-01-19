@@ -31,7 +31,6 @@ class DataGenerator(object):
     def next_batch(self):
         data_bucket = self.data_chuncks[self.chunk_index]
         self.chunk_index += 1
-        print(self.chunk_index)
 
         formulas, inputs = zip(*data_bucket)
         tokens = []
