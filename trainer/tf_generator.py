@@ -5,7 +5,6 @@ import cv2
 from graphics.augment import Augmentor
 from trainer import params
 
-
 def _normalize_images(images):
     max_image_width = -1
     max_image_height = -1
@@ -293,3 +292,9 @@ class DifficultyDataGenerator:
         observations = [[start_id] + label + [end_id] * (max_label_length - len(label) - 1) for label in observations]
 
         return images, labels, observations, image_masks, masks
+
+
+encode_sequences = _encode_sequences
+add_end_symbol = _add_end_symbol
+add_start_symbol = _add_start_symbol
+normalize_sequences = _normalize_sequences

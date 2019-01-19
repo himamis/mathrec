@@ -34,3 +34,7 @@ if use_spatial_transformer:
 
 overfit = _parse_boolean('--overfit', default=False)
 patience = int(parse_arg('--patience', default=15))
+batch_size = int(parse_arg('--batch-size', default=32))
+epochs = int(parse_arg('--epochs', default=500))
+
+device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)

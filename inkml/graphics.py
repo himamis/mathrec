@@ -37,7 +37,7 @@ class ReplaceTransform(CoordTransform):
         return int(round(self.length / 2))
 
 
-def normalize_points(inkml):
+def normalize_points(inkml, unit=False):
     min_x = info.max
     min_y = info.max
     max_x = info.min
@@ -46,51 +46,65 @@ def normalize_points(inkml):
     mean_distance = 0.0
     total_points = 0
 
-    for k in range(len(inkml)):
-        symbol = inkml[k]
-        trace_length = 0
-        for j in range(len(symbol)):
-            x = symbol[j][0]
-            y = symbol[j][1]
-            if j != 0:
-                if x == symbol[j-1][0] and y == symbol[j-1][1]:
-                    continue
-                delta_x = x - symbol[len(symbol) - 1][0]
-                delta_y = y - symbol[len(symbol) - 1][1]
-
-                distance = math.sqrt(delta_x * delta_x + delta_y * delta_y)
-                mean_distance += distance
-                trace_length += distance
-                total_points += 1
-            min_x = min(min_x, x)
-            min_y = min(min_y, y)
-            max_x = max(max_x, x)
-            max_y = max(max_y, y)
+    for i in range(len(inkml)):
+        tracegroup = inkml[i]
+        for k in range(len(tracegroup)):
+            symbol = tracegroup[k]
+            for j in range(len(symbol)):
+                x = symbol[j][0]
+                y = symbol[j][1]
+                if j != 0:
+                    if x == symbol[j-1][0] and y == symbol[j-1][1]:
+                        continue
+                    delta_x = x - symbol[len(symbol) - 1][0]
+                    delta_y = y - symbol[len(symbol) - 1][1]
+                    distance = math.sqrt(delta_x * delta_x + delta_y * delta_y)
+                    mean_distance += distance
+                    total_points += 1
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
 
     size_x = max_x - min_x
     size_y = max_y - min_y
 
-    mean_distance /= total_points
-    scale = 20.0 / mean_distance
-
     trans_x = -min_x
     trans_y = -min_y
 
-    width = size_x * scale + 20
-    height = size_y * scale + 20
+    if unit:
+        scale_x = 1 / size_x
+        scale_y = 1 / size_y
 
+        width = 1
+        height = 1
 
-    for k in range(len(inkml)):
-        symbol = inkml[k]
+        padding_x = 0
+        padding_y = 0
+    else:
+        mean_distance /= total_points
+        scale_x = 20.0 / mean_distance
+        scale_y = scale_x
 
-        for j in range(len(symbol)):
-            x = symbol[j][0]
-            y = symbol[j][1]
+        padding_x = 20
+        padding_y = 20
 
-            x = (x + trans_x) * scale + 10
-            y = (y + trans_y) * scale + 10
+        width = size_x * scale_x + padding_x
+        height = size_y * scale_y + padding_y
 
-            symbol[j] = np.array((x, y), dtype=np.float32)
+    for i in range(len(inkml)):
+        tracegroup = inkml[i]
+        for k in range(len(tracegroup)):
+            symbol = tracegroup[k]
+
+            for j in range(len(symbol)):
+                x = symbol[j][0]
+                y = symbol[j][1]
+
+                x = (x + trans_x) * scale_x + padding_x / 2
+                y = (y + trans_y) * scale_y + padding_y / 2
+
+                symbol[j] = np.array((x, y), dtype=np.float32)
 
     return (width, height)
 
