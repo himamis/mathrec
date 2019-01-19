@@ -77,6 +77,9 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
 
         training.reset()
 
+        if epoch % params.epoch_per_validation != 0:
+            continue
+
         wern = 0
         exprate = 0
         accn = 0
