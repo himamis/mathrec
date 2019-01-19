@@ -81,6 +81,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         exprate = 0
         accn = 0
         for validation_step in range(testing.steps()):
+            print("Validation step {}".format(validation_step + 1))
             encoded_tokens, bounding_boxes, encoded_formulas, _ = testing.next_batch()
             feed_dict = {
                 tokens_placeholder: encoded_tokens,
