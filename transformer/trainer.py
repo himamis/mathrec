@@ -21,10 +21,10 @@ def create_generators(batch_size=32):
     training = read_pkl(path.join(params.data_base_dir, 'training_data.pkl'))
     training_generator = generator.DataGenerator(training, batch_size)
 
-    testing = read_pkl(path.join(params.data_base_dir, 'testing_data.pkl'))
-    testing_generator = generator.DataGenerator(testing, 1)
+    validating = read_pkl(path.join(params.data_base_dir, 'validating_data.pkl'))
+    validating_generator = generator.DataGenerator(validating, 1)
 
-    return training_generator, testing_generator
+    return training_generator, validating_generator
 
 
 def create_model():
@@ -33,7 +33,7 @@ def create_model():
 
 
 def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, output_masks_placeholder):
-    training, testing = create_generators(params.batch_size)
+    training, validating = create_generators(params.batch_size)
     no_summary_per_epoch = 40
     summary_step = max(math.floor(training.steps() / no_summary_per_epoch), 1)
     global_step = 0
@@ -77,15 +77,15 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
 
         training.reset()
 
-        if epoch + 1 % params.epoch_per_validation != 0:
+        if (epoch + 1) % params.epoch_per_validation != 0:
             continue
 
         wern = 0
         exprate = 0
         accn = 0
-        for validation_step in range(testing.steps()):
-            progress_bar("Validating", validation_step + 1, testing.steps())
-            encoded_tokens, bounding_boxes, encoded_formulas, _ = testing.next_batch()
+        for validation_step in range(validating.steps()):
+            progress_bar("Validating", validation_step + 1, validating.steps())
+            encoded_tokens, bounding_boxes, encoded_formulas, _ = validating.next_batch()
             feed_dict = {
                 tokens_placeholder: encoded_tokens,
                 bounding_box_placeholder: bounding_boxes,
@@ -101,11 +101,11 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             if abs(cwer) < 1e-6:
                 accn += 1
 
-        testing.reset()
+        validating.reset()
 
-        avg_wer = float(wern) / float(testing.steps())
-        avg_acc = float(accn) / float(testing.steps())
-        avg_exp_rate = float(exprate) / float(testing.steps())
+        avg_wer = float(wern) / float(validating.steps())
+        avg_acc = float(accn) / float(validating.steps())
+        avg_exp_rate = float(exprate) / float(validating.steps())
 
         valid_avg_wer_summary.value[0].simple_value = avg_wer
         valid_avg_acc_summary.value[0].simple_value = avg_acc

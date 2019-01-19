@@ -11,25 +11,32 @@ import numpy as np
 import pathlib, os, inkml, sys, traceback
 
 export_training = True
+export_validating = False
 
-first_part = False
-second_part = False
-third_part = False
+first_part = True
+second_part = True
+third_part = True
 fourth_part = False
-fifth_part = False
+fifth_part = True
 sixth_part = True
 
-import transformer.vocabulary
 
-fname = "training.pkl"
+fname = "training"
 if not export_training:
-    fname = "testing.pkl"
+    if export_validating:
+        fname = "validating"
+    else:
+        fname = "testing"
 
 
 if first_part:
-    database_query = "public.database.name <> 'CROHME2016_data/Test2016_INKML_GT'"
+    database_query = "public.database.name <> 'CROHME2016_data/Test2016_INKML_GT' AND " \
+                     "public.database.name <> 'CROHME2014_data/TestEM2014GT'"
     if not export_training:
-        database_query = "public.database.name = 'CROHME2016_data/Test2016_INKML_GT'"
+        if export_validating:
+            database_query = "public.database.name = 'CROHME2014_data/TestEM2014GT'"
+        else:
+            database_query = "public.database.name = 'CROHME2016_data/Test2016_INKML_GT'"
 
     formulas = query("SELECT formula.id, formula.formula "
                      "FROM public.formula, public.writer, public.database "
@@ -60,7 +67,7 @@ if first_part:
         if not skip:
             result.append((formula_truth, tracegroups))
 
-    pickle.dump(result, open('/Users/balazs/token_trace/partial.pkl', 'wb'))
+    pickle.dump(result, open('/Users/balazs/token_trace/{}_partial.pkl'.format(fname), 'wb'))
 
 # What I have:
 # result = [(formula text, tracegroups)]
@@ -112,7 +119,7 @@ for line in dictionary:
     words |= {stripped[0]}
 
 if second_part:
-    result = pickle.load(open('/Users/balazs/token_trace/partial.pkl', 'rb'))
+    result = pickle.load(open('/Users/balazs/token_trace/{}_partial.pkl'.format(fname), 'rb'))
     from parsy import string, alt
     vocab = reversed(sorted(words | {" "}))
     parser = alt(*map(string, vocab))
@@ -121,7 +128,9 @@ if second_part:
     start_index = 0
     new_result = []
     if export_training:
-        skip = {12569, (858 + 11842), (11842 + 1532 + 134)}
+        skip = {12569}
+    elif export_validating:
+        skip = {99, 907}
     else:
         skip = {}
     for index, (formula, tracegroups) in enumerate(result[start_index:]):
@@ -129,10 +138,10 @@ if second_part:
             continue
         if formula == "$ x ^ {\\frac {p} {q}} = \\sqrt {x ^ {p}} ABOVE {q} = \\sqrt {x ^ {p}} ABOVE {q} $":
             formula = "x ^ {\\frac{p}{q}} = \\sqrt[q]{x^{p}} = \\sqrt[q]{x^{p}}"
-        elif formula == "$ \sqrt {648 + 648} ABOVE {4} + 8 $":
-            formula = "\sqrt[4]{648 + 648} + 8"
-        elif formula == "$ \sqrt {\sqrt {x} ABOVE {n}} ABOVE {m} $":
-            formula = "\sqrt[m]{\sqrt[n]{x}}"
+        elif formula == "$ \\sqrt {648 + 648} ABOVE {4} + 8 $":
+            formula = "\\sqrt[4]{648 + 648} + 8"
+        elif formula == "$ \\sqrt {\\sqrt {x} ABOVE {n}} ABOVE {m} $":
+            formula = "\\sqrt[m]{\\sqrt[n]{x}}"
         progress_bar("Processing", index + 1, len(result))
 
         f = formula.strip()
@@ -192,11 +201,11 @@ if second_part:
 
         new_result.append((parsed, new_tracegroups))
 
-    pickle.dump(new_result, open('/Users/balazs/token_trace/' + fname, 'wb'))
+    pickle.dump(new_result, open('/Users/balazs/token_trace/{}.pkl'.format(fname), 'wb'))
 
 
 if third_part:
-    result = pickle.load(open('/Users/balazs/token_trace/' + fname, 'rb'))
+    result = pickle.load(open('/Users/balazs/token_trace/{}.pkl'.format(fname), 'rb'))
     for formula, tracegroups in result:
 
         for index, (truth, traces) in enumerate(tracegroups):
@@ -221,7 +230,7 @@ if False:
 
 
 if fourth_part:
-    training_result = pickle.load(open('/Users/balazs/token_trace/training.pkl', 'rb'))
+    training_result = pickle.load(open('/Users/balazs/token_trace/{}.pkl'.format(fname), 'rb'))
     input_vocab = set()
     output_vocab = set()
     for formula, tracegroups in training_result:
@@ -237,7 +246,7 @@ if fourth_part:
     pickle.dump(vocabulary, open('/Users/balazs/token_trace/vocabulary.pkl', 'wb'))
 
 if fifth_part:
-    training_result = pickle.load(open('/Users/balazs/token_trace/testing.pkl', 'rb'))
+    training_result = pickle.load(open('/Users/balazs/token_trace/{}.pkl'.format(fname), 'rb'))
     new_result = []
     for index, (formula, tracegroups) in enumerate(training_result):
         progress_bar("Processing", index + 1, len(training_result))
@@ -247,14 +256,14 @@ if fifth_part:
         zipped = zip(truth_only, tracegroups_only)
         new_result.append((formula, zipped))
 
-    pickle.dump(new_result, open('/Users/balazs/token_trace/testing_scaled.pkl', 'wb'))
+    pickle.dump(new_result, open('/Users/balazs/token_trace/{}_scaled.pkl'.format(fname), 'wb'))
 
 
 info = np.finfo(np.float32)
 
 
 if sixth_part:
-    training_result = pickle.load(open('/Users/balazs/token_trace/testing_scaled.pkl', 'rb'))
+    training_result = pickle.load(open('/Users/balazs/token_trace/{}_scaled.pkl'.format(fname), 'rb'))
     new_result = []
     for index, (formula, tracegroups) in enumerate(training_result):
         new_tracegroups = []
@@ -274,4 +283,4 @@ if sixth_part:
 
         new_result.append((formula, new_tracegroups))
 
-    pickle.dump(new_result, open('/Users/balazs/token_trace/testing_data.pkl', 'wb'))
+    pickle.dump(new_result, open('/Users/balazs/token_trace/{}_data.pkl'.format(fname), 'wb'))
