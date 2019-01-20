@@ -154,8 +154,7 @@ class Transformer(object):
                 # Add START_ID as padding when shifting
                 # TODO Do I relly need shifting?
                 decoder_inputs = tf.pad(
-                    decoder_inputs, [[0, 0], [1, 0], [0, 0]],
-                    constant_values=vocabulary.START_ID)[:, :-1, :]
+                    decoder_inputs, [[0, 0], [1, 0], [0, 0]])[:, :-1, :]
             with tf.name_scope("add_pos_encoding"):
                 length = tf.shape(decoder_inputs)[1]
                 decoder_inputs += model_utils.get_position_encoding(

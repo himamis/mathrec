@@ -39,7 +39,6 @@ class DataGenerator(object):
             token, bounding_box = zip(*input)
             tokens.append(list(token))
             bounding_boxes.append(list(bounding_box))
-        #tokens, bounding_boxes = zip(*inputs)
 
         encoded_formulas = tf_generator.encode_sequences(formulas, vocabulary.encoding_vocabulary)
         encoded_formulas, encoded_formulas_masks = tf_generator.normalize_sequences(encoded_formulas, vocabulary.EOS_ID)
