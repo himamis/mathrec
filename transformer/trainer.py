@@ -150,11 +150,16 @@ def main(transformer_params):
     output_masks_placeholder = tf.placeholder(tf.float32, shape=(None, None), name="output_masks")
 
     with tf.device(params.device):
+        decay = 1e-4
         model = create_model()
         logits = model(tokens_placeholder, bounding_box_placeholder, output_placeholder, True)
 
         # Create loss function
         loss = tf.contrib.seq2seq.sequence_loss(logits, output_placeholder, output_masks_placeholder)
+        # L2 regularization
+        for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+            print(variable.name)
+            loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
         # Create Optimizer
         learning_rate = get_learning_rate(
@@ -187,6 +192,8 @@ def main(transformer_params):
     if params.verbose_summary:
         for grad, var in grads_and_vars:
             tf.summary.histogram("gradient/" + var.name, grad)
+        for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+            tf.summary.histogram("var/" + var.name, variable)
 
     tf.summary.scalar("loss", loss)
     tf.summary.scalar("accuracy", accuracy)
