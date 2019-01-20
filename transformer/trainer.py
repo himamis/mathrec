@@ -179,10 +179,10 @@ def main(transformer_params):
         tvars = tf.trainable_variables()
         gradients = optimizer.compute_gradients(
             loss, tvars, colocate_gradients_with_ops=True)
-        minimize_op = optimizer.apply_gradients(
+        train_op = optimizer.apply_gradients(
             gradients, global_step=global_step, name="train")
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        train_op = tf.group(minimize_op, update_ops)
+        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        # train_op = tf.group(train_op, update_ops)
 
         #grads_and_vars = optimizer.compute_gradients(loss)
 
