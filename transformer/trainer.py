@@ -161,18 +161,19 @@ def main(transformer_params):
         #     loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
         # Create Optimizer
-        learning_rate = get_learning_rate(
-            learning_rate=transformer_params["learning_rate"],
-            hidden_size=transformer_params["hidden_size"],
-            learning_rate_warmup_steps=transformer_params["learning_rate_warmup_steps"])
-
-        # Create optimizer. Use LazyAdamOptimizer from TF contrib, which is faster
-        # than the TF core Adam optimizer.
-        optimizer = tf.contrib.opt.LazyAdamOptimizer(
-            learning_rate,
-            beta1=transformer_params["optimizer_adam_beta1"],
-            beta2=transformer_params["optimizer_adam_beta2"],
-            epsilon=transformer_params["optimizer_adam_epsilon"])
+        # learning_rate = get_learning_rate(
+        #     learning_rate=transformer_params["learning_rate"],
+        #     hidden_size=transformer_params["hidden_size"],
+        #     learning_rate_warmup_steps=transformer_params["learning_rate_warmup_steps"])
+        #
+        # # Create optimizer. Use LazyAdamOptimizer from TF contrib, which is faster
+        # # than the TF core Adam optimizer.
+        # optimizer = tf.contrib.opt.LazyAdamOptimizer(
+        #     learning_rate,
+        #     beta1=transformer_params["optimizer_adam_beta1"],
+        #     beta2=transformer_params["optimizer_adam_beta2"],
+        #     epsilon=transformer_params["optimizer_adam_epsilon"])
+        optimizer = tf.train.AdamOptimizer(learning_rate=0.01)
 
         # Calculate and apply gradients using LazyAdamOptimizer.
         grads_and_vars = optimizer.compute_gradients(loss)

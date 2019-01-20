@@ -1,6 +1,5 @@
 import tensorflow as tf
 from transformer import transformer
-from transformer import model_params
 
 
 class TransformerLatex(object):
