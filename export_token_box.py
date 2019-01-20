@@ -10,8 +10,8 @@ import numpy as np
 
 import pathlib, os, inkml, sys, traceback
 
-export_training = True
-export_validating = False
+export_training = False
+export_validating = True
 
 first_part = True
 second_part = True
@@ -217,7 +217,7 @@ if third_part:
             assert truth in words
             tracegroups[index] = (truth, traces)
 
-    pickle.dump(result, open('/Users/balazs/token_trace/' + fname, 'wb'))
+    pickle.dump(result, open('/Users/balazs/token_trace/{}.pkl'.format(fname), 'wb'))
 
 
 # Sanity check with !

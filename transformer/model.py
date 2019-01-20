@@ -6,7 +6,7 @@ from transformer import model_params
 class TransformerLatex(object):
 
     def __init__(self, vocabulary_size):
-        params = model_params.TINY_PARAMS
+        params = model_params.BASE_PARAMS
         params.update(vocab_size=vocabulary_size)
 
         with tf.variable_scope("transformer", reuse=tf.AUTO_REUSE):
