@@ -151,7 +151,7 @@ def main(transformer_params):
 
     with tf.device(params.device):
         decay = 1e-4
-        model = create_model()
+        model = create_model(model_params.TINY_PARAMS)
         logits = model(tokens_placeholder, bounding_box_placeholder, output_placeholder, True)
 
         # Create loss function
