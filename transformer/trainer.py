@@ -50,8 +50,7 @@ def get_learning_rate(learning_rate, hidden_size, learning_rate_warmup_steps):
 
 
 def create_model(transformer_params):
-    encoding_vb = vocabulary.encoding_vocabulary
-    return model.TransformerLatex(len(encoding_vb), transformer_params)
+    return model.TransformerLatex(transformer_params)
 
 
 def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
