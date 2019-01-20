@@ -123,6 +123,7 @@ class Transformer(object):
             #     encoder_inputs = embedded_inputs + pos_encoding
             with tf.name_scope("concat_2d_encoding"):
                 encoding = self._get_bounding_box_encoding(bounding_boxes)
+                encoding =  tf.Print(encoding, [encoding], summarize=10)
                 encoder_inputs = embedded_inputs + encoding
 
             if self.train:
@@ -173,10 +174,15 @@ class Transformer(object):
             return logits
 
     def _get_bounding_box_encoding(self, bounding_box):
-        weight = tf.get_variable("dimension_weight", shape=(4, self.params["hidden_size"]), dtype=tf.float32)
-        bias = tf.get_variable("dimension_bias", shape=(self.params["hidden_size"]), dtype=tf.float32)
+        x = bounding_box
+        for i in range(3):
+            weight = tf.get_variable("dimension_weight_{}".format(i), shape=(4, self.params["hidden_size"]),
+                                     dtype=tf.float32)
+            bias = tf.get_variable("dimension_bias_{}".format(i), shape=(self.params["hidden_size"]),
+                                   dtype=tf.float32)
+            x = tf.tanh(tf.einsum("bld,df->blf", x, weight) + bias)
 
-        return tf.tanh(tf.einsum("bld,df->blf", bounding_box, weight) + bias)
+        return x
 
     def _get_symbols_to_logits_fn(self, max_decode_length):
         """Returns a decoding function that calculates logits of the next tokens."""
