@@ -149,7 +149,7 @@ def main(transformer_params):
     output_masks_placeholder = tf.placeholder(tf.float32, shape=(None, None), name="output_masks")
 
     with tf.device(params.device):
-        model = create_model(model_params.TINY_PARAMS)
+        model = create_model(transformer_params)
         logits = model(tokens_placeholder, bounding_box_placeholder, output_placeholder, True)
 
         # Create loss function
