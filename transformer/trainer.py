@@ -175,22 +175,11 @@ def main(transformer_params):
             epsilon=transformer_params["optimizer_adam_epsilon"])
 
         # Calculate and apply gradients using LazyAdamOptimizer.
-        global_step = tf.train.get_global_step()
-        tvars = tf.trainable_variables()
-        gradients = optimizer.compute_gradients(
-            loss, tvars, colocate_gradients_with_ops=True)
-        train_op = optimizer.apply_gradients(
-            gradients, global_step=global_step, name="train")
-        # update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        # train_op = tf.group(train_op, update_ops)
-
-        #grads_and_vars = optimizer.compute_gradients(loss)
+        grads_and_vars = optimizer.compute_gradients(loss)
 
         # Gradient clipping
         # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
-        #train = optimizer.apply_gradients(grads_and_vars)
-        #update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        #train_op = tf.group(train, update_ops)
+        train = optimizer.apply_gradients(grads_and_vars)
 
         result = tf.argmax(tf.nn.softmax(logits), output_type=tf.int32, axis=2)
         accuracy = tf.contrib.metrics.accuracy(result, output_placeholder, output_masks_placeholder)
@@ -199,7 +188,7 @@ def main(transformer_params):
 
     # Summarization ops
     if params.verbose_summary:
-        for grad, var in gradients:
+        for grad, var in grads_and_vars:
             tf.summary.histogram("gradient/" + var.name, grad)
         for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
             tf.summary.histogram("var/" + variable.name, variable)
@@ -209,7 +198,7 @@ def main(transformer_params):
 
     config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=params.allow_soft_placement)
     with tf.Session(config=config) as sess:
-        train_loop(sess, train_op, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
+        train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
                    output_masks_placeholder)
 
 
