@@ -175,11 +175,13 @@ class Transformer(object):
 
     def _get_bounding_box_encoding(self, bounding_box):
         x = bounding_box
+        dim = 4
         for i in range(3):
-            weight = tf.get_variable("dimension_weight_{}".format(i), shape=(4, self.params["hidden_size"]),
+            weight = tf.get_variable("dimension_weight_{}".format(i), shape=(dim, self.params["hidden_size"]),
                                      dtype=tf.float32)
             bias = tf.get_variable("dimension_bias_{}".format(i), shape=(self.params["hidden_size"]),
                                    dtype=tf.float32)
+            dim = self.params["hidden_size"]
             x = tf.tanh(tf.einsum("bld,df->blf", x, weight) + bias)
 
         return x
