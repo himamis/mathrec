@@ -149,13 +149,13 @@ def main(transformer_params):
     output_masks_placeholder = tf.placeholder(tf.float32, shape=(None, None), name="output_masks")
 
     with tf.device(params.device):
-        decay = 1e-4
         model = create_model(model_params.TINY_PARAMS)
         logits = model(tokens_placeholder, bounding_box_placeholder, output_placeholder, True)
 
         # Create loss function
         loss = tf.contrib.seq2seq.sequence_loss(logits, output_placeholder, output_masks_placeholder)
         # L2 regularization
+        # decay = 1e-4
         # for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
         #     print(variable.name)
         #     loss += decay * tf.reduce_sum(tf.pow(variable, 2))
@@ -174,13 +174,23 @@ def main(transformer_params):
             beta2=transformer_params["optimizer_adam_beta2"],
             epsilon=transformer_params["optimizer_adam_epsilon"])
 
-        grads_and_vars = optimizer.compute_gradients(loss)
+        # Calculate and apply gradients using LazyAdamOptimizer.
+        global_step = tf.train.get_global_step()
+        tvars = tf.trainable_variables()
+        gradients = optimizer.compute_gradients(
+            loss, tvars, colocate_gradients_with_ops=True)
+        minimize_op = optimizer.apply_gradients(
+            gradients, global_step=global_step, name="train")
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        train_op = tf.group(minimize_op, update_ops)
+
+        #grads_and_vars = optimizer.compute_gradients(loss)
 
         # Gradient clipping
         # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
-        train = optimizer.apply_gradients(grads_and_vars)
-        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-        train_op = tf.group(train, update_ops)
+        #train = optimizer.apply_gradients(grads_and_vars)
+        #update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        #train_op = tf.group(train, update_ops)
 
         result = tf.argmax(tf.nn.softmax(logits), output_type=tf.int32, axis=2)
         accuracy = tf.contrib.metrics.accuracy(result, output_placeholder, output_masks_placeholder)
@@ -189,10 +199,10 @@ def main(transformer_params):
 
     # Summarization ops
     if params.verbose_summary:
-        for grad, var in grads_and_vars:
+        for grad, var in gradients:
             tf.summary.histogram("gradient/" + var.name, grad)
         for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-            tf.summary.histogram("var/" + var.name, variable)
+            tf.summary.histogram("var/" + variable.name, variable)
 
     tf.summary.scalar("loss", loss)
     tf.summary.scalar("accuracy", accuracy)
