@@ -177,7 +177,7 @@ class Transformer(object):
         weight = tf.get_variable("dimension_weight", shape=(4, self.params["hidden_size"]), dtype=tf.float32)
         bias = tf.get_variable("dimension_bias", shape=(self.params["hidden_size"]), dtype=tf.float32)
 
-        return tf.einsum("bld,df->blf", bounding_box, weight) + bias
+        return tf.tanh(tf.einsum("bld,df->blf", bounding_box, weight) + bias)
 
     def _get_symbols_to_logits_fn(self, max_decode_length):
         """Returns a decoding function that calculates logits of the next tokens."""
