@@ -5,13 +5,10 @@ from transformer import model_params
 
 class TransformerLatex(object):
 
-    def __init__(self, vocabulary_size):
-        params = model_params.TINY_PARAMS
-        params.update(vocab_size=vocabulary_size)
-
+    def __init__(self, transformer_params):
         with tf.variable_scope("transformer", reuse=tf.AUTO_REUSE):
-            self.transformer = transformer.Transformer(params, True)
-            self.transformer_evaluate = transformer.Transformer(params, False)
+            self.transformer = transformer.Transformer(transformer_params, True)
+            self.transformer_evaluate = transformer.Transformer(transformer_params, False)
 
     def __call__(self, inputs, bounding_box_placeholder, targets=None, train=False):
         with tf.variable_scope("transformer", reuse=tf.AUTO_REUSE):

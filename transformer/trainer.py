@@ -11,6 +11,8 @@ from transformer import model
 from transformer import vocabulary
 from trainer.metrics import wer, exp_rate
 from utilities import progress_bar
+from transformer import model_params
+
 
 random.seed(123)
 tf.set_random_seed(123)
@@ -27,12 +29,33 @@ def create_generators(batch_size=32):
     return training_generator, validating_generator
 
 
-def create_model():
+def get_learning_rate(learning_rate, hidden_size, learning_rate_warmup_steps):
+    """Calculate learning rate with linear warmup and rsqrt decay."""
+    with tf.name_scope("learning_rate"):
+        warmup_steps = tf.to_float(learning_rate_warmup_steps)
+        step = tf.to_float(tf.train.get_or_create_global_step())
+
+        learning_rate *= (hidden_size ** -0.5)
+        # Apply linear warmup
+        learning_rate *= tf.minimum(1.0, step / warmup_steps)
+        # Apply rsqrt decay
+        learning_rate *= tf.rsqrt(tf.maximum(step, warmup_steps))
+
+        # Create a named tensor that will be logged using the logging hook.
+        # The full name includes variable and names scope. In this case, the name
+        # is model/get_train_op/learning_rate/learning_rate
+        tf.identity(learning_rate, "learning_rate")
+
+        return learning_rate
+
+
+def create_model(transformer_params):
     encoding_vb = vocabulary.encoding_vocabulary
-    return model.TransformerLatex(len(encoding_vb))
+    return model.TransformerLatex(len(encoding_vb), transformer_params)
 
 
-def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, output_masks_placeholder):
+def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
+               output_masks_placeholder):
     training, validating = create_generators(params.batch_size)
     no_summary_per_epoch = 40
     summary_step = max(math.floor(training.steps() / no_summary_per_epoch), 1)
@@ -89,7 +112,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             feed_dict = {
                 tokens_placeholder: encoded_tokens,
                 bounding_box_placeholder: bounding_boxes,
-                output_placeholder: encoded_formulas # ,
+                output_placeholder: encoded_formulas  # ,
                 # output_masks_placeholder: encoded_formulas_masks
             }
             outputs = sess.run(eval_fn, feed_dict)
@@ -116,9 +139,9 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         writer.flush()
 
 
-
-def main():
+def main(transformer_params):
     encoding_vb = vocabulary.encoding_vocabulary
+    transformer_params.update(vocab_size=len(encoding_vb))
 
     tokens_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="tokens")
     bounding_box_placeholder = tf.placeholder(tf.float32, shape=(None, None, 4), name="bounding_boxes")
@@ -134,12 +157,26 @@ def main():
         loss = tf.contrib.seq2seq.sequence_loss(logits, output_placeholder, output_masks_placeholder)
 
         # Create Optimizer
-        optimizer = tf.train.AdamOptimizer(learning_rate=0.001)
+        learning_rate = get_learning_rate(
+            learning_rate=transformer_params["learning_rate"],
+            hidden_size=transformer_params["hidden_size"],
+            learning_rate_warmup_steps=transformer_params["learning_rate_warmup_steps"])
+
+        # Create optimizer. Use LazyAdamOptimizer from TF contrib, which is faster
+        # than the TF core Adam optimizer.
+        optimizer = tf.contrib.opt.LazyAdamOptimizer(
+            learning_rate,
+            beta1=transformer_params["optimizer_adam_beta1"],
+            beta2=transformer_params["optimizer_adam_beta2"],
+            epsilon=transformer_params["optimizer_adam_epsilon"])
+
         grads_and_vars = optimizer.compute_gradients(loss)
 
         # Gradient clipping
         # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
         train = optimizer.apply_gradients(grads_and_vars)
+        update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+        train_op = tf.group(train, update_ops)
 
         result = tf.argmax(tf.nn.softmax(logits), output_type=tf.int32, axis=2)
         accuracy = tf.contrib.metrics.accuracy(result, output_placeholder, output_masks_placeholder)
@@ -156,8 +193,8 @@ def main():
 
     config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=params.allow_soft_placement)
     with tf.Session(config=config) as sess:
-        train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
+        train_loop(sess, train_op, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
                    output_masks_placeholder)
 
 
-main()
+main(model_params.TINY_PARAMS)

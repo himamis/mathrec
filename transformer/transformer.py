@@ -123,7 +123,6 @@ class Transformer(object):
             #     encoder_inputs = embedded_inputs + pos_encoding
             with tf.name_scope("concat_2d_encoding"):
                 encoding = self._get_bounding_box_encoding(bounding_boxes)
-                encoding =  tf.Print(encoding, [encoding], summarize=10)
                 encoder_inputs = embedded_inputs + encoding
 
             if self.train:
