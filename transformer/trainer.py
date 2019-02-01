@@ -2,7 +2,6 @@ import math
 import random
 import tensorflow as tf
 import numpy as np
-import transformer.t2t_transformer
 
 from trainer import params
 from file_utils import read_pkl
