@@ -92,6 +92,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             if global_step % summary_step == 0:
                 summary, _ = sess.run([merged_summary, train], feed_dict)
                 writer.add_summary(summary, global_step)
+                writer.flush()
             else:
                 _ = sess.run([train], feed_dict=feed_dict)
 
