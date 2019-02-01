@@ -203,4 +203,4 @@ def main(transformer_params):
                    output_masks_placeholder)
 
 
-main(model_params.TINY_PARAMS)
+main(model_params.BASE_PARAMS)
