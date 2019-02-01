@@ -80,8 +80,9 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
     valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=None)
 
     for epoch in range(params.start_epoch + 1, params.epochs):
-        print("Staring epoch {}".format(epoch + 1))
-        for step in range(training.steps()):
+        steps = training.steps()
+        for step in range(steps):
+            progress_bar("Epoch {}".format(epoch + 1), step + 1, steps)
             encoded_tokens, bounding_boxes, encoded_formulas, encoded_formulas_masks = training.next_batch()
             feed_dict = {
                 tokens_placeholder: encoded_tokens,
