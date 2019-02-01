@@ -112,24 +112,28 @@ class Transformer(object):
         with tf.name_scope("encode"):
             # Prepare inputs to the layer stack by adding positional encodings and
             # applying dropout.
-            embedded_inputs = self.embedding_softmax_layer(inputs)
+            encoder_inputs = self.embedding_softmax_layer(inputs)
             inputs_padding = model_utils.get_padding(inputs)
+
+            with tf.name_scope("create_diffs"):
+                diff = bounding_boxes[:, None, :, :] - bounding_boxes[:, :, None, :]
+                diff = tf.where(tf.less(diff, 0), -1 - diff, 1 - diff)
 
             # TODO: Rewrite this to have bounding box encoding
             # with tf.name_scope("add_pos_encoding"):
-            #     length = tf.shape(embedded_inputs)[1]
-            #     pos_encoding = model_utils.get_position_encoding(
-            #         length, self.params["hidden_size"])
-            #     encoder_inputs = embedded_inputs + pos_encoding
-            with tf.name_scope("concat_2d_encoding"):
-                encoding = self._get_bounding_box_encoding(bounding_boxes)
-                encoder_inputs = embedded_inputs + encoding
+            #    length = tf.shape(embedded_inputs)[1]
+            #    pos_encoding = model_utils.get_position_encoding(
+            #        length, self.params["hidden_size"])
+            #    encoder_inputs = embedded_inputs + pos_encoding
+            # with tf.name_scope("concat_2d_encoding"):
+            #    encoding = self._get_bounding_box_encoding(bounding_boxes)
+            #    encoder_inputs = embedded_inputs + encoding
 
             if self.train:
                 encoder_inputs = tf.nn.dropout(
                     encoder_inputs, 1 - self.params["layer_postprocess_dropout"])
 
-            return self.encoder_stack(encoder_inputs, attention_bias, inputs_padding)
+            return self.encoder_stack(encoder_inputs, attention_bias, inputs_padding, diff)
 
     def decode(self, targets, encoder_outputs, attention_bias):
         """Generate logits for each value in the target sequence.
@@ -326,7 +330,7 @@ class EncoderStack(tf.layers.Layer):
             # Create sublayers for each layer.
             self_attention_layer = attention_layer.SelfAttention(
                 params["hidden_size"], params["num_heads"],
-                params["attention_dropout"], train)
+                params["attention_dropout"], train, diffs_att=True)
             feed_forward_network = ffn_layer.FeedFowardNetwork(
                 params["hidden_size"], params["filter_size"],
                 params["relu_dropout"], train, params["allow_ffn_pad"])
@@ -338,7 +342,7 @@ class EncoderStack(tf.layers.Layer):
         # Create final layer normalization layer.
         self.output_normalization = LayerNormalization(params["hidden_size"])
 
-    def call(self, encoder_inputs, attention_bias, inputs_padding):
+    def call(self, encoder_inputs, attention_bias, inputs_padding, diffs):
         """Return the output of the encoder layer stacks.
 
         Args:
@@ -358,7 +362,7 @@ class EncoderStack(tf.layers.Layer):
 
             with tf.variable_scope("layer_%d" % n):
                 with tf.variable_scope("self_attention"):
-                    encoder_inputs = self_attention_layer(encoder_inputs, attention_bias)
+                    encoder_inputs = self_attention_layer(encoder_inputs, attention_bias, diffs=diffs)
                 with tf.variable_scope("ffn"):
                     encoder_inputs = feed_forward_network(encoder_inputs, inputs_padding)
 
