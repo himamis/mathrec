@@ -56,7 +56,6 @@ def create_model(transformer_params):
 def train_loop(sess, writer, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
                output_masks_placeholder):
     training, validating = create_generators(params.batch_size)
-    global_step = 0
 
     tf_epoch = tf.Variable(0, dtype=tf.int64, name="epoch")
     with tf.name_scope("evaluation"):
@@ -89,12 +88,7 @@ def train_loop(sess, writer, train, eval_fn, tokens_placeholder, bounding_box_pl
                 output_placeholder: encoded_formulas,
                 output_masks_placeholder: encoded_formulas_masks
             }
-            # if global_step % summary_step == 0:
             sess.run([train, tf.contrib.summary.all_summary_ops()], feed_dict)
-                # writer.add_summary(summary, global_step)
-            # else:
-                # _ = sess.run([train], feed_dict=feed_dict)
-            global_step += 1
 
         # writer.flush()
         tf.contrib.summary.flush()
@@ -209,5 +203,5 @@ def main(transformer_params):
                        output_masks_placeholder)
 
 
-# main(model_params.BASE_PARAMS)
-main(model_params.TINY_PARAMS)
+main(model_params.BASE_PARAMS)
+# main(model_params.TINY_PARAMS)
