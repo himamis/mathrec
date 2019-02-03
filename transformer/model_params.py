@@ -42,7 +42,8 @@ BASE_PARAMS = defaultdict(
     label_smoothing=0.1,
     learning_rate=2.0,
     learning_rate_decay_rate=1.0,
-    learning_rate_warmup_steps=16000,
+    #learning_rate_warmup_steps=16000,
+    learning_rate_warmup_steps=8000,
 
     # Optimizer params
     optimizer_adam_beta1=0.9,

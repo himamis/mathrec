@@ -1,4 +1,3 @@
-import math
 import random
 import tensorflow as tf
 import numpy as np
@@ -50,36 +49,36 @@ def get_learning_rate(learning_rate, hidden_size, learning_rate_warmup_steps):
 
 
 def create_model(transformer_params):
-    return model.TransformerLatex(transformer_params)
+    with tf.name_scope("model"):
+        return model.TransformerLatex(transformer_params)
 
 
-def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
+def train_loop(sess, writer, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
                output_masks_placeholder):
     training, validating = create_generators(params.batch_size)
-    no_summary_per_epoch = 40
-    summary_step = max(math.floor(training.steps() / no_summary_per_epoch), 1)
     global_step = 0
 
-    # Create writer
-    writer = tf.summary.FileWriter(path.join(params.tensorboard_log_dir, params.tensorboard_name))
-    writer.add_graph(sess.graph)
+    tf_epoch = tf.Variable(0, dtype=tf.int64, name="epoch")
+    with tf.name_scope("evaluation"):
+        tf_avg_wer = tf.Variable(1, dtype=tf.float32, name="avg_wer")
+        tf_avg_acc = tf.Variable(0, dtype=tf.float32, name="avg_acc")
+        tf_avg_exp_rate = tf.Variable(0, dtype=tf.float32, name="avg_exp_rate")
+
+        with tf.contrib.summary.record_summaries_every_n_global_steps(params.epoch_per_validation, tf_epoch):
+            tf.contrib.summary.scalar("avg_wer", tf_avg_wer, "validation", tf_epoch)
+            tf.contrib.summary.scalar("avg_acc", tf_avg_acc, "validation", tf_epoch)
+            tf.contrib.summary.scalar("avg_exp_rate", tf_avg_exp_rate, "validation", tf_epoch)
 
     if params.start_epoch != -1:
         pass
         # saver.restore(sess, save_format.format(params.start_epoch))
     else:
         tf.global_variables_initializer().run()
-    merged_summary = tf.summary.merge_all()
 
-    valid_avg_wer_summary = tf.Summary()
-    valid_avg_acc_summary = tf.Summary()
-    valid_avg_exp_rate_summary = tf.Summary()
-
-    valid_avg_wer_summary.value.add(tag="valid_avg_wer", simple_value=None)
-    valid_avg_acc_summary.value.add(tag="valid_avg_acc", simple_value=None)
-    valid_avg_exp_rate_summary.value.add(tag="valid_exp_rate", simple_value=None)
+    tf.contrib.summary.initialize(graph=tf.get_default_graph())
 
     for epoch in range(params.start_epoch + 1, params.epochs):
+        sess.run(tf.assign(tf_epoch, epoch))
         steps = training.steps()
         for step in range(steps):
             progress_bar("Epoch {}".format(epoch + 1), step + 1, steps)
@@ -90,15 +89,15 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
                 output_placeholder: encoded_formulas,
                 output_masks_placeholder: encoded_formulas_masks
             }
-            if global_step % summary_step == 0:
-                summary, _ = sess.run([merged_summary, train], feed_dict)
-                writer.add_summary(summary, global_step)
-                writer.flush()
-            else:
-                _ = sess.run([train], feed_dict=feed_dict)
-
+            # if global_step % summary_step == 0:
+            sess.run([train, tf.contrib.summary.all_summary_ops()], feed_dict)
+                # writer.add_summary(summary, global_step)
+            # else:
+                # _ = sess.run([train], feed_dict=feed_dict)
             global_step += 1
 
+        # writer.flush()
+        tf.contrib.summary.flush()
         training.reset()
 
         if (epoch + 1) % params.epoch_per_validation != 0:
@@ -131,13 +130,11 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         avg_acc = float(accn) / float(validating.steps())
         avg_exp_rate = float(exprate) / float(validating.steps())
 
-        valid_avg_wer_summary.value[0].simple_value = avg_wer
-        valid_avg_acc_summary.value[0].simple_value = avg_acc
-        valid_avg_exp_rate_summary.value[0].simple_value = avg_exp_rate
-        writer.add_summary(valid_avg_wer_summary, epoch)
-        writer.add_summary(valid_avg_acc_summary, epoch)
-        writer.add_summary(valid_avg_exp_rate_summary, epoch)
-        writer.flush()
+        sess.run([
+            tf.assign(tf_avg_wer, avg_wer),
+            tf.assign(tf_avg_exp_rate, avg_exp_rate),
+            tf.assign(tf_avg_acc, avg_acc)
+        ])
 
 
 def main(transformer_params):
@@ -163,46 +160,54 @@ def main(transformer_params):
         #     loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
         # Create Optimizer
-        # learning_rate = get_learning_rate(
-        #     learning_rate=transformer_params["learning_rate"],
-        #     hidden_size=transformer_params["hidden_size"],
-        #     learning_rate_warmup_steps=transformer_params["learning_rate_warmup_steps"])
-        #
-        # # Create optimizer. Use LazyAdamOptimizer from TF contrib, which is faster
-        # # than the TF core Adam optimizer.
-        # optimizer = tf.contrib.opt.LazyAdamOptimizer(
-        #     learning_rate,
-        #     beta1=transformer_params["optimizer_adam_beta1"],
-        #     beta2=transformer_params["optimizer_adam_beta2"],
-        #     epsilon=transformer_params["optimizer_adam_epsilon"])
-        optimizer = tf.train.AdamOptimizer(learning_rate=0.01)
+        learning_rate = get_learning_rate(
+            learning_rate=transformer_params["learning_rate"],
+            hidden_size=transformer_params["hidden_size"],
+            learning_rate_warmup_steps=transformer_params["learning_rate_warmup_steps"])
+
+        # Create optimizer. Use LazyAdamOptimizer from TF contrib, which is faster
+        # than the TF core Adam optimizer.
+        optimizer = tf.contrib.opt.LazyAdamOptimizer(
+            learning_rate,
+            beta1=transformer_params["optimizer_adam_beta1"],
+            beta2=transformer_params["optimizer_adam_beta2"],
+            epsilon=transformer_params["optimizer_adam_epsilon"])
+        # optimizer = tf.train.AdamOptimizer(learning_rate=0.01)
 
         # Calculate and apply gradients using LazyAdamOptimizer.
         grads_and_vars = optimizer.compute_gradients(loss)
 
         # Gradient clipping
         # grads_and_vars = [(tf.clip_by_value(grad, -1., 1.), var) for grad, var in grads_and_vars]
-        train = optimizer.apply_gradients(grads_and_vars)
+        step = tf.train.get_or_create_global_step()
+        train = optimizer.apply_gradients(grads_and_vars, global_step=step)
 
         result = tf.argmax(tf.nn.softmax(logits), output_type=tf.int32, axis=2)
         accuracy = tf.contrib.metrics.accuracy(result, output_placeholder, output_masks_placeholder)
 
         eval_fn = model(tokens_placeholder, bounding_box_placeholder)
 
-    # Summarization ops
-    if params.verbose_summary:
-        for grad, var in grads_and_vars:
-            tf.summary.histogram("gradient/" + var.name, grad)
-        for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-            tf.summary.histogram("var/" + variable.name, variable)
+    train_dir = path.join(params.tensorboard_log_dir, params.tensorboard_name)
+    writer = tf.contrib.summary.create_file_writer(train_dir)
 
-    tf.summary.scalar("loss", loss)
-    tf.summary.scalar("accuracy", accuracy)
+    with writer.as_default(), tf.contrib.summary.record_summaries_every_n_global_steps(100):
+        # Summarization ops
+        if params.verbose_summary:
+            for grad, var in grads_and_vars:
+                tf.contrib.summary.histogram("gradient/" + var.name, grad)
+            for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+                tf.contrib.summary.histogram("var/" + variable.name, variable)
 
-    config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=params.allow_soft_placement)
-    with tf.Session(config=config) as sess:
-        train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
-                   output_masks_placeholder)
+        tf.contrib.summary.scalar("loss", loss)
+        tf.contrib.summary.scalar("accuracy", accuracy)
+        tf.contrib.summary.scalar("learning_rate", learning_rate)
+
+        config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=params.allow_soft_placement)
+
+        with tf.Session(config=config) as sess:
+            train_loop(sess, writer, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
+                       output_masks_placeholder)
 
 
-main(model_params.BASE_PARAMS)
+# main(model_params.BASE_PARAMS)
+main(model_params.TINY_PARAMS)

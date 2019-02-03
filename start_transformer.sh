@@ -38,13 +38,13 @@ DATE=`date '+%Y_%m_%d__%H_%M'`
 JOB_NAME="im2lx_"$DATE$NAME
 CONTAINER="gs://"$BUCKET_NAME
 OUTPUT_PATH=$CONTAINER"/output_transformer"
-TB_PATH=$CONTAINER"/logdir_transformer"
+TB_PATH=$CONTAINER"/logdir3"
 PROF_PATH=$CONTAINER"/profiling"
 
-REGION="us-central1"
+#REGION="us-central1"
 #REGION="europe-west4"
 #REGION="us-east1"
-#REGION="us-west1"
+REGION="us-west1"
 DATA_URL="token_trace/"
 OUTPUT_URL="output"
 
@@ -54,8 +54,8 @@ gcloud config set project $PROJECT_ID
 gcloud ml-engine jobs submit training $JOB_NAME \
     --job-dir $OUTPUT_PATH \
     --runtime-version 1.12\
-    --module-name trainer.tf_train_inkml \
-    --package-path trainer/ \
+    --module-name transformer.trainer \
+    --package-path transformer/ \
     --region $REGION \
     --config config.yaml \
     -- \
@@ -67,7 +67,9 @@ gcloud ml-engine jobs submit training $JOB_NAME \
     --gpu 0 \
     --tb $TB_PATH \
     --tbn $JOB_NAME \
-    --allow-soft-placement t
+    --allow-soft-placement t \
+    --epv 20
+#    --verbose-summary t
 
 echo "To look on the results in tensorboard, go to http://localhost:800"$2
 echo "If tensorboard is not started, call \`tensorboard --logdir "$TB_PATH" --port 800"$2"\`"
