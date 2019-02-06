@@ -23,6 +23,7 @@ if use_gpu == 'n':
 
 
 verbose_summary = _parse_boolean('--verbose-summary', default=False)
+verbose = _parse_boolean('--verbose', default=False)
 use_new_rnn = _parse_boolean('--new-rnn', default=False)
 allow_soft_placement = _parse_boolean('--allow-soft-placement', default=False)
 
@@ -38,5 +39,6 @@ batch_size = int(parse_arg('--batch-size', default=32))
 allow_growth = _parse_boolean('--allow-growth', default=False)
 epochs = int(parse_arg('--epochs', default=500))
 epoch_per_validation = int(parse_arg('--epv', default=2))
+validate_on_training = _parse_boolean("--vot", default=False)
 
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)

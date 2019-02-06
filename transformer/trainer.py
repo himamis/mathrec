@@ -9,7 +9,7 @@ from transformer import generator
 from transformer import model
 from transformer import vocabulary
 from trainer.metrics import wer, exp_rate
-from utilities import progress_bar
+from utilities import progress_bar, log
 from transformer import model_params
 from utils import metrics
 
@@ -23,7 +23,10 @@ def create_generators(batch_size=32):
     training = read_pkl(path.join(params.data_base_dir, 'training_data.pkl'))
     training_generator = generator.DataGenerator(training, batch_size)
 
-    validating = read_pkl(path.join(params.data_base_dir, 'validating_data.pkl'))
+    validation_data = "validating_data.pkl"
+    if params.validate_on_training:
+        validation_data = "training_data.pkl"
+    validating = read_pkl(path.join(params.data_base_dir, validation_data))
     validating_generator = generator.DataGenerator(validating, 1)
 
     return training_generator, validating_generator
@@ -113,6 +116,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             outputs = sess.run(eval_fn, feed_dict)
             result = outputs['outputs'][0]
             target = encoded_formulas[0]
+            log("Validation: \n Expected: \t {}\nResult: \t {}".format(target, result))
             cwer = wer(result, target) / max(len(target), len(result))
             wern += cwer
             exprate += exp_rate(target, result)
