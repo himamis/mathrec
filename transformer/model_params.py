@@ -97,8 +97,8 @@ TINY_PARAMS.update(
 
 CUSTOM_PARAMS = BASE_PARAMS.copy()
 CUSTOM_PARAMS.update(
-    hidden_size=32,
-    num_heads=2,
+    hidden_size=128,
+    num_heads=4,
     learning_rate_warmup_steps=5000,
     learning_rate=0.5,
     layer_postprocess_dropout=0.4,

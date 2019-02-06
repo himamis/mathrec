@@ -1,3 +1,4 @@
+import random
 import numpy as np
 from trainer import tf_generator
 from transformer import vocabulary
@@ -36,6 +37,7 @@ class DataGenerator(object):
         tokens = []
         bounding_boxes = []
         for input in inputs:
+            random.shuffle(input)
             token, bounding_box = zip(*input)
             tokens.append(list(token))
             # bounding_box = [(minx, miny, maxx - minx, maxy - miny) for minx, miny, maxx, maxy in bounding_box]
