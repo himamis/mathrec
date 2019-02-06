@@ -38,7 +38,7 @@ class DataGenerator(object):
         for input in inputs:
             token, bounding_box = zip(*input)
             tokens.append(list(token))
-            bounding_box = [(minx, miny, maxx - minx, maxy - miny) for minx, miny, maxx, maxy in bounding_box]
+            # bounding_box = [(minx, miny, maxx - minx, maxy - miny) for minx, miny, maxx, maxy in bounding_box]
             bounding_boxes.append(list(bounding_box))
 
         encoded_formulas = tf_generator.encode_sequences(formulas, vocabulary.encoding_vocabulary)

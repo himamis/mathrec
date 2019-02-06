@@ -11,6 +11,7 @@ from transformer import vocabulary
 from trainer.metrics import wer, exp_rate
 from utilities import progress_bar
 from transformer import model_params
+from utils import metrics
 
 
 random.seed(123)
@@ -53,7 +54,7 @@ def create_model(transformer_params):
         return model.TransformerLatex(transformer_params)
 
 
-def train_loop(sess, writer, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
+def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
                output_masks_placeholder):
     training, validating = create_generators(params.batch_size)
 
@@ -145,19 +146,25 @@ def main(transformer_params):
         model = create_model(transformer_params)
         logits = model(tokens_placeholder, bounding_box_placeholder, output_placeholder, True)
 
+        xentropy, weights = metrics.padded_cross_entropy_loss(
+            logits, output_placeholder,
+            transformer_params["label_smoothing"],
+            transformer_params["vocab_size"])
+        loss = tf.reduce_sum(xentropy) / tf.reduce_sum(weights)
+
         # Create loss function
-        loss = tf.contrib.seq2seq.sequence_loss(logits, output_placeholder, output_masks_placeholder)
+        # loss = tf.contrib.seq2seq.sequence_loss(logits, output_placeholder, output_masks_placeholder)
         # L2 regularization
-        # decay = 1e-4
-        # for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-        #     print(variable.name)
-        #     loss += decay * tf.reduce_sum(tf.pow(variable, 2))
+        decay = 1e-4
+        for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+            loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
         # Create Optimizer
-        learning_rate = get_learning_rate(
-            learning_rate=transformer_params["learning_rate"],
-            hidden_size=transformer_params["hidden_size"],
-            learning_rate_warmup_steps=transformer_params["learning_rate_warmup_steps"])
+        # learning_rate = get_learning_rate(
+        #     learning_rate=transformer_params["learning_rate"],
+        #     hidden_size=transformer_params["hidden_size"],
+        #     learning_rate_warmup_steps=transformer_params["learning_rate_warmup_steps"])
+        learning_rate = tf.to_float(0.01)
 
         # Create optimizer. Use LazyAdamOptimizer from TF contrib, which is faster
         # than the TF core Adam optimizer.
@@ -195,13 +202,16 @@ def main(transformer_params):
         tf.contrib.summary.scalar("loss", loss)
         tf.contrib.summary.scalar("accuracy", accuracy)
         tf.contrib.summary.scalar("learning_rate", learning_rate)
+        #tf.contrib.summary.image("diffs",
+        #                         tf.get_default_graph().get_tensor_by_name(
+        #                             "transformer/Transformer/encode/create_diffs/diffs:0"))
 
         config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=params.allow_soft_placement)
+        config.gpu_options.allow_growth = params.allow_growth
 
         with tf.Session(config=config) as sess:
-            train_loop(sess, writer, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
+            train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
                        output_masks_placeholder)
 
 
-main(model_params.BASE_PARAMS)
-# main(model_params.TINY_PARAMS)
+main(model_params.CUSTOM_PARAMS)

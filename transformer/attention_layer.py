@@ -42,8 +42,8 @@ class Attention(tf.layers.Layer):
         self.k_dense_layer = tf.layers.Dense(hidden_size, use_bias=False, name="k")
         self.v_dense_layer = tf.layers.Dense(hidden_size, use_bias=False, name="v")
         if diffs_att:
-            self.bk_dense_layer = tf.layers.Dense(hidden_size, use_bias=False, name="bk")
-            self.bv_dense_layer = tf.layers.Dense(hidden_size, use_bias=False, name="bv")
+            self.bk_dense_layer = tf.layers.Dense(hidden_size, use_bias=True, name="bk")
+            self.bv_dense_layer = tf.layers.Dense(hidden_size, use_bias=True, name="bv")
 
         self.output_dense_layer = tf.layers.Dense(hidden_size, use_bias=False,
                                                   name="output_transform")

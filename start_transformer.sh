@@ -41,10 +41,10 @@ OUTPUT_PATH=$CONTAINER"/output_transformer"
 TB_PATH=$CONTAINER"/logdir3"
 PROF_PATH=$CONTAINER"/profiling"
 
-#REGION="us-central1"
+REGION="us-central1"
 #REGION="europe-west4"
 #REGION="us-east1"
-REGION="us-west1"
+#REGION="us-west1"
 DATA_URL="token_trace/"
 OUTPUT_URL="output"
 
@@ -68,8 +68,8 @@ gcloud ml-engine jobs submit training $JOB_NAME \
     --tb $TB_PATH \
     --tbn $JOB_NAME \
     --allow-soft-placement t \
-    --epv 20
-#    --verbose-summary t
+    --epv 40 \
+    --batch-size 64
 
 echo "To look on the results in tensorboard, go to http://localhost:800"$2
 echo "If tensorboard is not started, call \`tensorboard --logdir "$TB_PATH" --port 800"$2"\`"

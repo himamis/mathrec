@@ -42,8 +42,7 @@ BASE_PARAMS = defaultdict(
     label_smoothing=0.1,
     learning_rate=2.0,
     learning_rate_decay_rate=1.0,
-    #learning_rate_warmup_steps=16000,
-    learning_rate_warmup_steps=8000,
+    learning_rate_warmup_steps=16000,
 
     # Optimizer params
     optimizer_adam_beta1=0.9,
@@ -94,4 +93,18 @@ TINY_PARAMS.update(
     hidden_size=32,
     num_heads=4,
     filter_size=256,
+)
+
+CUSTOM_PARAMS = BASE_PARAMS.copy()
+CUSTOM_PARAMS.update(
+    hidden_size=32,
+    num_heads=2,
+    learning_rate_warmup_steps=5000,
+    learning_rate=0.5,
+    layer_postprocess_dropout=0.4,
+    attention_dropout=0.4,
+    relu_dropout=0.4,
+
+
+    beam_size=2,
 )

@@ -117,7 +117,9 @@ class Transformer(object):
 
             with tf.name_scope("create_diffs"):
                 diff = bounding_boxes[:, None, :, :] - bounding_boxes[:, :, None, :]
-                diff = tf.where(tf.less(diff, 0), -1 - diff, 1 - diff)
+                # diff = tf.where(tf.less(diff, 0), -1 - diff, 1 - diff)
+
+                tf.identity(diff, "diffs")
 
             # TODO: Rewrite this to have bounding box encoding
             # with tf.name_scope("add_pos_encoding"):
@@ -154,11 +156,9 @@ class Transformer(object):
             decoder_inputs = self.embedding_softmax_layer(targets)
             with tf.name_scope("shift_targets"):
                 # Shift targets to the right, and remove the last element
-                # Changed by Balazs
-                # Add START_ID as padding when shifting
-                # TODO Do I relly need shifting?
                 decoder_inputs = tf.pad(
-                    decoder_inputs, [[0, 0], [1, 0], [0, 0]])[:, :-1, :]
+                    decoder_inputs,
+                    tf.constant([[0, 0], [1, 0], [0, 0]]))[:, :-1, :]
             with tf.name_scope("add_pos_encoding"):
                 length = tf.shape(decoder_inputs)[1]
                 decoder_inputs += model_utils.get_position_encoding(
