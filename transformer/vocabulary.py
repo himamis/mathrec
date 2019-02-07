@@ -3,6 +3,8 @@ from trainer.params import data_base_dir
 from os import path
 
 # START = "<ST>"
+PAD = "<PAD>"
+PAD_ID = 0
 END = "<END>"
 EOS_ID = 1
 # START_ID = 111  # last token
@@ -13,5 +15,5 @@ encoding_vocabulary = read_pkl(encoding_vocabulary_file)
 for k, v in encoding_vocabulary.items():
     encoding_vocabulary[k] = v + 1
 encoding_vocabulary[END] = EOS_ID
-encoding_vocabulary["<PAD>"] = 0
+encoding_vocabulary[PAD] = PAD_ID
 # encoding_vocabulary[START] = len(encoding_vocabulary)
