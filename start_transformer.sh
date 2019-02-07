@@ -68,8 +68,8 @@ gcloud ml-engine jobs submit training $JOB_NAME \
     --tb $TB_PATH \
     --tbn $JOB_NAME \
     --allow-soft-placement t \
-    --epv 40 \
-    --batch-size 64
+    --epv 10 \
+    --batch-size 32
 
 echo "To look on the results in tensorboard, go to http://localhost:800"$2
 echo "If tensorboard is not started, call \`tensorboard --logdir "$TB_PATH" --port 800"$2"\`"

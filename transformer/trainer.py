@@ -9,7 +9,7 @@ from transformer import generator
 from transformer import model
 from transformer import vocabulary
 from trainer.metrics import wer, exp_rate
-from utilities import progress_bar, log
+from utilities import progress_bar
 from transformer import model_params
 from utils import metrics
 
@@ -17,6 +17,11 @@ from utils import metrics
 random.seed(123)
 tf.set_random_seed(123)
 np.random.seed(123)
+
+
+def log(message):
+    if params.verbose:
+        print(message)
 
 
 def create_generators(batch_size=32):

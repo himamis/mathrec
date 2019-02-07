@@ -1,4 +1,3 @@
-from trainer import params
 import sys
 
 
@@ -41,8 +40,3 @@ def progress_bar(name, value, endvalue, bar_length=50, width=20):
     sys.stdout.flush()
     if value == endvalue:
         sys.stdout.write('\n\n')
-
-
-def log(message):
-    if params.verbose:
-        print(message)
