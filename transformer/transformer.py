@@ -119,6 +119,13 @@ class Transformer(object):
                 diff = bounding_boxes[:, None, :, :] - bounding_boxes[:, :, None, :]
                 diff = tf.where(tf.less(diff, 0), -1 - diff, 1 - diff)
 
+                if self.params["reduce_distance"] is not None:
+                    diff = tf.where(tf.broadcast_to(
+                        tf.reduce_all(tf.less(tf.abs(diff), self.params["reduce_distance"]), 3)[:, :, :, None],
+                        tf.shape(diff)),
+                        tf.zeros_like(diff),
+                        diff)
+
                 tf.identity(diff, "diffs")
 
             # TODO: Rewrite this to have bounding box encoding
