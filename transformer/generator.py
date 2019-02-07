@@ -3,6 +3,7 @@ import numpy as np
 from trainer import tf_generator
 from transformer import vocabulary
 
+
 class DataGenerator(object):
 
     def __init__(self, data, batch_size, do_shuffle=False):
@@ -12,7 +13,16 @@ class DataGenerator(object):
         self.data_chunks = None
         self.formula_chunck = None
         self.do_shuffle = do_shuffle
+        self._sort_data()
         self._build_chunks()
+
+    def _sort_data(self):
+        for index in range(len(self.data)):
+            formula, input = self.data[index]
+            # Sort by minx
+            sorted_input = sorted(input, key=lambda inp: inp[1][0])
+            self.data[index] = (formula, sorted_input)
+
 
     def _build_chunks(self):
         lengs = [len(inputs) for formula, inputs in self.data]
