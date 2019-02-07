@@ -42,6 +42,7 @@ def progress_bar(name, value, endvalue, bar_length=50, width=20):
     if value == endvalue:
         sys.stdout.write('\n\n')
 
+
 def log(message):
     if params.verbose:
         print(message)

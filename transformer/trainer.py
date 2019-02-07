@@ -21,13 +21,13 @@ np.random.seed(123)
 
 def create_generators(batch_size=32):
     training = read_pkl(path.join(params.data_base_dir, 'training_data.pkl'))
-    training_generator = generator.DataGenerator(training, batch_size)
+    training_generator = generator.DataGenerator(training, batch_size, do_shuffle=True)
 
     validation_data = "validating_data.pkl"
     if params.validate_on_training:
         validation_data = "training_data.pkl"
     validating = read_pkl(path.join(params.data_base_dir, validation_data))
-    validating_generator = generator.DataGenerator(validating, 1)
+    validating_generator = generator.DataGenerator(validating, 1, do_shuffle=False)
 
     return training_generator, validating_generator
 
@@ -216,6 +216,5 @@ def main(transformer_params):
         with tf.Session(config=config) as sess:
             train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
                        output_masks_placeholder)
-
 
 main(model_params.CUSTOM_PARAMS)
