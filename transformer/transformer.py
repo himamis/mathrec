@@ -330,7 +330,7 @@ class EncoderStack(tf.layers.Layer):
             # Create sublayers for each layer.
             self_attention_layer = attention_layer.SelfAttention(
                 params["hidden_size"], params["num_heads"],
-                params["attention_dropout"], train, diffs_att=True)
+                params["attention_dropout"], train, diffs_att=False)
             feed_forward_network = ffn_layer.FeedFowardNetwork(
                 params["hidden_size"], params["filter_size"],
                 params["relu_dropout"], train, params["allow_ffn_pad"])
