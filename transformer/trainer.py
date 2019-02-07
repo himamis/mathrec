@@ -168,7 +168,7 @@ def main(transformer_params):
         #     learning_rate=transformer_params["learning_rate"],
         #     hidden_size=transformer_params["hidden_size"],
         #     learning_rate_warmup_steps=transformer_params["learning_rate_warmup_steps"])
-        learning_rate = tf.to_float(0.01)
+        learning_rate = tf.to_float(transformer_params["learning_rate"])
 
         # Create optimizer. Use LazyAdamOptimizer from TF contrib, which is faster
         # than the TF core Adam optimizer.
