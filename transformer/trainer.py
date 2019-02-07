@@ -27,7 +27,7 @@ def create_generators(batch_size=32):
     if params.validate_on_training:
         validation_data = "training_data.pkl"
     validating = read_pkl(path.join(params.data_base_dir, validation_data))
-    validating_generator = generator.DataGenerator(validating, 1, do_shuffle=False)
+    validating_generator = generator.DataGenerator(validating, batch_size, do_shuffle=False)
 
     return training_generator, validating_generator
 
@@ -104,6 +104,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         wern = 0
         exprate = 0
         accn = 0
+        no = 0
         for validation_step in range(validating.steps()):
             progress_bar("Validating", validation_step + 1, validating.steps())
             encoded_tokens, bounding_boxes, encoded_formulas, _ = validating.next_batch()
@@ -114,20 +115,23 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
                 # output_masks_placeholder: encoded_formulas_masks
             }
             outputs = sess.run(eval_fn, feed_dict)
-            result = outputs['outputs'][0]
-            target = encoded_formulas[0]
-            log("Validation: \n Expected: \t {}\nResult: \t {}".format(target, result))
-            cwer = wer(result, target) / max(len(target), len(result))
-            wern += cwer
-            exprate += exp_rate(target, result)
-            if abs(cwer) < 1e-6:
-                accn += 1
+            for i in range(len(outputs['outputs'])):
+                result = outputs['outputs'][i]
+                result = np.trim_zeros(result, 'b') # Remove padding zeroes from the end
+                target = encoded_formulas[i]
+                log("Validation: \n Expected: \t {}\nResult: \t {}".format(target, result))
+                cwer = wer(result, target) / max(len(target), len(result))
+                wern += cwer
+                exprate += exp_rate(target, result)
+                if abs(cwer) < 1e-6:
+                    accn += 1
+                no += 1
 
         validating.reset()
 
-        avg_wer = float(wern) / float(validating.steps())
-        avg_acc = float(accn) / float(validating.steps())
-        avg_exp_rate = float(exprate) / float(validating.steps())
+        avg_wer = float(wern) / float(no)
+        avg_acc = float(accn) / float(no)
+        avg_exp_rate = float(exprate) / float(no)
 
         sess.run([
             tf.assign(tf_avg_wer, avg_wer),
