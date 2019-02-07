@@ -117,8 +117,9 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             outputs = sess.run(eval_fn, feed_dict)
             for i in range(len(outputs['outputs'])):
                 result = outputs['outputs'][i]
-                result = np.trim_zeros(result, 'b') # Remove padding zeroes from the end
+                result = np.trim_zeros(result, 'b')  # Remove padding zeroes from the end
                 target = encoded_formulas[i]
+                target = np.trim_zeros(target, 'b')  # Remove padding zeroes from the end
                 log("Validation: \n Expected: \t {}\nResult: \t {}".format(target, result))
                 cwer = wer(result, target) / max(len(target), len(result))
                 wern += cwer
