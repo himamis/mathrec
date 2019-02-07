@@ -13,4 +13,5 @@ encoding_vocabulary = read_pkl(encoding_vocabulary_file)
 for k, v in encoding_vocabulary.items():
     encoding_vocabulary[k] = v + 1
 encoding_vocabulary[END] = EOS_ID
+encoding_vocabulary["<PAD>"] = 0
 # encoding_vocabulary[START] = len(encoding_vocabulary)
