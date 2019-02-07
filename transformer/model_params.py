@@ -107,5 +107,5 @@ CUSTOM_PARAMS.update(
     # learning_rate=0.005,
 
     beam_size=2,
-    alpha=0
+    alpha=0.5
 )
