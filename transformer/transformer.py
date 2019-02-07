@@ -158,7 +158,7 @@ class Transformer(object):
                 # Shift targets to the right, and remove the last element
                 decoder_inputs = tf.pad(
                     decoder_inputs,
-                    tf.constant([[0, 0], [1, 0], [0, 0]]))
+                    tf.constant([[0, 0], [1, 0], [0, 0]]))[:, :-1, :]
             with tf.name_scope("add_pos_encoding"):
                 length = tf.shape(decoder_inputs)[1]
                 decoder_inputs += model_utils.get_position_encoding(
