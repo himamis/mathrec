@@ -102,11 +102,11 @@ CUSTOM_PARAMS.update(
     learning_rate_warmup_steps=14000,
     learning_rate=2.0,
     layer_postprocess_dropout=0.2,
-    attention_dropout=0.2,
+    attention_dropout=0.0,
     relu_dropout=0.2,
 
     beam_size=4,
     alpha=0.5,
-    reduce_distance=0.5
+    reduce_distance=None
     # learning_rate=0.0007
 )
