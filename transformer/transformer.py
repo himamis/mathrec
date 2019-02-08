@@ -117,7 +117,9 @@ class Transformer(object):
 
             with tf.name_scope("create_diffs"):
                 diff = bounding_boxes[:, None, :, :] - bounding_boxes[:, :, None, :]
-                diff = tf.where(tf.less(diff, 0), -1 - diff, 1 - diff)
+
+                if self.params["transform_diffs"]:
+                    diff = tf.where(tf.less(diff, 0), -1 - diff, 1 - diff)
 
                 if self.params["reduce_distance"] is not None:
                     diff = tf.where(tf.broadcast_to(
