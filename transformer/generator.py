@@ -1,4 +1,3 @@
-import random
 import numpy as np
 from trainer import tf_generator
 from transformer import vocabulary
@@ -6,13 +5,15 @@ from transformer import vocabulary
 
 class DataGenerator(object):
 
-    def __init__(self, data, batch_size, do_shuffle=True):
+    def __init__(self, data, batch_size, do_shuffle=True, calc_size=True):
         self.data = data
         self.batch_size = batch_size
         self.chunk_index = 0
         self.data_chunks = None
         self.formula_chunck = None
         self.do_shuffle = do_shuffle
+        self.calc_size = calc_size
+        self.end_bounding_box = (1.0, 1.0, 0.0, 0.0) if calc_size else (1.0, 1.0, 1.0, 1.0)
         self._sort_data()
         self._build_chunks()
 
@@ -55,9 +56,9 @@ class DataGenerator(object):
         for input in inputs:
             token, bounding_box = zip(*input)
             tokens.append(list(token))
-            # Add different ending when calculating width/height
-            # bounding_box = [(minx, miny, maxx - minx, maxy - miny) for minx, miny, maxx, maxy in bounding_box]
-            bounding_boxes.append(list(bounding_box) + [(1.0, 1.0, 1.0, 1.0)])
+            if self.calc_size:
+                bounding_box = [(minx, miny, maxx - minx, maxy - miny) for minx, miny, maxx, maxy in bounding_box]
+            bounding_boxes.append(list(bounding_box) + [self.end_bounding_box])
 
         encoded_formulas = tf_generator.encode_sequences(formulas, vocabulary.encoding_vocabulary)
         encoded_formulas = tf_generator.add_end_symbol(encoded_formulas, vocabulary.EOS_ID)
