@@ -111,6 +111,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         accn = 0
         no = 0
 
+        inputs = []
         wers = []
         results = []
         targets = []
@@ -138,6 +139,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
                     accn += 1
                 no += 1
 
+                inputs.append(encoded_tokens[i])
                 results.append(result)
                 targets.append(target)
                 wers.append(cwer)
@@ -160,9 +162,10 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             if cwer > avg_wer:
                 result = results[index]
                 target = targets[index]
+                input = inputs[index]
                 decoded_result = vocabulary.decode_formula(result)
                 decoded_target = vocabulary.decode_formula(target)
-                print("Wer: {}\nResult: {}\n Target: {}\n\n".format(cwer, decoded_result, decoded_target))
+                print("Wer: {}\nInput: {}\nTarget: {}\nResult: {}\n\n".format(cwer, input, decoded_result, decoded_target))
 
 
 def main(transformer_params):
