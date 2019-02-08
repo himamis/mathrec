@@ -6,7 +6,7 @@ from transformer import vocabulary
 
 class DataGenerator(object):
 
-    def __init__(self, data, batch_size, do_shuffle=False):
+    def __init__(self, data, batch_size, do_shuffle=True):
         self.data = data
         self.batch_size = batch_size
         self.chunk_index = 0
@@ -36,8 +36,10 @@ class DataGenerator(object):
     def reset(self):
         np.random.shuffle(self.data_chuncks)
         if self.do_shuffle:
-            # TODO: Implement shuffling
-            pass
+            for index, data_chunk in enumerate(self.data_chuncks):
+                data_chunk = list(data_chunk)
+                np.random.shuffle(data_chunk)
+                self.data_chuncks[index] = tuple(data_chunk)
         self.chunk_index = 0
 
     def steps(self):
