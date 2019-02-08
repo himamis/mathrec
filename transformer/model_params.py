@@ -99,11 +99,11 @@ CUSTOM_PARAMS = BASE_PARAMS.copy()
 CUSTOM_PARAMS.update(
     hidden_size=512,
     num_heads=8,
-    learning_rate_warmup_steps=14000,
+    learning_rate_warmup_steps=20000,
     learning_rate=2.0,
-    layer_postprocess_dropout=0.1,
-    attention_dropout=0.1,
-    relu_dropout=0.1,
+    layer_postprocess_dropout=0.2,
+    attention_dropout=0.2,
+    relu_dropout=0.2,
 
     beam_size=4,
     alpha=0.5,
