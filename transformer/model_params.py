@@ -110,6 +110,7 @@ CUSTOM_PARAMS.update(
     reduce_distance=None,
 
     transform_diffs=True,
-    l2_regularization=0.001
+    # l2_regularization=0.001
+    l2_regularization=None
     # learning_rate=0.0007
 )

@@ -189,8 +189,9 @@ def main(transformer_params):
         # loss = tf.contrib.seq2seq.sequence_loss(logits, output_placeholder, output_masks_placeholder)
         # L2 regularization
         decay = transformer_params["l2_regularization"]
-        for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
-            loss += decay * tf.reduce_sum(tf.pow(variable, 2))
+        if decay is not None:
+            for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+                loss += decay * tf.reduce_sum(tf.pow(variable, 2))
 
         # Create Optimizer
         learning_rate = get_learning_rate(
