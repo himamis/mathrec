@@ -162,10 +162,10 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             if cwer > avg_wer:
                 result = results[index]
                 target = targets[index]
-                input = inputs[index]
+                input = vocabulary.decode_formula(inputs[index], join=False)
                 decoded_result = vocabulary.decode_formula(result)
                 decoded_target = vocabulary.decode_formula(target)
-                print("Wer: {}\nInput: {}\nTarget: {}\nResult: {}\n\n".format(cwer, input, decoded_result, decoded_target))
+                print("Wer: {}\nInput: {}\nTarget: {}\nResult: {}\n\n".format(cwer, input, decoded_target, decoded_result))
 
 
 def main(transformer_params):
