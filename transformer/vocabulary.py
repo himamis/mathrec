@@ -17,3 +17,12 @@ for k, v in encoding_vocabulary.items():
 encoding_vocabulary[END] = EOS_ID
 encoding_vocabulary[PAD] = PAD_ID
 # encoding_vocabulary[START] = len(encoding_vocabulary)
+
+decoding_vocabulary = {v: k for k, v in encoding_vocabulary.items()}
+
+
+def decode_formula(formula, join=True):
+    res = [decoding_vocabulary[f] for f in formula]
+    if join:
+        res = "".join(res)
+    return res

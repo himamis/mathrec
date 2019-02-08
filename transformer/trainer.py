@@ -110,6 +110,10 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         exprate = 0
         accn = 0
         no = 0
+
+        wers = []
+        results = []
+        targets = []
         for validation_step in range(validating.steps()):
             progress_bar("Validating", validation_step + 1, validating.steps())
             encoded_tokens, bounding_boxes, encoded_formulas, _ = validating.next_batch()
@@ -120,6 +124,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
                 # output_masks_placeholder: encoded_formulas_masks
             }
             outputs = sess.run(eval_fn, feed_dict)
+
             for i in range(len(outputs['outputs'])):
                 result = outputs['outputs'][i]
                 result = np.trim_zeros(result, 'b')  # Remove padding zeroes from the end
@@ -133,6 +138,10 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
                     accn += 1
                 no += 1
 
+                results.append(result)
+                targets.append(target)
+                wers.append(cwer)
+
         validating.reset()
 
         avg_wer = float(wern) / float(no)
@@ -144,6 +153,16 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             tf.assign(tf_avg_exp_rate, avg_exp_rate),
             tf.assign(tf_avg_acc, avg_acc)
         ])
+
+        # Print expressions that perform bad
+        print("Underperforming formulas (avg weg {}):\n".format(avg_wer))
+        for index, cwer in enumerate(wers):
+            if cwer > avg_wer:
+                result = results[index]
+                target = targets[index]
+                decoded_result = vocabulary.decode_formula(result)
+                decoded_target = vocabulary.decode_formula(target)
+                print("Wer: {}\nResult: {}\n Target: {}\n\n".format(cwer, decoded_result, decoded_target))
 
 
 def main(transformer_params):
