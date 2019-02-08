@@ -5,7 +5,7 @@ from transformer import vocabulary
 
 class DataGenerator(object):
 
-    def __init__(self, data, batch_size, do_shuffle=True, calc_size=True):
+    def __init__(self, data, batch_size, do_shuffle=True, calc_size=False):
         self.data = data
         self.batch_size = batch_size
         self.chunk_index = 0
