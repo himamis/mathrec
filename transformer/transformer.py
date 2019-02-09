@@ -168,10 +168,13 @@ class Transformer(object):
                 decoder_inputs = tf.pad(
                     decoder_inputs,
                     tf.constant([[0, 0], [1, 0], [0, 0]]))[:, :-1, :]
-            with tf.name_scope("add_pos_encoding"):
-                length = tf.shape(decoder_inputs)[1]
-                decoder_inputs += model_utils.get_position_encoding(
-                    length, self.params["hidden_size"])
+            length = tf.shape(decoder_inputs)[1]
+            # Add position encoding only if not added in each timestep
+            if not self.params["add_position_timing_signal"] and not self.params["add_step_timing_signal"]:
+                with tf.name_scope("add_pos_encoding"):
+
+                    decoder_inputs += model_utils.get_position_encoding(
+                        length, self.params["hidden_size"])
             if self.train:
                 decoder_inputs = tf.nn.dropout(
                     decoder_inputs, 1 - self.params["layer_postprocess_dropout"])
@@ -392,6 +395,7 @@ class DecoderStack(tf.layers.Layer):
     def __init__(self, params, train):
         super(DecoderStack, self).__init__()
         self.layers = []
+        self.params = params
         for _ in range(params["num_hidden_layers"]):
             self_attention_layer = attention_layer.SelfAttention(
                 params["hidden_size"], params["num_heads"],
@@ -440,6 +444,12 @@ class DecoderStack(tf.layers.Layer):
             layer_name = "layer_%d" % n
             layer_cache = cache[layer_name] if cache is not None else None
             with tf.variable_scope(layer_name):
+                if self.params["add_position_timing_signal"]:
+                    with tf.name_scope("add_position_timing_signal"):
+                        decoder_inputs = model_utils.add_position_timing_signal(decoder_inputs, n, self.params)
+                if self.params["add_step_timing_signal"]:
+                    with tf.name_scope("add_step_timing_signal"):
+                        decoder_inputs = model_utils.add_step_timing_signal(decoder_inputs, n, self.params)
                 with tf.variable_scope("self_attention"):
                     decoder_inputs = self_attention_layer(
                         decoder_inputs, decoder_self_attention_bias, cache=layer_cache)

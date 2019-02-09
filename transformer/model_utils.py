@@ -234,36 +234,36 @@ def add_position_timing_signal(x, step, hparams):
       a Tensor with the same shape as x.
     """
 
-    if not hparams.position_start_index:
+    if not hparams["position_start_index"]:
         index = 0
 
-    elif hparams.position_start_index == "random":
+    elif hparams["position_start_index"] == "random":
         # Shift all positions randomly
         # TODO(dehghani): What would be reasonable for max number of shift?
         index = tf.random_uniform(
             [], maxval=shape_list(x)[1], dtype=tf.int32)
 
-    elif hparams.position_start_index == "step":
+    elif hparams["position_start_index"] == "step":
         # Shift positions based on the step
-        if hparams.recurrence_type == "act":
-            num_steps = hparams.act_max_steps
+        if hparams["recurrence_type"] == "act":
+            num_steps = hparams["act_max_steps"]
         else:
-            num_steps = hparams.num_rec_steps
+            num_steps = hparams["num_rec_steps"]
         index = tf.cast(
             shape_list(x)[1] * step / num_steps, dtype=tf.int32)
 
     # No need for the timing signal in the encoder/decoder input preparation
-    assert hparams.pos is None
+    assert hparams["pos"] is None
 
     length = shape_list(x)[1]
     channels = shape_list(x)[2]
     signal = get_timing_signal_1d(
         length, channels, start_index=index)
 
-    if hparams.add_or_concat_timing_signal == "add":
+    if hparams["add_or_concat_timing_signal"] == "add":
         x_with_timing = x + cast_like(signal, x)
 
-    elif hparams.add_or_concat_timing_signal == "concat":
+    elif hparams["add_or_concat_timing_signal"] == "concat":
         batch_size = shape_list(x)[0]
         signal_tiled = tf.tile(signal, [batch_size, 1, 1])
         x_with_timing = tf.concat((x, signal_tiled), axis=-1)
@@ -280,24 +280,25 @@ def add_step_timing_signal(x, step, hparams):
     Returns:
       a Tensor with the same shape as x.
     """
-    if hparams.recurrence_type == "act":
-        num_steps = hparams.act_max_steps
-    else:
-        num_steps = hparams.num_rec_steps
+    # if hparams["recurrence_type"] == "act":
+    #     num_steps = hparams["act_max_steps"]
+    # else:
+    #     num_steps = hparams["num_rec_steps"]
+    num_steps = hparams["num_hidden_layers"]
     channels = shape_list(x)[-1]
 
-    if hparams.step_timing_signal_type == "learned":
+    if hparams["step_timing_signal_type"] == "learned":
         signal = get_layer_timing_signal_learned_1d(
             channels, step, num_steps)
 
-    elif hparams.step_timing_signal_type == "sinusoid":
+    elif hparams["step_timing_signal_type"] == "sinusoid":
         signal = get_layer_timing_signal_sinusoid_1d(
             channels, step, num_steps)
 
-    if hparams.add_or_concat_timing_signal == "add":
+    if hparams["add_or_concat_timing_signal"] == "add":
         x_with_timing = x + cast_like(signal, x)
 
-    elif hparams.add_or_concat_timing_signal == "concat":
+    elif hparams["add_or_concat_timing_signal"] == "concat":
         batch_size = shape_list(x)[0]
         length = shape_list(x)[1]
         signal_tiled = tf.tile(signal, [batch_size, length, 1])

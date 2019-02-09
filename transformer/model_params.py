@@ -20,6 +20,12 @@ from collections import defaultdict
 BASE_PARAMS = defaultdict(
     lambda: None,  # Set default value to None.
 
+    add_position_timing_signal=True,
+    add_step_timing_signal=True,
+    step_timing_signal_type="sinusoid",  # "learned",
+    position_start_index=None,
+    add_or_concat_timing_signal="add",
+
     # Input params
     default_batch_size=2048,  # Maximum number of tokens per batch of examples.
     default_batch_size_tpu=32768,
@@ -97,7 +103,7 @@ TINY_PARAMS.update(
 
 CUSTOM_PARAMS = BASE_PARAMS.copy()
 CUSTOM_PARAMS.update(
-    num_hidden_layers=12,
+    num_hidden_layers=6,
     hidden_size=512,
     num_heads=8,
     learning_rate_warmup_steps=14000,
@@ -111,6 +117,6 @@ CUSTOM_PARAMS.update(
     reduce_distance=None,
 
     transform_diffs=True,
-    l2_regularization=0.0001
+    l2_regularization=0.0001,
     # learning_rate=0.0007
 )
