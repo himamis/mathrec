@@ -32,7 +32,10 @@ def create_generators(batch_size=32):
     if params.validate_on_training:
         validation_data = "training_data.pkl"
     validating = read_pkl(path.join(params.data_base_dir, validation_data))
-    validating_generator = generator.DataGenerator(validating, batch_size, do_shuffle=False)
+    validating_batch_size = batch_size
+    if model_params["num_hidden_layers"] > 6:
+        validating_batch_size /= 2
+    validating_generator = generator.DataGenerator(validating, validating_batch_size, do_shuffle=False)
 
     return training_generator, validating_generator
 

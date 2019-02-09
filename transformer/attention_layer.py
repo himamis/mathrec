@@ -102,6 +102,8 @@ class Attention(tf.layers.Layer):
     Returns:
       Attention layer output with shape [batch_size, length_x, hidden_size]
     """
+
+
         # Linearly project the query (q), key (k) and value (v) using different
         # learned projections. This is in preparation of splitting them into
         # multiple heads. Multi-head attention uses multiple queries, keys, and
