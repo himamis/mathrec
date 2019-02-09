@@ -20,8 +20,8 @@ from collections import defaultdict
 BASE_PARAMS = defaultdict(
     lambda: None,  # Set default value to None.
 
-    add_position_timing_signal=True,
-    add_step_timing_signal=True,
+    add_position_timing_signal=False,
+    add_step_timing_signal=False,
     step_timing_signal_type="sinusoid",  # "learned",
     position_start_index=None,
     add_or_concat_timing_signal="add",

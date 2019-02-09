@@ -172,7 +172,6 @@ class Transformer(object):
             # Add position encoding only if not added in each timestep
             if not self.params["add_position_timing_signal"] and not self.params["add_step_timing_signal"]:
                 with tf.name_scope("add_pos_encoding"):
-
                     decoder_inputs += model_utils.get_position_encoding(
                         length, self.params["hidden_size"])
             if self.train:
