@@ -140,6 +140,26 @@ def normalize_sqrt(formula):
     return new_formula
 
 
+def normalize(formula):
+    """
+    Applies normalizations to formula
+    :param formula: list of tokens
+    :return: new formula
+    """
+    for norm in [
+        normalize_fractions,
+        normalize_under_superscript,
+        normalize_sqrt,
+        remove_unnecessary_brackets,
+    ]:
+        new_formula = norm(formula)
+        if new_formula != formula:
+            print("Changed from \n{}\nto\n{}\n".format("".join(formula), "".join(new_formula)))
+        formula = new_formula
+
+    return formula
+
+
 def main():
     token_file = "testing_data.pkl"
 
@@ -148,18 +168,7 @@ def main():
     tokens = pickle.load(open(input_tokens_path, 'rb'))
 
     for index, (formula, input) in enumerate(tokens):
-
-        for norm in [
-            normalize_fractions,
-            normalize_under_superscript,
-            normalize_sqrt,
-            remove_unnecessary_brackets,
-        ]:
-            new_formula = norm(formula)
-            if new_formula != formula:
-                print("Changed from \n{}\nto\n{}\n".format("".join(formula), "".join(new_formula)))
-            formula = new_formula
-
+        formula = normalize(formula)
         tokens[index] = (formula, input)
 
     output_tokens_dir = "/Users/balazs/token_trace_normalized"

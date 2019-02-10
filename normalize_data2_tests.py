@@ -37,6 +37,8 @@ def test_normalize_fractions():
 
 def test_remove_unnecessary_brackets():
     assert remove_unnecessary_brackets(list("x{1,2,3}{x_{1}}_{{1}}")) == list("x1,2,3x_{1}_{1}")
+    assert remove_unnecessary_brackets(list("2x{(9x+1)}{(3x+1)}^{3}")) == list("2x(9x+1)(3x+1)^{3}")
+    assert remove_unnecessary_brackets(list("x^{2}{3}")) == list("x^{2}3")
 
 
 def test_normalize_sqrt():
@@ -53,6 +55,7 @@ def main():
     test_normalize_fractions()
     test_remove_unnecessary_brackets()
     test_normalize_sqrt()
+
 
 
 if __name__ == "__main__":
