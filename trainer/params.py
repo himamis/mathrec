@@ -6,6 +6,11 @@ def _parse_boolean(name, required=False, default=False):
     return False if 'n' == boolean else True
 
 
+def _parse_int(name, required=False, default=None):
+    integer = parse_arg(name, default=default, required=required)
+    return int(integer) if integer is not None else None
+
+
 gcs = parse_arg('--gcs', required=False)
 use_gpu = parse_arg('--gpu', default='n', required=False)
 start_epoch = int(parse_arg('--start-epoch', -1))
@@ -42,3 +47,7 @@ epoch_per_validation = int(parse_arg('--epv', default=2))
 validate_on_training = _parse_boolean("--vot", default=False)
 
 device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
+
+head = _parse_int('--head', default=None)
+hidden_size = _parse_int('--hidden-size', default=None)
+layers = _parse_int('--hidden-layers', default=None)

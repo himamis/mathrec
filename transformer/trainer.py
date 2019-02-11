@@ -170,9 +170,19 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
                 print("Wer: {}\nInput: {}\nTarget: {}\nResult: {}\n\n".format(cwer, input, decoded_target, decoded_result))
 
 
-def main(transformer_params):
+def update_params(transformer_params):
     encoding_vb = vocabulary.encoding_vocabulary
     transformer_params.update(vocab_size=len(encoding_vb))
+    if params.head is not None:
+        transformer_params.update(num_heads=params.head)
+    if params.layers is not None:
+        transformer_params.update(num_hidden_layers=params.layers)
+    if params.hidden_size is not None:
+        transformer_params.update(hidden_size=params.hidden_size)
+
+
+def main(transformer_params):
+    update_params(transformer_params)
 
     tokens_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="tokens")
     bounding_box_placeholder = tf.placeholder(tf.float32, shape=(None, None, 4), name="bounding_boxes")
@@ -253,4 +263,5 @@ def main(transformer_params):
                        output_masks_placeholder)
 
 
-main(model_params.CUSTOM_PARAMS)
+if __name__ == '__main__':
+    main(model_params.CUSTOM_PARAMS)

@@ -161,19 +161,21 @@ def normalize(formula):
 
 
 def main():
-    token_file = "testing_data.pkl"
+    token_file = "validating_data.pkl"
 
-    input_tokens_dir = "/Users/balazs/token_trace_orig"
+    input_tokens_dir = "/Users/balazs/token_trace_normalized"
     input_tokens_path = os.path.join(input_tokens_dir, token_file)
     tokens = pickle.load(open(input_tokens_path, 'rb'))
 
     for index, (formula, input) in enumerate(tokens):
-        formula = normalize(formula)
-        tokens[index] = (formula, input)
+        if "".join(formula).startswith("\\int\\sin2"):
+            print(input)
+        # formula = normalize(formula)
+        # tokens[index] = (formula, input)
 
     output_tokens_dir = "/Users/balazs/token_trace_normalized"
     output_tokens_path = os.path.join(output_tokens_dir, token_file)
-    pickle.dump(tokens, open(output_tokens_path, 'wb'))
+    # pickle.dump(tokens, open(output_tokens_path, 'wb'))
 
 
 if __name__ == "__main__":
