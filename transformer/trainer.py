@@ -67,6 +67,7 @@ def create_model(transformer_params):
 def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
                output_masks_placeholder):
     training, validating = create_generators(params.batch_size)
+    saver = tf.train.Saver(name=params.tensorboard_name, pad_step_number=True)
 
     tf_epoch = tf.Variable(0, dtype=tf.int64, name="epoch")
     with tf.name_scope("evaluation"):
@@ -79,13 +80,14 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             tf.contrib.summary.scalar("avg_acc", tf_avg_acc, "validation", tf_epoch)
             tf.contrib.summary.scalar("avg_exp_rate", tf_avg_exp_rate, "validation", tf_epoch)
 
+    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name)
     if params.start_epoch != -1:
-        pass
-        # saver.restore(sess, save_format.format(params.start_epoch))
+        saver.restore(sess, save_path)
     else:
         tf.global_variables_initializer().run()
 
     tf.contrib.summary.initialize(graph=tf.get_default_graph())
+    best_accuracy = -1
 
     for epoch in range(params.start_epoch + 1, params.epochs):
         sess.run(tf.assign(tf_epoch, epoch))
@@ -168,6 +170,10 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
                 decoded_result = vocabulary.decode_formula(result)
                 decoded_target = vocabulary.decode_formula(target)
                 print("Wer: {}\nInput: {}\nTarget: {}\nResult: {}\n\n".format(cwer, input, decoded_target, decoded_result))
+
+        if best_accuracy < avg_acc:
+            best_accuracy = avg_acc
+            saver.save(sess, save_path, epoch)
 
 
 def update_params(transformer_params):
