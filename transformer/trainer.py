@@ -263,5 +263,4 @@ def main(transformer_params):
                        output_masks_placeholder)
 
 
-if __name__ == '__main__':
-    main(model_params.CUSTOM_PARAMS)
+main(model_params.CUSTOM_PARAMS)
