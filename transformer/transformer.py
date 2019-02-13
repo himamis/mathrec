@@ -93,7 +93,7 @@ class Transformer(object):
             # Generate output sequence if targets is None, or return logits if target
             # sequence is known.
             if targets is None:
-                return self.predict(encoder_outputs, attention_bias)
+                return self.predict(inputs, encoder_outputs, attention_bias)
             else:
                 logits = self.decode(targets, encoder_outputs, attention_bias)
                 return logits
@@ -240,7 +240,7 @@ class Transformer(object):
 
         return symbols_to_logits_fn
 
-    def predict(self, encoder_outputs, encoder_decoder_attention_bias):
+    def predict(self, encoder_input_tokens, encoder_outputs, encoder_decoder_attention_bias):
         """Return predicted sequence."""
         batch_size = tf.shape(encoder_outputs)[0]
         input_length = tf.shape(encoder_outputs)[1]
@@ -264,6 +264,7 @@ class Transformer(object):
 
         # Use beam search to find the top beam_size sequences and scores.
         decoded_ids, scores = beam_search.sequence_beam_search(
+            encoder_input_tokens=encoder_input_tokens,
             symbols_to_logits_fn=symbols_to_logits_fn,
             initial_ids=initial_ids,
             initial_cache=cache,
