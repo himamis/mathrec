@@ -80,7 +80,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             tf.contrib.summary.scalar("avg_acc", tf_avg_acc, "validation", tf_epoch)
             tf.contrib.summary.scalar("avg_exp_rate", tf_avg_exp_rate, "validation", tf_epoch)
 
-    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name)
+    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name, "model.ckpt")
     if params.start_epoch != -1:
         saver.restore(sess, save_path)
     else:

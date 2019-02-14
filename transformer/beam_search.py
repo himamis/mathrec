@@ -85,22 +85,22 @@ class SequenceBeamSearch(object):
         clean_mask[vocabulary.PAD_ID] = 0
         clean_mask[encoding_vocab['{']] = 0
         clean_mask[encoding_vocab['}']] = 0
-        # clean_mask[encoding_vocab['_']] = 0
+        clean_mask[encoding_vocab['_']] = 0
         clean_mask[encoding_vocab['^']] = 0
-        #clean_mask[encoding_vocab['[']] = 0
-        #clean_mask[encoding_vocab[']']] = 0
-        #clean_mask[encoding_vocab['\\frac']] = 0
+        clean_mask[encoding_vocab['[']] = 0
+        clean_mask[encoding_vocab[']']] = 0
+        clean_mask[encoding_vocab['\\frac']] = 0
         self._clean_mask = tf.constant(clean_mask, dtype=tf.int32)
 
         # frac mask
-        # frac_mask = np.zeros(self.vocab_size, dtype=np.int32)
-        # frac_mask[encoding_vocab['\\frac']] = 1
-        # self._frac_mask = tf.constant(frac_mask, dtype=tf.int32)
+        frac_mask = np.zeros(self.vocab_size, dtype=np.int32)
+        frac_mask[encoding_vocab['\\frac']] = 1
+        self._frac_mask = tf.constant(frac_mask, dtype=tf.int32)
 
-        # gather = np.array(range(vocab_size))
-        #gather[encoding_vocab['\\frac']] = encoding_vocab['-']
-        #gather[encoding_vocab['-']] = encoding_vocab['\\frac']
-        #self._gather = tf.constant(gather, dtype=tf.int32)
+        gather = np.array(range(vocab_size))
+        gather[encoding_vocab['\\frac']] = encoding_vocab['-']
+        gather[encoding_vocab['-']] = encoding_vocab['\\frac']
+        self._gather = tf.constant(gather, dtype=tf.int32)
 
 
     def search(self, initial_ids, initial_cache):
