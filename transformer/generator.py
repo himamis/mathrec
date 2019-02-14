@@ -5,12 +5,13 @@ from transformer import vocabulary
 
 class DataGenerator(object):
 
-    def __init__(self, data, batch_size, do_shuffle=True, calc_size=False):
+    def __init__(self, data, batch_size, do_shuffle=True, calc_size=False, steps=None):
         self.data = data
         self.batch_size = batch_size
         self.chunk_index = 0
         self.data_chunks = None
         self.formula_chunck = None
+        self._steps = steps
         self.do_shuffle = do_shuffle
         self.calc_size = calc_size
         self.end_bounding_box = (1.0, 1.0, 0.0, 0.0) if calc_size else (1.0, 1.0, 1.0, 1.0)
@@ -44,6 +45,8 @@ class DataGenerator(object):
         self.chunk_index = 0
 
     def steps(self):
+        if self._steps is not None:
+            return self._steps
         return len(self.data_chuncks)
 
     def next_batch(self):

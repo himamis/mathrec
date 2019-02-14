@@ -222,8 +222,8 @@ class SequenceBeamSearch(object):
         # Calculate largest length penalty (the larger penalty, the better score).
         max_length_norm = _length_normalization(self.alpha, self.max_decode_length)
         # Get the best possible scores from alive sequences.
-        best_alive_scores = alive_log_probs[:, 0] / max_length_norm #\
-                            #+ self._calculate_translation_token_score(alive_seqs[:, 0, tf.newaxis, :])[:,0]
+        best_alive_scores = alive_log_probs[:, 0] / max_length_norm \
+                            + self._calculate_translation_token_score(alive_seqs[:, 0, tf.newaxis, :])[:,0]
 
         # Compute worst score in finished sequences for each batch element
         finished_scores *= tf.to_float(finished_flags)  # set filler scores to zero
@@ -396,7 +396,10 @@ class SequenceBeamSearch(object):
 
         # Calculate new seq scores from log probabilities.
         length_norm = _length_normalization(self.alpha, i + 1)
-        new_scores = new_log_probs / length_norm# + self._calculate_translation_token_score(new_seq)
+        length_normed_probs = new_log_probs / length_norm
+        # length_normed_probs = tf.Print(length_normed_probs, [length_normed_probs], "scores before: ", summarize=50)
+        new_scores = length_normed_probs + self._calculate_translation_token_score(new_seq)
+        # new_scores = tf.Print(new_scores, [new_scores], "scores after: ", summarize=50)
 
         # Set the scores of the still-alive seq in new_seq to large negative values.
         new_finished_flags = tf.equal(new_seq[:, :, -1], self.eos_id)
@@ -430,12 +433,14 @@ class SequenceBeamSearch(object):
         seq_len = shape[2]
         seq = tf.reshape(alive_seq, [batch_size * beam_size, seq_len])
         counted = tf.map_fn(self._bincounter, seq)
-        # counted += tf.gather(counted * self._frac_mask, self._gather, axis=1)
+        counted += tf.gather(counted * self._frac_mask, self._gather, axis=1)
         counted *= self._clean_mask
         counted = tf.reshape(counted, [batch_size, beam_size, -1])
 
         abs_diff = tf.abs(counted - self._token_count[:, None, :])
-        return tf.to_float(-tf.reduce_sum(abs_diff, axis=-1))
+        res = tf.to_float(-tf.reduce_sum(abs_diff, axis=-1)) * 10
+        return res
+        # return tf.Print(res, [res], "translation_token_score: ", summarize=50)
 
 
 def sequence_beam_search(

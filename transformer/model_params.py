@@ -112,7 +112,7 @@ CUSTOM_PARAMS.update(
     attention_dropout=0.2,
     relu_dropout=0.2,
 
-    beam_size=6,
+    beam_size=20,
     alpha=0.6,
     reduce_distance=None,
 

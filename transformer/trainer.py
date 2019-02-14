@@ -38,6 +38,30 @@ def create_generators(batch_size=32):
 
     return training_generator, validating_generator
 
+# def create_generators(batch_size=32):
+#     training = read_pkl(path.join(params.data_base_dir, 'training_data.pkl'))
+#     training_generator = generator.DataGenerator(training, batch_size, do_shuffle=True, steps=0)
+#
+#     validation_data = "validating_data.pkl"
+#     if params.validate_on_training:
+#         validation_data = "training_data.pkl"
+#     vv = read_pkl(path.join(params.data_base_dir, validation_data))
+#     validating = []
+#     for (formula, input) in vv:
+#         form_string = "".join(formula)
+#         if "A+A+B+B+C" in form_string or "x\\timesx\\timesx" in form_string or \
+#                 "1+1+1+" in form_string or \
+#                 "9999" in form_string or \
+#                 "A+A+B+B+C" in form_string or \
+#                 "100000000" in form_string:
+#             validating.append((formula, input))
+#
+#     validating_batch_size = 1
+#     validating_generator = generator.DataGenerator(validating, validating_batch_size, do_shuffle=False)
+#
+#     return training_generator, validating_generator
+
+
 
 def get_learning_rate(learning_rate, hidden_size, learning_rate_warmup_steps):
     """Calculate learning rate with linear warmup and rsqrt decay."""
@@ -80,16 +104,17 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
             tf.contrib.summary.scalar("avg_acc", tf_avg_acc, "validation", tf_epoch)
             tf.contrib.summary.scalar("avg_exp_rate", tf_avg_exp_rate, "validation", tf_epoch)
 
-    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name, "model.ckpt")
-    if params.start_epoch != -1:
-        saver.restore(sess, save_path)
-    else:
-        tf.global_variables_initializer().run()
+    tf.global_variables_initializer().run()
+
+    # save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name, "model.ckpt")
+    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name)
+    if params.start_epoch != 0:
+        saver.restore(sess, save_path + "-%08d" % params.start_epoch)
 
     tf.contrib.summary.initialize(graph=tf.get_default_graph())
     best_accuracy = -1
 
-    for epoch in range(params.start_epoch + 1, params.epochs):
+    for epoch in range(params.start_epoch, params.epochs):
         sess.run(tf.assign(tf_epoch, epoch))
         steps = training.steps()
         for step in range(steps):
@@ -173,7 +198,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
 
         if best_accuracy < avg_acc:
             best_accuracy = avg_acc
-            saver.save(sess, save_path, epoch)
+            saver.save(sess, save_path, epoch + 1)
 
 
 def update_params(transformer_params):
