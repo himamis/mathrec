@@ -210,6 +210,7 @@ def update_params(transformer_params):
         transformer_params.update(num_hidden_layers=params.layers)
     if params.hidden_size is not None:
         transformer_params.update(hidden_size=params.hidden_size)
+    transformer_params.update(beta=params.beta)
 
 
 def main(transformer_params):

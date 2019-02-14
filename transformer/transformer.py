@@ -272,7 +272,8 @@ class Transformer(object):
             beam_size=self.params["beam_size"],
             alpha=self.params["alpha"],
             max_decode_length=max_decode_length,
-            eos_id=vocabulary.EOS_ID)
+            eos_id=vocabulary.EOS_ID,
+            beta=self.params["beta"])
 
         # Get the top sequence for each batch element
         top_decoded_ids = decoded_ids[:, 0, 1:]

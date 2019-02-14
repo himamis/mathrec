@@ -62,7 +62,7 @@ class SequenceBeamSearch(object):
     """Implementation of beam search loop."""
 
     def __init__(self, encoder_input_tokens, symbols_to_logits_fn, vocab_size, batch_size,
-                 beam_size, alpha, max_decode_length, eos_id):
+                 beam_size, alpha, max_decode_length, eos_id, beta):
         self.encoder_input_tokens = encoder_input_tokens
         self.symbols_to_logits_fn = symbols_to_logits_fn
         self.vocab_size = vocab_size
@@ -71,6 +71,7 @@ class SequenceBeamSearch(object):
         self.alpha = alpha
         self.max_decode_length = max_decode_length
         self.eos_id = eos_id
+        self.beta = beta
 
         # Count number of tokens
         self._bincounter = fn.partial(tf.bincount, minlength=vocab_size)
@@ -438,14 +439,14 @@ class SequenceBeamSearch(object):
         counted = tf.reshape(counted, [batch_size, beam_size, -1])
 
         abs_diff = tf.abs(counted - self._token_count[:, None, :])
-        res = tf.to_float(-tf.reduce_sum(abs_diff, axis=-1)) * 10
+        res = tf.to_float(-tf.reduce_sum(abs_diff, axis=-1)) * self.beta
         return res
         # return tf.Print(res, [res], "translation_token_score: ", summarize=50)
 
 
 def sequence_beam_search(
         encoder_input_tokens, symbols_to_logits_fn, initial_ids, initial_cache, vocab_size, beam_size,
-        alpha, max_decode_length, eos_id):
+        alpha, max_decode_length, eos_id, beta):
     """Search for sequence of subtoken ids with the largest probability.
 
     Args:
@@ -473,7 +474,7 @@ def sequence_beam_search(
     """
     batch_size = tf.shape(initial_ids)[0]
     sbs = SequenceBeamSearch(encoder_input_tokens, symbols_to_logits_fn, vocab_size, batch_size,
-                             beam_size, alpha, max_decode_length, eos_id)
+                             beam_size, alpha, max_decode_length, eos_id, beta)
     return sbs.search(initial_ids, initial_cache)
 
 

@@ -64,6 +64,9 @@ BASE_PARAMS = defaultdict(
     use_tpu=False,
     static_batch=False,
     allow_ffn_pad=True,
+
+    # Beta
+    beta=0
 )
 
 BIG_PARAMS = BASE_PARAMS.copy()
@@ -117,6 +120,6 @@ CUSTOM_PARAMS.update(
     reduce_distance=None,
 
     transform_diffs=True,
-    l2_regularization=0.0001,
+    l2_regularization=0.0001
     # learning_rate=0.0007
 )
