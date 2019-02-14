@@ -18,7 +18,7 @@ safe_to_wrap = set(string.ascii_letters) | set(string.digits) | {
 }
 
 
-def skip_brackets(formula, index, brackets=("{", "}")):
+def skip_brackets(formula, index, brackets=("{", "}"), direction=1):
     """
     Returns new index with brackets skipped.
     Assumes that the formula does have closing brackets after index.
@@ -26,20 +26,23 @@ def skip_brackets(formula, index, brackets=("{", "}")):
     :param formula: list of tokens
     :param index: index
     :param brackets: tuple of brackets
+    :param direction: the order of traversing (+1, or -1)
     :return: new index with skipped brackets
     """
     assert formula[index] == brackets[0], "Formula {} index {} does not start with bracket {}".format("".join(formula),
                                                                                                       index,
                                                                                                       brackets[0])
-    index += 1
+    assert direction == 1 or direction == -1, "Direction must be between -1 or 1"
+
+    index += direction
     opening = 0
     while formula[index] != brackets[1] or opening != 0:
         if formula[index] == brackets[0]:
             opening += 1
         elif formula[index] == brackets[1]:
             opening -= 1
-        index += 1
-    return index + 1
+        index += direction
+    return index + direction
 
 
 def wrap(formula, index):
@@ -94,6 +97,12 @@ def normalize_fractions(formula):
     index = 0
     while index < len(new_formula):
         if new_formula[index] == "\\frac":
+            if index > 0 and new_formula[index - 1] == "{" and index < len(new_formula) and new_formula[index + 1] == "}":
+                # Unwrap frac
+                del new_formula[index + 1]
+                del new_formula[index - 1]
+                index -= 1
+
             index += 1
             for i in range(2):
                 if new_formula[index] != "{":
@@ -117,7 +126,11 @@ def remove_unnecessary_brackets(formula):
                 new_formula = remove_brackets(new_formula, index)
             else:
                 prev_token = new_formula[index - 1]
-                if prev_token not in {"\\frac", "_", "^", "\\sqrt", "}", "]"}:
+                if prev_token == "}":
+                    prev_index = skip_brackets(new_formula, index - 1, ("}", "{"), -1)
+                    if new_formula[prev_index] != "\\frac":
+                        new_formula = remove_brackets(new_formula, index)
+                elif prev_token not in {"\\frac", "_", "^", "\\sqrt", "]"}:
                     new_formula = remove_brackets(new_formula, index)
                     index -= 1
         index += 1
@@ -140,6 +153,47 @@ def normalize_sqrt(formula):
     return new_formula
 
 
+def normalize_under_superscript_order(formula):
+    new_formula = list(formula)
+    index = 0
+    while index < len(new_formula):
+        if new_formula[index] == "_":
+            next_ind = skip_brackets(new_formula, index + 1)
+            if next_ind < len(new_formula) and new_formula[next_ind] == "^":
+                last_inde = skip_brackets(new_formula, next_ind + 1)
+                underscript = new_formula[index+1:next_ind]
+                overscript = new_formula[next_ind+1:last_inde]
+
+                cur = index
+                new_formula[cur] = "^"
+                cur += 1
+                new_formula[cur:cur+len(overscript)] = overscript
+                cur += len(overscript)
+                new_formula[cur] = "_"
+                cur += 1
+                new_formula[cur:cur+len(underscript)] = underscript
+
+        index += 1
+    return new_formula
+
+
+def normalize_square_brackets(formula, input):
+    for j, (char, box) in enumerate(input):
+        if char == '[':
+            char = '\\['
+        elif char == ']':
+            char = '\\]'
+        input[j] = (char, box)
+
+    for j, char in enumerate(formula):
+        if char == '[':
+            if j == 0 or formula[j - 1] != '\\sqrt':
+                k = skip_brackets(formula, j, ('[', ']')) - 1
+                formula[j] = '\\['
+                formula[k] = '\\]'
+    return formula, input
+
+
 def normalize(formula):
     """
     Applies normalizations to formula
@@ -151,6 +205,7 @@ def normalize(formula):
         normalize_under_superscript,
         normalize_sqrt,
         remove_unnecessary_brackets,
+        normalize_under_superscript_order
     ]:
         new_formula = norm(formula)
         if new_formula != formula:
@@ -163,19 +218,23 @@ def normalize(formula):
 def main():
     token_file = "validating_data.pkl"
 
-    input_tokens_dir = "/Users/balazs/token_trace_normalized"
+    input_tokens_dir = "/Users/balazs/token_trace_orig"
     input_tokens_path = os.path.join(input_tokens_dir, token_file)
     tokens = pickle.load(open(input_tokens_path, 'rb'))
 
     for index, (formula, input) in enumerate(tokens):
-        if "".join(formula).startswith("\\int\\sin2"):
-            print(input)
-        # formula = normalize(formula)
-        # tokens[index] = (formula, input)
+        try:
+            formula = normalize(formula)
+        except AssertionError as e:
+            print("Could not parse")
+            print(formula)
+            raise e
 
-    output_tokens_dir = "/Users/balazs/token_trace_normalized"
+        tokens[index] = normalize_square_brackets(formula, input)
+
+    output_tokens_dir = "/Users/balazs/token_trace_normalized2"
     output_tokens_path = os.path.join(output_tokens_dir, token_file)
-    # pickle.dump(tokens, open(output_tokens_path, 'wb'))
+    pickle.dump(tokens, open(output_tokens_path, 'wb'))
 
 
 if __name__ == "__main__":
