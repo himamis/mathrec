@@ -231,6 +231,8 @@ def update_params(transformer_params):
         transformer_params.update(num_hidden_layers=params.layers)
     if params.hidden_size is not None:
         transformer_params.update(hidden_size=params.hidden_size)
+    if params.filter_size is not None:
+        transformer_params.update(filter_size=params.filter_size)
     transformer_params.update(beta=params.beta)
     transformer_params.update(alpha=params.alpha)
     transformer_params.update(beam_size=params.beam_size)
