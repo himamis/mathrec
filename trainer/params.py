@@ -52,3 +52,5 @@ head = _parse_int('--head', default=None)
 hidden_size = _parse_int('--hidden-size', default=None)
 layers = _parse_int('--hidden-layers', default=None)
 beta = float(parse_arg('--beta', default=0))
+
+validate_only = _parse_boolean('--validate-only', default=False)

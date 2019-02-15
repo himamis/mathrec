@@ -88,10 +88,86 @@ def create_model(transformer_params):
         return model.TransformerLatex(transformer_params)
 
 
+def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, validating):
+    wern = 0
+    exprate = 0
+    accn = 0
+    no = 0
+
+    inputs = []
+    wers = []
+    results = []
+    targets = []
+    for validation_step in range(validating.steps()):
+        progress_bar("Validating", validation_step + 1, validating.steps())
+        encoded_tokens, bounding_boxes, encoded_formulas, _ = validating.next_batch()
+        feed_dict = {
+            tokens_placeholder: encoded_tokens,
+            bounding_box_placeholder: bounding_boxes,
+            output_placeholder: encoded_formulas  # ,
+            # output_masks_placeholder: encoded_formulas_masks
+        }
+        outputs = sess.run(eval_fn, feed_dict)
+
+        for i in range(len(outputs['outputs'])):
+            result = outputs['outputs'][i]
+            result = np.trim_zeros(result, 'b')  # Remove padding zeroes from the end
+            target = encoded_formulas[i]
+            target = np.trim_zeros(target, 'b')  # Remove padding zeroes from the end
+            log("Validation: \n Expected: \t {}\nResult: \t {}".format(target, result))
+            cwer = wer(result, target) / max(len(target), len(result))
+            wern += cwer
+            exprate += exp_rate(target, result)
+            if abs(cwer) < 1e-6:
+                accn += 1
+            no += 1
+
+            inputs.append(encoded_tokens[i])
+            results.append(result)
+            targets.append(target)
+            wers.append(cwer)
+
+    validating.reset()
+
+    avg_wer = float(wern) / float(no)
+    avg_acc = float(accn) / float(no)
+    avg_exp_rate = float(exprate) / float(no)
+
+    # Print expressions that perform bad
+    print("Underperforming formulas (avg weg {}):\n".format(avg_wer))
+    for index, cwer in enumerate(wers):
+        if cwer > avg_wer:
+            result = results[index]
+            target = targets[index]
+            input = vocabulary.decode_formula(inputs[index], join=False)
+            decoded_result = vocabulary.decode_formula(result)
+            decoded_target = vocabulary.decode_formula(target)
+            print("Wer: {}\nInput: {}\nTarget: {}\nResult: {}\n\n".format(cwer, input, decoded_target, decoded_result))
+
+    return avg_wer, avg_acc, avg_exp_rate
+
+
+def create_config():
+    config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=params.allow_soft_placement)
+    config.gpu_options.allow_growth = params.allow_growth
+    return config
+
+
+def create_saver_and_save_path():
+    saver = tf.train.Saver(name=params.tensorboard_name, pad_step_number=True)
+    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name)
+
+    return saver, save_path
+
+
+def restore_model(sess, saver, save_path, epoch):
+    saver.restore(sess, save_path + "-%08d" % epoch)
+
+
 def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
                output_masks_placeholder):
     training, validating = create_generators(params.batch_size)
-    saver = tf.train.Saver(name=params.tensorboard_name, pad_step_number=True)
+    saver, save_path = create_saver_and_save_path()
 
     tf_epoch = tf.Variable(0, dtype=tf.int64, name="epoch")
     with tf.name_scope("evaluation"):
@@ -106,10 +182,8 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
 
     tf.global_variables_initializer().run()
 
-    # save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name, "model.ckpt")
-    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name)
     if params.start_epoch != 0:
-        saver.restore(sess, save_path + "-%08d" % params.start_epoch)
+        restore_model(sess, saver, save_path, params.start_epoch)
 
     tf.contrib.summary.initialize(graph=tf.get_default_graph())
     best_accuracy = -1
@@ -135,66 +209,13 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         if (epoch + 1) % params.epoch_per_validation != 0:
             continue
 
-        wern = 0
-        exprate = 0
-        accn = 0
-        no = 0
-
-        inputs = []
-        wers = []
-        results = []
-        targets = []
-        for validation_step in range(validating.steps()):
-            progress_bar("Validating", validation_step + 1, validating.steps())
-            encoded_tokens, bounding_boxes, encoded_formulas, _ = validating.next_batch()
-            feed_dict = {
-                tokens_placeholder: encoded_tokens,
-                bounding_box_placeholder: bounding_boxes,
-                output_placeholder: encoded_formulas  # ,
-                # output_masks_placeholder: encoded_formulas_masks
-            }
-            outputs = sess.run(eval_fn, feed_dict)
-
-            for i in range(len(outputs['outputs'])):
-                result = outputs['outputs'][i]
-                result = np.trim_zeros(result, 'b')  # Remove padding zeroes from the end
-                target = encoded_formulas[i]
-                target = np.trim_zeros(target, 'b')  # Remove padding zeroes from the end
-                log("Validation: \n Expected: \t {}\nResult: \t {}".format(target, result))
-                cwer = wer(result, target) / max(len(target), len(result))
-                wern += cwer
-                exprate += exp_rate(target, result)
-                if abs(cwer) < 1e-6:
-                    accn += 1
-                no += 1
-
-                inputs.append(encoded_tokens[i])
-                results.append(result)
-                targets.append(target)
-                wers.append(cwer)
-
-        validating.reset()
-
-        avg_wer = float(wern) / float(no)
-        avg_acc = float(accn) / float(no)
-        avg_exp_rate = float(exprate) / float(no)
-
+        avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder,
+                                                  output_placeholder, validating)
         sess.run([
             tf.assign(tf_avg_wer, avg_wer),
             tf.assign(tf_avg_exp_rate, avg_exp_rate),
             tf.assign(tf_avg_acc, avg_acc)
         ])
-
-        # Print expressions that perform bad
-        print("Underperforming formulas (avg weg {}):\n".format(avg_wer))
-        for index, cwer in enumerate(wers):
-            if cwer > avg_wer:
-                result = results[index]
-                target = targets[index]
-                input = vocabulary.decode_formula(inputs[index], join=False)
-                decoded_result = vocabulary.decode_formula(result)
-                decoded_target = vocabulary.decode_formula(target)
-                print("Wer: {}\nInput: {}\nTarget: {}\nResult: {}\n\n".format(cwer, input, decoded_target, decoded_result))
 
         if best_accuracy < avg_acc:
             best_accuracy = avg_acc
@@ -213,15 +234,8 @@ def update_params(transformer_params):
     transformer_params.update(beta=params.beta)
 
 
-def main(transformer_params):
-    update_params(transformer_params)
-
-    tokens_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="tokens")
-    bounding_box_placeholder = tf.placeholder(tf.float32, shape=(None, None, 4), name="bounding_boxes")
-
-    output_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="output")
-    output_masks_placeholder = tf.placeholder(tf.float32, shape=(None, None), name="output_masks")
-
+def create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
+                          output_placeholder, output_masks_placeholder):
     with tf.device(params.device):
         model = create_model(transformer_params)
         logits = model(tokens_placeholder, bounding_box_placeholder, output_placeholder, True)
@@ -283,16 +297,52 @@ def main(transformer_params):
         tf.contrib.summary.scalar("loss", loss)
         tf.contrib.summary.scalar("accuracy", accuracy)
         tf.contrib.summary.scalar("learning_rate", learning_rate)
-        #tf.contrib.summary.image("diffs",
+        # tf.contrib.summary.image("diffs",
         #                         tf.get_default_graph().get_tensor_by_name(
         #                             "transformer/Transformer/encode/create_diffs/diffs:0"))
 
-        config = tf.ConfigProto(log_device_placement=False, allow_soft_placement=params.allow_soft_placement)
-        config.gpu_options.allow_growth = params.allow_growth
+    return train, eval_fn
 
-        with tf.Session(config=config) as sess:
-            train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
-                       output_masks_placeholder)
+
+def train(transformer_params, tokens_placeholder, bounding_box_placeholder,
+          output_placeholder, output_masks_placeholder):
+    train_fn, eval_fn = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
+                          output_placeholder, output_masks_placeholder)
+
+    with tf.Session(config=create_config()) as sess:
+        train_loop(sess, train_fn, eval_fn, tokens_placeholder, bounding_box_placeholder,
+                   output_placeholder, output_masks_placeholder)
+
+
+def test(transformer_params, tokens_placeholder, bounding_box_placeholder,
+         output_placeholder, output_masks_placeholder):
+    _, validating = create_generators(params.batch_size)
+    with tf.Session(config=create_config()) as sess:
+        _, eval_fn = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
+                                                  output_placeholder, output_masks_placeholder)
+        saver, save_path = create_saver_and_save_path()
+        restore_model(sess, saver, save_path, params.start_epoch)
+        avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder,
+                                                  output_placeholder, validating)
+        print("Done validating\n Avg_wer: {}\nAvg_acc: {}\nAvg_exp_rate: {}\n".format(avg_wer, avg_acc,
+                                                                                      avg_exp_rate))
+
+
+def main(transformer_params):
+    update_params(transformer_params)
+
+    tokens_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="tokens")
+    bounding_box_placeholder = tf.placeholder(tf.float32, shape=(None, None, 4), name="bounding_boxes")
+
+    output_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="output")
+    output_masks_placeholder = tf.placeholder(tf.float32, shape=(None, None), name="output_masks")
+
+    if params.validate_only:
+        test(transformer_params, tokens_placeholder, bounding_box_placeholder,
+             output_placeholder, output_masks_placeholder)
+    else:
+        train(transformer_params, tokens_placeholder, bounding_box_placeholder,
+              output_placeholder, output_masks_placeholder)
 
 
 main(model_params.CUSTOM_PARAMS)
