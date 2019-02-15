@@ -77,7 +77,7 @@ class SequenceBeamSearch(object):
         self._bincounter = fn.partial(tf.bincount, minlength=vocab_size)
         token_count = tf.map_fn(self._bincounter, encoder_input_tokens)
         # Set <PAD> token to zero
-        token_count = tf.pad(token_count[:, 1:], [[0, 0], [1, 0]])
+        # token_count = tf.pad(token_count[:, 1:], [[0, 0], [1, 0]])
 
         encoding_vocab = vocabulary.encoding_vocabulary
         # Clean mask
@@ -98,7 +98,7 @@ class SequenceBeamSearch(object):
         self._move_mask = tf.constant(move_mask, dtype=tf.int32)
         self._gather = tf.constant(gather, dtype=tf.int32)
         self._clean_mask = tf.constant(clean_mask, dtype=tf.int32)
-        self._token_count = (token_count + tf.gather(token_count * self._move_mask, self._gather)) * self._clean_mask
+        self._token_count = (token_count + tf.gather(token_count * self._move_mask, self._gather, axis=1)) * self._clean_mask
 
     def search(self, initial_ids, initial_cache):
         """Beam search for sequences with highest scores."""
