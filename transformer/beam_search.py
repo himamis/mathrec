@@ -83,7 +83,7 @@ class SequenceBeamSearch(object):
         # Clean mask
         # Zero out the ones that we don't care about
         clean_mask = np.ones(self.vocab_size, dtype=np.int32)
-        for clean in [vocabulary.PAD_ID, '{', '}', '_', '^', '[', ']', '\\limits']:
+        for clean in [vocabulary.PAD, '{', '}', '_', '^', '[', ']', '\\limits']:
             clean_mask[encoding_vocab[clean]] = 0
 
         # Mask and gather
