@@ -51,6 +51,9 @@ device = '/cpu:0' if use_gpu == 'n' else '/gpu:{}'.format(use_gpu)
 head = _parse_int('--head', default=None)
 hidden_size = _parse_int('--hidden-size', default=None)
 layers = _parse_int('--hidden-layers', default=None)
+
 beta = float(parse_arg('--beta', default=0))
+alpha = float(parse_arg('--alpha', default=0.6))
+beam_size = _parse_int('--beam_size', default=6)
 
 validate_only = _parse_boolean('--validate-only', default=False)

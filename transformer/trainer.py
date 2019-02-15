@@ -232,6 +232,8 @@ def update_params(transformer_params):
     if params.hidden_size is not None:
         transformer_params.update(hidden_size=params.hidden_size)
     transformer_params.update(beta=params.beta)
+    transformer_params.update(alpha=params.alpha)
+    transformer_params.update(beam_size=params.beam_size)
 
 
 def create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
