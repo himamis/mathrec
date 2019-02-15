@@ -303,6 +303,20 @@ def create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_p
         #                         tf.get_default_graph().get_tensor_by_name(
         #                             "transformer/Transformer/encode/create_diffs/diffs:0"))
 
+    total_parameters = 0
+    for variable in tf.trainable_variables():
+        # shape is an array of tf.Dimension
+        shape = variable.get_shape()
+        # print(shape)
+        # print(len(shape))
+        variable_parameters = 1
+        for dim in shape:
+            # print(dim)
+            variable_parameters *= dim.value
+        # print(variable_parameters)
+        total_parameters += variable_parameters
+    print(total_parameters)
+
     return train, eval_fn
 
 

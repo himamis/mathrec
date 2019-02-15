@@ -77,32 +77,28 @@ class SequenceBeamSearch(object):
         self._bincounter = fn.partial(tf.bincount, minlength=vocab_size)
         token_count = tf.map_fn(self._bincounter, encoder_input_tokens)
         # Set <PAD> token to zero
-        self._token_count = tf.pad(token_count[:, 1:], [[0, 0], [1, 0]])
+        token_count = tf.pad(token_count[:, 1:], [[0, 0], [1, 0]])
 
         encoding_vocab = vocabulary.encoding_vocabulary
         # Clean mask
-        clean_mask = np.ones(self.vocab_size, dtype=np.int32)
         # Zero out the ones that we don't care about
-        clean_mask[vocabulary.PAD_ID] = 0
-        clean_mask[encoding_vocab['{']] = 0
-        clean_mask[encoding_vocab['}']] = 0
-        clean_mask[encoding_vocab['_']] = 0
-        clean_mask[encoding_vocab['^']] = 0
-        clean_mask[encoding_vocab['[']] = 0
-        clean_mask[encoding_vocab[']']] = 0
-        clean_mask[encoding_vocab['\\frac']] = 0
-        self._clean_mask = tf.constant(clean_mask, dtype=tf.int32)
+        clean_mask = np.ones(self.vocab_size, dtype=np.int32)
+        for clean in [vocabulary.PAD_ID, '{', '}', '_', '^', '[', ']', '\\limits']:
+            clean_mask[clean] = 0
 
-        # frac mask
-        frac_mask = np.zeros(self.vocab_size, dtype=np.int32)
-        frac_mask[encoding_vocab['\\frac']] = 1
-        self._frac_mask = tf.constant(frac_mask, dtype=tf.int32)
-
+        # Mask and gather
+        move_mask = np.zeros(self.vocab_size, dtype=np.int32)
         gather = np.array(range(vocab_size))
-        gather[encoding_vocab['\\frac']] = encoding_vocab['-']
-        gather[encoding_vocab['-']] = encoding_vocab['\\frac']
-        self._gather = tf.constant(gather, dtype=tf.int32)
+        for replace, with_this in [('\\frac', '-'), ('\\prime', '\''), ('\\rightarrow', '\\to')]:
+            move_mask[encoding_vocab[replace]] = 1
+            clean_mask[encoding_vocab[replace]] = 0
+            gather[encoding_vocab[replace]] = encoding_vocab[with_this]
+            gather[encoding_vocab[with_this]] = encoding_vocab[replace]
 
+        self._move_mask = tf.constant(move_mask, dtype=tf.int32)
+        self._gather = tf.constant(gather, dtype=tf.int32)
+        self._clean_mask = tf.constant(clean_mask, dtype=tf.int32)
+        self._token_count = (token_count + tf.gather(token_count * self._move_mask, self._gather)) * self._clean_mask
 
     def search(self, initial_ids, initial_cache):
         """Beam search for sequences with highest scores."""
@@ -434,7 +430,7 @@ class SequenceBeamSearch(object):
         seq_len = shape[2]
         seq = tf.reshape(alive_seq, [batch_size * beam_size, seq_len])
         counted = tf.map_fn(self._bincounter, seq)
-        counted += tf.gather(counted * self._frac_mask, self._gather, axis=1)
+        counted += tf.gather(counted * self._move_mask, self._gather, axis=1)
         counted *= self._clean_mask
         counted = tf.reshape(counted, [batch_size, beam_size, -1])
 

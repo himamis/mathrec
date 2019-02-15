@@ -59,7 +59,7 @@ def print_token(image, token, bounding_box):
     return image
 
 
-def create_image(input, width=200, height=200):
+def create_image(input, width=400, height=200):
     image = graphics.new_image(width, height)
     for token, bounding_box in input:
         print_token(image, token, bounding_box)
