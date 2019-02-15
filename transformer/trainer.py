@@ -319,24 +319,24 @@ def create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_p
         total_parameters += variable_parameters
     print(total_parameters)
 
-    return train, eval_fn
+    return train, eval_fn, writer
 
 
 def train(transformer_params, tokens_placeholder, bounding_box_placeholder,
           output_placeholder, output_masks_placeholder):
-    train_fn, eval_fn = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
+    train_fn, eval_fn, writer = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
                           output_placeholder, output_masks_placeholder)
-
-    with tf.Session(config=create_config()) as sess:
-        train_loop(sess, train_fn, eval_fn, tokens_placeholder, bounding_box_placeholder,
-                   output_placeholder, output_masks_placeholder)
+    with writer.as_default():
+        with tf.Session(config=create_config()) as sess:
+            train_loop(sess, train_fn, eval_fn, tokens_placeholder, bounding_box_placeholder,
+                       output_placeholder, output_masks_placeholder)
 
 
 def test(transformer_params, tokens_placeholder, bounding_box_placeholder,
          output_placeholder, output_masks_placeholder):
     _, validating = create_generators(params.batch_size)
     with tf.Session(config=create_config()) as sess:
-        _, eval_fn = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
+        _, eval_fn, _ = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
                                                   output_placeholder, output_masks_placeholder)
         saver, save_path = create_saver_and_save_path()
         restore_model(sess, saver, save_path, params.start_epoch)
