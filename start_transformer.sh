@@ -45,7 +45,7 @@ REGION="us-central1"
 #REGION="europe-west4"
 #REGION="us-east1"
 #REGION="us-west1"
-DATA_URL="token_trace/"
+DATA_URL="token_trance_normalized2/"
 OUTPUT_URL="output"
 
 echo "Job: "$JOB_NAME" running on: "$OUTPUT_PATH
@@ -62,14 +62,21 @@ gcloud ml-engine jobs submit training $JOB_NAME \
     --gcs $BUCKET_NAME \
     --data-base-dir $DATA_URL \
     --model-dir $OUTPUT_URL \
-    --start-epoch -1 \
+    --start-epoch 0 \
     --git-hexsha `git rev-parse HEAD` \
     --gpu 0 \
     --tb $TB_PATH \
     --tbn $JOB_NAME \
     --allow-soft-placement t \
     --epv 10 \
-    --batch-size 32
+    --batch-size 32 \
+    --hidden-layers 6 \
+    --hidden-size 512 \
+    --head 32 \
+    --beta 3 \
+    --alpha 0.6 \
+    --beam-size 10 \
+    --filter-size 2048
 
 echo "To look on the results in tensorboard, go to http://localhost:800"$2
 echo "If tensorboard is not started, call \`tensorboard --logdir "$TB_PATH" --port 800"$2"\`"

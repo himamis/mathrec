@@ -2,6 +2,7 @@ from graphics.utils import *
 import cv2
 import math
 import copy
+import numpy as np
 
 info = np.finfo(np.float32)
 
@@ -110,18 +111,20 @@ def normalize_points(inkml, unit=False):
 
 class Graphics:
 
-    def create_image(self, inkml):
+    def create_image(self, inkml, flatten=False):
         (width, height) = normalize_points(inkml)
 
         image = new_image(int(width + 1), int(height + 1))
 
-        #pts = [line - point_min for line in inkml.symbols]
-        pts = [np.rint(line) for line in inkml]
-        pts = [np.asarray(line, dtype=np.int32) for line in pts]
-        pts = [np.reshape(np.array(line), (-1, 1, 2)) for line in pts]
-        cv2.polylines(image, pts, False, (0, 0, 0), 1, lineType=cv2.LINE_AA)
+        for index, tracegroup in enumerate(inkml):
+            pts = [np.rint(line) for line in tracegroup]
+            pts = [np.asarray(line, dtype=np.int32) for line in pts]
+            pts = [np.reshape(np.array(line), (-1, 1, 2)) for line in pts]
+            cv2.polylines(image, pts, False, (0, 0, 0), 1, lineType=cv2.LINE_AA)
 
-        return image
+            inkml[index] = pts
+
+        return image, inkml
 
     def create_token_image(self, traces, expected_width=None, expected_height=None, padding=6):
         if expected_height is None and expected_width is None:
