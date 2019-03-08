@@ -12,31 +12,31 @@ def create_input_fn(training=True, batch_size=32):
 
 
 def model_fn(features, labels, mode, params):
-    if type == "vgg16":
+    if params.type == "vgg16":
         logits, _ = vgg.vgg_16(
                 tf.to_float(features),
                 num_classes=101,
                 dropout_keep_prob=1 - params.dropout_rate,
                 is_training=mode == tf.estimator.ModeKeys.TRAIN)
-    elif type == "resnet50":
+    elif params.type == "resnet50":
         logits, _ = resnet.resnet_v2_50(
             tf.to_float(features),
             num_classes=101,
             is_training=mode == tf.estimator.ModeKeys.TRAIN
         )
     else:
-        assert "Type must be available"
+        raise ValueError("type not available")
 
     class_ids = tf.argmax(logits, 1)
     accuracy = tf.metrics.accuracy(labels=labels, predictions=class_ids, name='acc_op')
-    mean_per_class = tf.metrics.mean_per_class_accuracy(labels=labels, predictions=class_ids, num_classes=101)
+    # mean_per_class = tf.metrics.mean_per_class_accuracy(labels=labels, predictions=class_ids, num_classes=101)
 
     metrics = {
         'accuracy': accuracy,
-        'mean_per_class_accuracy': mean_per_class
+    #    'mean_per_class_accuracy': mean_per_class
     }
     tf.summary.scalar('accuracy', accuracy[1])
-    tf.summary.scalar('mean_per_class_accuracy', mean_per_class[1])
+    # tf.summary.scalar('mean_per_class_accuracy', mean_per_class[1])
 
     labels = labels - 1
     labels_one_hot = tf.one_hot(labels, 101, dtype=tf.int32)
@@ -79,9 +79,9 @@ def create_estimator(run_config, hparams):
 def create_train_and_eval_spec(hparams):
     train_spec = tf.estimator.TrainSpec(
         input_fn=lambda: create_input_fn(training=True),
-        max_steps=hparams.max)
+        max_steps=hparams.max_steps)
     eval_spec = tf.estimator.EvalSpec(
-        input_fn=create_input_fn(training=False),
+        input_fn=lambda: create_input_fn(training=False),
         steps=None)
     return train_spec, eval_spec
 
