@@ -60,7 +60,8 @@ def main():
     eval_input_fn, obj = create_input_fn(training=False)
     train_spec = tf.estimator.TrainSpec(train_input_fn, max_steps=500000)
     eval_spec = tf.estimator.EvalSpec(eval_input_fn, steps=None)
-    tf.estimator.train_and_evaluate(classifier, train_spec, eval_spec)
+    classifier.train(input_fn=train_input_fn, steps=20000)
+    #tf.estimator.train_and_evaluate(classifier, train_spec, eval_spec)
     #
     #
     #
