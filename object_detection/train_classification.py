@@ -26,6 +26,7 @@ def main():
         predictions, _ = vgg.vgg_16(
             tf.to_float(images),
             num_classes=101,
+            dropout_keep_prob=0.4,
             is_training=True
         )
         # predictions, _ = #resnet.resnet_v2_50(
@@ -37,6 +38,7 @@ def main():
         validate_predictions, _ = vgg.vgg_16(
             tf.to_float(validate_images),
             num_classes=101,
+            dropout_keep_prob=0.4,
             is_training=False
         )
 
