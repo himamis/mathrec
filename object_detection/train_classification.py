@@ -11,7 +11,7 @@ import trainer.params as params
 
 validation_every_n_step = 10
 decay = 1e-4
-batch_size = 128
+batch_size = 64
 
 def main():
     data_base_dir = params.data_base_dir
