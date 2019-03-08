@@ -17,12 +17,12 @@ def create_generator(path):
     return gen, data_generator
 
 
-def create_dataset(generator, batch_size=32, shuffle=True):
+def create_dataset(generator, batch_size=32, shuffle=True, repeat=None):
     dataset = tf.data.Dataset.from_generator(
         generator,
         (tf.int32, tf.int32),
         (_image_size + (1,), ())
-    ).repeat()
+    )
     if shuffle:
         dataset = dataset.shuffle(_buffer_size)
     if batch_size is not None:
@@ -30,8 +30,8 @@ def create_dataset(generator, batch_size=32, shuffle=True):
     return dataset
 
 
-def create_image_labels(generator, batch_size=32, shuffle=True):
-    dataset = create_dataset(generator, batch_size, shuffle)
+def create_image_labels(generator, batch_size=32, shuffle=True, repeat=None):
+    dataset = create_dataset(generator, batch_size=batch_size, shuffle=shuffle, repeat=repeat)
     return dataset.make_one_shot_iterator().get_next()
 
 
