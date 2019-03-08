@@ -89,7 +89,7 @@ def create_train_and_eval_spec(hparams):
 def main():
     hparams = tf.contrib.training.HParams(
         type='resnet50',
-        max_steps=50000,
+        max_steps=10000,
         num_epochs=100,
         batch_size=32,
         learning_rate=0.001,
