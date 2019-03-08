@@ -53,7 +53,8 @@ def main():
 
     # tf.contrib.summary.image('images/input', images)
     classifier = tf.estimator.Estimator(
-        model_fn=model_fn
+        model_fn=model_fn,
+        model_dir=os.path.join(params.tensorboard_log_dir, params.tensorboard_name)
     )
 
     train_input_fn, _ = create_input_fn(training=True)
