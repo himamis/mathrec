@@ -10,7 +10,7 @@ from tensorflow.contrib.slim.python.slim.learning import train_step
 import trainer.params as params
 
 validation_every_n_step = 10
-decar = 1e-4
+decay = 1e-4
 
 
 def main():
