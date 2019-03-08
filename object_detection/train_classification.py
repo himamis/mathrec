@@ -11,15 +11,15 @@ import trainer.params as params
 
 validation_every_n_step = 10
 decay = 1e-4
-
+batch_size = 128
 
 def main():
     data_base_dir = params.data_base_dir
-    training_generator = create_generator(os.path.join(data_base_dir, "training.pkl"))
-    images, labels = create_image_labels(training_generator)
+    training_generator, _ = create_generator(os.path.join(data_base_dir, "training.pkl"))
+    images, labels = create_image_labels(training_generator, batch_size=batch_size)
 
-    validation_generator = create_generator(os.path.join(data_base_dir, "validation.pkl"))
-    validate_images, validate_labels = create_image_labels(validation_generator, shuffle=False)
+    validation_generator, valid_obj = create_generator(os.path.join(data_base_dir, "validation.pkl"))
+    validate_images, validate_labels = create_image_labels(validation_generator, shuffle=False, batch_size=batch_size)
 
     tf.contrib.summary.image('images/input', images)
     with tf.variable_scope('model', reuse=tf.AUTO_REUSE):
@@ -69,8 +69,10 @@ def main():
         loss, should_stop = train_step(session, *args, **kwargs)
 
         if session.run(global_step) % validation_every_n_step == 0:
-            accuracy = session.run(validate_accuracy)
-            print('Accuracy {}'.format(accuracy))
+            accuracy = 0
+            for i in range(valid_obj.size()):
+                accuracy += session.run(validate_accuracy)
+            print('Accuracy {}'.format(accuracy / valid_obj.size()))
 
         # if train_step_fn.step % validation_every_n_step == 0:
         #     accuracy = session.run(validate_accuracy)

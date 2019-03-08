@@ -14,7 +14,7 @@ def create_generator(path):
 
     def gen():
         yield data_generator.next()
-    return gen
+    return gen, data_generator
 
 
 def create_dataset(generator, batch_size=32, shuffle=True):
@@ -92,6 +92,9 @@ class DataGenerator(object):
             image = np.reshape(image, self.image_size + (1,))
 
             self.images[index] = image
+
+    def size(self):
+        return len(self.images)
 
     def next(self):
         image = self.images[self._pointer]
