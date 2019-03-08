@@ -9,8 +9,8 @@ _buffer_size = 100
 
 
 def create_generator(path):
-    image, _, truth_id = pickle.load(open(path, 'rb'))
-    data_generator = DataGenerator(image, truth_id, image_size=_image_size, batch_size=32)
+    dataset = pickle.load(open(path, 'rb'))
+    data_generator = DataGenerator(dataset, image_size=_image_size, batch_size=32)
 
     def gen():
         yield data_generator.next()
@@ -46,17 +46,26 @@ def pad(missing):
 
 class DataGenerator(object):
 
-    def __init__(self, images, labels, image_size, batch_size=None, do_shuffle=True, steps=None):
-        self.images = images
-        self.labels = labels
+    def __init__(self, dataset, image_size, batch_size=None, do_shuffle=True, steps=None):
+        _, self.images, self.labels = zip(*dataset)
+        self.images = list(self.images)
+        self.labels = list(self.labels)
         self.batch_size = batch_size
         self.image_size = image_size
 
         self._pointer = 0
         self._steps = steps
         self.do_shuffle = do_shuffle
+        self.classes = set()
+        self._read_classes()
+        self._encoder = { item: index + 1 for index, item in enumerate(sorted(self.classes)) }
+        self.encoded_labels = [self._encoder[label] for label in self.labels]
         self._transform()
         self._assert()
+
+    def _read_classes(self):
+        for label in self.labels:
+            self.classes.add(label)
 
     def _assert(self):
         for index, image in enumerate(self.images):
@@ -86,7 +95,7 @@ class DataGenerator(object):
 
     def next(self):
         image = self.images[self._pointer]
-        label = self.labels[self._pointer]
+        label = self.encoded_labels[self._pointer]
 
         self._pointer += 1
         if self._pointer == len(self.images):

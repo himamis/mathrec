@@ -1,6 +1,5 @@
+import os
 import tensorflow as tf
-import keras
-import pickle
 import slim.nets.resnet_v2 as resnet
 import tensorflow.contrib.slim as slim
 from object_detection.generator import create_generator, create_image_labels
@@ -13,10 +12,11 @@ validation_every_n_step = 400
 
 
 def main():
-    training_generator = create_generator("/Users/balazs/Documents/datasets/object_symbol_dataset/train_symbol_recognition.pkl")
+    data_base_dir = params.data_base_dir
+    training_generator = create_generator(os.path.join(data_base_dir, "training.pkl"))
     images, labels = create_image_labels(training_generator)
 
-    validation_generator = create_generator("/Users/balazs/Documents/datasets/object_symbol_dataset/evaluate_symbol_recognition.pkl")
+    validation_generator = create_generator(os.path.join(data_base_dir, "validation.pkl"))
     validate_images, validate_labels = create_image_labels(validation_generator, shuffle=False)
 
     tf.contrib.summary.image('images/input', images)
@@ -27,7 +27,7 @@ def main():
             is_training=True,
         )
 
-        validate_predictions = resnet.resnet_v2_50(
+        validate_predictions, _ = resnet.resnet_v2_50(
             tf.to_float(validate_images),
             num_classes=101,
             is_training=False
@@ -42,12 +42,13 @@ def main():
     tf.summary.scalar('losses/total_loss', total_loss)
 
     # Summaries
-    accuracy = slim.metrics.accuracy(tf.nn.softmax(predictions), labels_one_hot)
+    accuracy = slim.metrics.accuracy(tf.argmax(predictions, output_type=tf.int32), labels_one_hot)
     tf.summary.scalar('accuracy/accuracy', accuracy)
 
     validate_labels = validate_labels - 1
-    validate_labels_one_hot = tf.one_hot(validate_labels, 101)
-    validate_accuracy = slim.metrics.accuracy(tf.nn.softmax(validate_predictions), validate_labels_one_hot)
+    validate_labels_one_hot = tf.one_hot(validate_labels, 101, dtype=tf.int32)
+    validate_accuracy = slim.metrics.accuracy(tf.argmax(validate_predictions, output_type=tf.int32),
+                                              validate_labels_one_hot)
 
     def train_step_fn(session, *args, **kwargs):
         loss, should_stop = train_step(session, *args, **kwargs)
@@ -63,7 +64,9 @@ def main():
 
     optimizer = tf.train.AdamOptimizer(0.001)
     train_op = slim.learning.create_train_op(total_loss, optimizer)
-    slim.learning.train(train_op, params.tensorboard_log_dir,
+    slim.learning.train(train_op, os.path.join(params.tensorboard_log_dir, params.tensorboard_name),
                         train_step_fn=train_step_fn,
-                        number_of_steps=50000000, save_summaries_secs=300, save_interval_secs=600)
+                        number_of_steps=50000000,
+                        save_summaries_secs=300,
+                        save_interval_secs=600)
     print("Done")
