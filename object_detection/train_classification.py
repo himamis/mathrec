@@ -14,7 +14,7 @@ batch_size = 32
 
 def create_input_fn(training=True):
     generator, obj = create_generator(os.path.join(params.data_base_dir, "training.pkl" if training else "validation.pkl"))
-    return lambda: create_image_labels(generator, batch_size=batch_size, repeat=50 if training else 1), obj
+    return lambda: create_image_labels(generator, batch_size=batch_size, repeat=None if training else obj.size()), obj
 
 
 def model_fn(features, labels, mode, params):
@@ -54,6 +54,6 @@ def main():
 
     train_input_fn, _ = create_input_fn(training=True)
     eval_input_fn, obj = create_input_fn(training=False)
-    train_spec = tf.estimator.TrainSpec(train_input_fn, max_steps=500000)
+    train_spec = tf.estimator.TrainSpec(train_input_fn, max_steps=50000)
     eval_spec = tf.estimator.EvalSpec(eval_input_fn, steps=None)
     tf.estimator.train_and_evaluate(classifier, train_spec, eval_spec)
