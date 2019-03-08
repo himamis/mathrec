@@ -9,7 +9,8 @@ from tensorflow.contrib.slim.python.slim.learning import train_step
 
 import trainer.params as params
 
-validation_every_n_step = 400
+validation_every_n_step = 10
+decar = 1e-4
 
 
 def main():
@@ -22,7 +23,7 @@ def main():
 
     tf.contrib.summary.image('images/input', images)
     with tf.variable_scope('model', reuse=tf.AUTO_REUSE):
-        predictions, _ = vgg.vgg_19(
+        predictions, _ = vgg.vgg_16(
             tf.to_float(images),
             num_classes=101,
             is_training=True
@@ -33,7 +34,7 @@ def main():
         #     is_training=True,
         # )
 
-        validate_predictions, _ = vgg.vgg_19(
+        validate_predictions, _ = vgg.vgg_16(
             tf.to_float(validate_images),
             num_classes=101,
             is_training=False
@@ -45,6 +46,10 @@ def main():
     # slim.losses.add_loss(tf.losses.softmax_cross_entropy(net, pl_labels))
     slim.losses.softmax_cross_entropy(predictions, labels_one_hot)
     total_loss = slim.losses.get_total_loss()
+    # L2 regularization
+    for variable in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES):
+        if not "batch_norm" in variable.name:
+            total_loss += decay * tf.reduce_sum(tf.pow(variable, 2))
     tf.summary.scalar('losses/total_loss', total_loss)
 
     # Summaries
@@ -56,14 +61,20 @@ def main():
     validate_accuracy = slim.metrics.accuracy(tf.argmax(validate_predictions, output_type=tf.int32),
                                               validate_labels_one_hot)
 
+    global_step = tf.train.get_or_create_global_step()
+
     def train_step_fn(session, *args, **kwargs):
         loss, should_stop = train_step(session, *args, **kwargs)
 
-        if train_step_fn.step % validation_every_n_step == 0:
+        if session.run(global_step) % validation_every_n_step == 0:
             accuracy = session.run(validate_accuracy)
             print('Accuracy {}'.format(accuracy))
 
-        train_step_fn.step += 1
+        # if train_step_fn.step % validation_every_n_step == 0:
+        #     accuracy = session.run(validate_accuracy)
+        #     print('Accuracy {}'.format(accuracy))
+
+        # train_step_fn.step += 1
         return [total_loss, should_stop]
 
     train_step_fn.step = 0
