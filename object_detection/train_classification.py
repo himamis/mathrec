@@ -72,7 +72,7 @@ def main():
     train_op = slim.learning.create_train_op(total_loss, optimizer)
     slim.learning.train(train_op, os.path.join(params.tensorboard_log_dir, params.tensorboard_name),
                         train_step_fn=train_step_fn,
-                        number_of_steps=50000000,
-                        save_summaries_secs=300,
+                        number_of_steps=500000,
+                        save_summaries_secs=60,
                         save_interval_secs=600)
     print("Done")
