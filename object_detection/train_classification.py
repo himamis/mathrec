@@ -28,7 +28,7 @@ def model_fn(features, labels, mode, params):
     labels = labels - 1
     labels_one_hot = tf.one_hot(labels, 101, dtype=tf.int32)
     loss = tf.nn.softmax_cross_entropy_with_logits_v2(labels=labels_one_hot, logits=logits)
-    accuracy = tf.metrics.accuracy(labels=labels, predictions=tf.argmax(logits), name='acc_op')
+    accuracy = tf.metrics.accuracy(labels=labels, predictions=tf.argmax(logits, 1), name='acc_op')
     metrics = {'accuracy': accuracy}
     tf.summary.scalar('accuracy', accuracy[1])
 
