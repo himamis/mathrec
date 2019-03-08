@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
-import slim.nets.resnet_v2 as resnet
+#import slim.nets.resnet_v2 as resnet
+import slim.nets.vgg as vgg
 import tensorflow.contrib.slim as slim
 from object_detection.generator import create_generator, create_image_labels
 from tensorflow.contrib.slim.python.slim.learning import train_step
@@ -21,13 +22,18 @@ def main():
 
     tf.contrib.summary.image('images/input', images)
     with tf.variable_scope('model', reuse=tf.AUTO_REUSE):
-        predictions, _ = resnet.resnet_v2_50(
+        predictions, _ = vgg.vgg_19(
             tf.to_float(images),
             num_classes=101,
-            is_training=True,
+            is_training=True
         )
+        # predictions, _ = #resnet.resnet_v2_50(
+        #     tf.to_float(images),
+        #     num_classes=101,
+        #     is_training=True,
+        # )
 
-        validate_predictions, _ = resnet.resnet_v2_50(
+        validate_predictions, _ = vgg.vgg_19(
             tf.to_float(validate_images),
             num_classes=101,
             is_training=False
