@@ -51,9 +51,12 @@ def model_fn(features, labels, mode, params):
     labels_one_hot = tf.one_hot(labels, 101, dtype=tf.int32)
     loss = tf.losses.softmax_cross_entropy(onehot_labels=labels_one_hot, logits=logits)
     if mode == tf.estimator.ModeKeys.TRAIN:
-        optimizer = tf.train.MomentumOptimizer(
-            learning_rate=params.learning_rate,
-            momentum=params.momentum
+        #optimizer = tf.train.MomentumOptimizer(
+        #    learning_rate=params.learning_rate,
+        #    momentum=params.momentum
+        #)
+        optimizer = tf.train.AdamOptimizer(
+            learning_rate=params.learning_rate
         )
         train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
         accuracy = tf.metrics.accuracy(labels=labels, predictions=class_ids)
@@ -99,7 +102,8 @@ def main():
         num_epochs=100,
         batch_size=32,
         learning_rate=0.001,
-        dropout_rate=0.6
+        dropout_rate=0.6,
+        momentum=0.9
     )
     run_config = tf.estimator.RunConfig(
         log_step_count_steps=200,
