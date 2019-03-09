@@ -98,8 +98,8 @@ def create_train_and_eval_spec(hparams):
 def main():
     hparams = tf.contrib.training.HParams(
         type='vgg19',
-        max_steps=10000,
-        num_epochs=100,
+        max_steps=50000,
+        num_epochs=200,
         batch_size=32,
         learning_rate=0.001,
         dropout_rate=0.6,
