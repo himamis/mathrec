@@ -18,6 +18,12 @@ def model_fn(features, labels, mode, params):
                 num_classes=101,
                 dropout_keep_prob=1 - params.dropout_rate,
                 is_training=mode == tf.estimator.ModeKeys.TRAIN)
+    elif params.type == "vgg19":
+        logits, _ = vgg.vgg_19(
+            tf.to_float(features),
+            num_classes=101,
+            dropout_keep_prob=1 - params.dropout_rate,
+            is_training=mode == tf.estimator.ModeKeys.TRAIN)
     elif params.type == "resnet50":
         logits, _ = resnet.resnet_v2_50(
             tf.to_float(features),
@@ -28,44 +34,44 @@ def model_fn(features, labels, mode, params):
         raise ValueError("type not available")
 
     class_ids = tf.argmax(logits, 1)
-    accuracy = tf.metrics.accuracy(labels=labels, predictions=class_ids, name='acc_op')
-    # mean_per_class = tf.metrics.mean_per_class_accuracy(labels=labels, predictions=class_ids, num_classes=101)
-
-    metrics = {
-        'accuracy': accuracy,
-    #    'mean_per_class_accuracy': mean_per_class
-    }
-    tf.summary.scalar('accuracy', accuracy[1])
-    # tf.summary.scalar('mean_per_class_accuracy', mean_per_class[1])
-
-    labels = labels - 1
-    labels_one_hot = tf.one_hot(labels, 101, dtype=tf.int32)
-
-    if mode == tf.estimator.ModeKeys.TRAIN or mode == tf.estimator.ModeKeys.EVAL:
-        loss = tf.losses.softmax_cross_entropy(onehot_labels=labels_one_hot, logits=logits)
-    else:
-        loss = None
-
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        optimizer = tf.train.AdamOptimizer(params.learning_rate)
-        train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
-    else:
-        train_op = None
     if mode == tf.estimator.ModeKeys.PREDICT:
         predictions = {
-            'class_ids': tf.argmax(logits),
+            'class_ids': class_ids,
             'probabilities': tf.nn.softmax(logits),
             'logits': logits
         }
-    else:
-        predictions = None
+        return tf.estimator.EstimatorSpec(
+            mode=mode,
+            predictions=predictions,
+            export_outputs={
+                'classify': tf.estimator.export.PredictOutput(predictions)
+            })
 
-    return tf.estimator.EstimatorSpec(
-        mode=mode,
-        predictions=predictions,
-        loss=loss,
-        train_op=train_op,
-        eval_metric_ops=metrics)
+    labels = labels - 1
+    labels_one_hot = tf.one_hot(labels, 101, dtype=tf.int32)
+    loss = tf.losses.softmax_cross_entropy(onehot_labels=labels_one_hot, logits=logits)
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        optimizer = tf.train.MomentumOptimizer(
+            learning_rate=params.learning_rate,
+            momentum=params.momentum
+        )
+        train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
+        accuracy = tf.metrics.accuracy(labels=labels, predictions=class_ids)
+
+        tf.summary.scalar('train_accuracy', accuracy[1])
+
+        return tf.estimator.EstimatorSpec(
+            mode=mode,
+            loss=loss,
+            train_op=train_op)
+    if mode == tf.estimator.ModeKeys.EVAL:
+        metrics = {
+            'accuracy': tf.metrics.accuracy(labels=labels, predictions=class_ids),
+        }
+        return tf.estimator.EstimatorSpec(
+            mode=mode,
+            loss=loss,
+            eval_metric_ops=metrics)
 
 
 def create_estimator(run_config, hparams):
@@ -88,7 +94,7 @@ def create_train_and_eval_spec(hparams):
 
 def main():
     hparams = tf.contrib.training.HParams(
-        type='resnet50',
+        type='vgg19',
         max_steps=10000,
         num_epochs=100,
         batch_size=32,
