@@ -35,7 +35,7 @@ def model_fn(features, labels, mode, params):
     else:
         raise ValueError("type not available")
 
-    class_ids = tf.argmax(logits, 1)
+    class_ids = tf.argmax(logits, 1, output_type=tf.int32)
     if mode == tf.estimator.ModeKeys.PREDICT:
         spec = tf.estimator.EstimatorSpec(mode=mode, predictions=class_ids)
     else:
