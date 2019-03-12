@@ -46,6 +46,7 @@ def model_fn(features, labels, mode, params):
         equality = tf.equal(class_ids, labels)
         accuracy = tf.reduce_mean(tf.cast(equality, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
+        logging_hook = tf.train.LoggingTensorHook({"loss": loss, "accuracy": accuracy}, every_n_iter=10)
 
         metrics = {
             'accuracy': accuracy_metric,
@@ -61,7 +62,8 @@ def model_fn(features, labels, mode, params):
         spec = tf.estimator.EstimatorSpec(mode=mode,
                                           loss=loss,
                                           train_op=train_op,
-                                          eval_metric_ops=metrics)
+                                          eval_metric_ops=metrics,
+                                          training_hooks=[logging_hook])
     return spec
 
 
