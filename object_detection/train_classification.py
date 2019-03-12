@@ -90,15 +90,15 @@ def create_train_and_eval_spec(hparams):
 
 
 def main():
-    # dataset_len = 98269
-    # epochs = 20
+    tf.logging.set_verbosity(tf.logging.INFO)
+
     hparams = tf.contrib.training.HParams(
         type='vgg19',
         # epochs=epochs,
         max_steps=200000,
         num_epochs=200,
         batch_size=32,
-        learning_rate=0.001,
+        learning_rate=0.01,
         dropout_rate=0.6,
         momentum=0.9
     )
