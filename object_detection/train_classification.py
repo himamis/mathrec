@@ -7,10 +7,14 @@ import trainer.params as par
 
 
 def create_input_fn(training=True, batch_size=32, epochs=20):
-    return create_dataset_tensors(
+    ds = create_dataset_tensors(
         os.path.join(par.data_base_dir, "training.pkl" if training else "validation.pkl"),
-        batch_size=batch_size, repeat=epochs, shuffle=training
+        batch_size=batch_size, repeat=None, shuffle=training
     )
+    if training:
+        ds = ds.repeat()
+
+    return ds
 
 
 def model_fn(features, labels, mode, params):
@@ -77,7 +81,7 @@ def create_estimator(run_config, hparams):
 
 def create_train_and_eval_spec(hparams):
     train_spec = tf.estimator.TrainSpec(
-        input_fn=lambda: create_input_fn(training=True, epochs=hparams.epochs),
+        input_fn=lambda: create_input_fn(training=True, epochs=None),
         max_steps=hparams.max_steps)
     eval_spec = tf.estimator.EvalSpec(
         input_fn=lambda: create_input_fn(training=False, epochs=1),
@@ -86,12 +90,12 @@ def create_train_and_eval_spec(hparams):
 
 
 def main():
-    dataset_len = 98269
-    epochs = 20
+    # dataset_len = 98269
+    # epochs = 20
     hparams = tf.contrib.training.HParams(
         type='vgg19',
-        epochs=epochs,
-        max_steps=epochs * dataset_len,
+        # epochs=epochs,
+        max_steps=200000,
         num_epochs=200,
         batch_size=32,
         learning_rate=0.001,
