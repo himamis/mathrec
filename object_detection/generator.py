@@ -11,7 +11,7 @@ _buffer_size = 100
 def create_dataset_tensors(path, batch_size=32, shuffle=True, repeat=None):
     generator, dataset = create_generator(path)
     dataset = _create_dataset(generator, dataset.size(), batch_size=batch_size, shuffle=shuffle, repeat=repeat)
-    return dataset.make_one_shot_iterator().get_next()
+    return dataset
 
 
 def create_generator(path):
