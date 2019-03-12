@@ -18,22 +18,22 @@ def create_input_fn(training=True, batch_size=32, epochs=20):
 
 
 def model_fn(features, labels, mode, params):
-    features = features / 255
+    features = tf.to_float(features) / tf.constant(255, dtype=tf.float32)
     if params.type == "vgg16":
         logits, _ = vgg.vgg_16(
-            tf.to_float(features),
+            features,
             num_classes=101,
             dropout_keep_prob=1 - params.dropout_rate,
             is_training=mode == tf.estimator.ModeKeys.TRAIN)
     elif params.type == "vgg19":
         logits, _ = vgg.vgg_19(
-            tf.to_float(features),
+            features,
             num_classes=101,
             dropout_keep_prob=1 - params.dropout_rate,
             is_training=mode == tf.estimator.ModeKeys.TRAIN)
     elif params.type == "resnet50":
         logits, _ = resnet.resnet_v2_50(
-            tf.to_float(features),
+            features,
             num_classes=101,
             is_training=mode == tf.estimator.ModeKeys.TRAIN
         )
