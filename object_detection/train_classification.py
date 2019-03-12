@@ -75,10 +75,10 @@ def create_estimator(run_config, hparams):
 
 def create_train_and_eval_spec(hparams):
     train_spec = tf.estimator.TrainSpec(
-        input_fn=lambda: create_input_fn(training=True),
+        input_fn=lambda: create_input_fn(training=True, epochs=20),
         max_steps=hparams.max_steps)
     eval_spec = tf.estimator.EvalSpec(
-        input_fn=lambda: create_input_fn(training=False),
+        input_fn=lambda: create_input_fn(training=False, epochs=1),
         steps=None)
     return train_spec, eval_spec
 
