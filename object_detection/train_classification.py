@@ -9,10 +9,10 @@ import trainer.params as par
 def create_input_fn(training=True, batch_size=32, epochs=20):
     ds = create_dataset_tensors(
         os.path.join(par.data_base_dir, "training.pkl" if training else "validation.pkl"),
-        batch_size=batch_size, repeat=None, shuffle=training
+        batch_size=batch_size, repeat=None if training else 1, shuffle=training
     )
-    if training:
-        ds = ds.repeat()
+    #if training:
+        # ds = ds.repeat()
 
     return ds
 
@@ -51,7 +51,8 @@ def model_fn(features, labels, mode, params):
         equality = tf.equal(class_ids, labels)
         accuracy = tf.reduce_mean(tf.cast(equality, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
-        logging_hook = tf.train.LoggingTensorHook({"loss": loss, "train_accuracy": accuracy}, every_n_iter=100)
+        tf.summary.image("image", features)
+        logging_hook = tf.train.LoggingTensorHook({"loss": loss, "train_accuracy": accuracy}, every_n_iter=2)
 
         metrics = {
             'accuracy': accuracy_metric,
@@ -107,7 +108,7 @@ def main():
         momentum=0.9
     )
     run_config = tf.estimator.RunConfig(
-        log_step_count_steps=200,
+        log_step_count_steps=10,
         tf_random_seed=1234567,
         model_dir=os.path.join(par.tensorboard_log_dir, par.tensorboard_name)
     )

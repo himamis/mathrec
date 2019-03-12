@@ -28,9 +28,9 @@ def _create_dataset(generator, length, batch_size=32, shuffle=True, repeat=None)
         generator,
         (tf.int32, tf.int32),
         (_image_size + (1,), ())
-    ).take(length)
-    if repeat is not None:
-        dataset = dataset.repeat(repeat)
+    ).take(length).repeat(repeat)
+    # if repeat is not None:
+    #    dataset = dataset.repeat(repeat)
     if shuffle:
         dataset = dataset.shuffle(_buffer_size)
     if batch_size is not None:
