@@ -50,14 +50,17 @@ def model_fn(features, labels, mode, params):
         equality = tf.equal(class_ids, labels)
         accuracy = tf.reduce_mean(tf.cast(equality, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
-        logging_hook = tf.train.LoggingTensorHook({"loss": loss, "accuracy": accuracy}, every_n_iter=10)
+        logging_hook = tf.train.LoggingTensorHook({"loss": loss, "train_accuracy": accuracy}, every_n_iter=100)
 
         metrics = {
             'accuracy': accuracy_metric,
         }
 
         if mode == tf.estimator.ModeKeys.TRAIN:
-            optimizer = tf.train.AdamOptimizer(
+            #optimizer = tf.train.AdamOptimizer(
+            #    learning_rate=params.learning_rate
+            #)
+            optimizer = tf.train.GradientDescentOptimizer(
                 learning_rate=params.learning_rate
             )
             train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
