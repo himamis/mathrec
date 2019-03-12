@@ -18,6 +18,7 @@ def create_input_fn(training=True, batch_size=32, epochs=20):
 
 
 def model_fn(features, labels, mode, params):
+    features = features / 255
     if params.type == "vgg16":
         logits, _ = vgg.vgg_16(
             tf.to_float(features),
