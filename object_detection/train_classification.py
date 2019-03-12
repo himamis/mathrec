@@ -75,7 +75,7 @@ def create_estimator(run_config, hparams):
 
 def create_train_and_eval_spec(hparams):
     train_spec = tf.estimator.TrainSpec(
-        input_fn=lambda: create_input_fn(training=True, epochs=20),
+        input_fn=lambda: create_input_fn(training=True, epochs=hparams.epochs),
         max_steps=hparams.max_steps)
     eval_spec = tf.estimator.EvalSpec(
         input_fn=lambda: create_input_fn(training=False, epochs=1),
@@ -84,9 +84,12 @@ def create_train_and_eval_spec(hparams):
 
 
 def main():
+    dataset_len = 98269
+    epochs = 20
     hparams = tf.contrib.training.HParams(
         type='vgg19',
-        max_steps=50000,
+        epochs=epochs,
+        max_steps=epochs * dataset_len,
         num_epochs=200,
         batch_size=32,
         learning_rate=0.001,
@@ -102,3 +105,5 @@ def main():
     estimator = create_estimator(run_config, hparams)
     train_spec, eval_spec = create_train_and_eval_spec(hparams)
     tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)
+
+    print("Done")
