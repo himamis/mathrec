@@ -8,6 +8,12 @@ _image_size = (224, 224)
 _buffer_size = 100
 
 
+def create_dataset_tensors(path, batch_size=32, shuffle=True, repeat=None):
+    generator, dataset = create_generator(path)
+    dataset = _create_dataset(generator, dataset.size(), batch_size=batch_size, shuffle=shuffle, repeat=repeat)
+    return dataset.make_one_shot_iterator().get_next()
+
+
 def create_generator(path):
     dataset = pickle.load(open(path, 'rb'))
     data_generator = DataGenerator(dataset, image_size=_image_size, batch_size=32)
@@ -17,23 +23,20 @@ def create_generator(path):
     return gen, data_generator
 
 
-def create_dataset(generator, batch_size=32, shuffle=True, repeat=None):
+def _create_dataset(generator, length, batch_size=32, shuffle=True, repeat=None):
     dataset = tf.data.Dataset.from_generator(
         generator,
         (tf.int32, tf.int32),
         (_image_size + (1,), ())
-    ).repeat(repeat)
+    ).take(length)
+    if repeat is not None:
+        dataset = dataset.repeat(repeat)
     if shuffle:
         dataset = dataset.shuffle(_buffer_size)
     if batch_size is not None:
         dataset = dataset.batch(batch_size)
 
     return dataset
-
-
-def create_image_labels(generator, batch_size=32, shuffle=True, repeat=None):
-    dataset = create_dataset(generator, batch_size=batch_size, shuffle=shuffle, repeat=repeat)
-    return dataset.make_one_shot_iterator().get_next()
 
 
 def pad(missing):

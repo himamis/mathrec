@@ -2,22 +2,24 @@ import os
 import tensorflow as tf
 import slim.nets.resnet_v2 as resnet
 import slim.nets.vgg as vgg
-from object_detection.generator import create_generator, create_image_labels
+from object_detection.generator import create_dataset_tensors
 import trainer.params as par
 
 
-def create_input_fn(training=True, batch_size=32):
-    generator, obj = create_generator(os.path.join(par.data_base_dir, "training.pkl" if training else "validation.pkl"))
-    return create_image_labels(generator, batch_size=batch_size, repeat=None if training else obj.size())
+def create_input_fn(training=True, batch_size=32, epochs=20):
+    return create_dataset_tensors(
+        os.path.join(par.data_base_dir, "training.pkl" if training else "validation.pkl"),
+        batch_size=batch_size, repeat=epochs, shuffle=training
+    )
 
 
 def model_fn(features, labels, mode, params):
     if params.type == "vgg16":
         logits, _ = vgg.vgg_16(
-                tf.to_float(features),
-                num_classes=101,
-                dropout_keep_prob=1 - params.dropout_rate,
-                is_training=mode == tf.estimator.ModeKeys.TRAIN)
+            tf.to_float(features),
+            num_classes=101,
+            dropout_keep_prob=1 - params.dropout_rate,
+            is_training=mode == tf.estimator.ModeKeys.TRAIN)
     elif params.type == "vgg19":
         logits, _ = vgg.vgg_19(
             tf.to_float(features),
@@ -35,46 +37,32 @@ def model_fn(features, labels, mode, params):
 
     class_ids = tf.argmax(logits, 1)
     if mode == tf.estimator.ModeKeys.PREDICT:
-        predictions = {
-            'class_ids': class_ids,
-            'probabilities': tf.nn.softmax(logits),
-            'logits': logits
-        }
-        return tf.estimator.EstimatorSpec(
-            mode=mode,
-            predictions=predictions,
-            export_outputs={
-                'classify': tf.estimator.export.PredictOutput(predictions)
-            })
+        spec = tf.estimator.EstimatorSpec(mode=mode, predictions=class_ids)
+    else:
+        labels = labels - 1
+        loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
+        accuracy_metric = tf.metrics.accuracy(labels=labels, predictions=class_ids)
 
-    labels = labels - 1
-    labels_one_hot = tf.one_hot(labels, 101, dtype=tf.int32)
-    loss = tf.losses.softmax_cross_entropy(onehot_labels=labels_one_hot, logits=logits)
-    if mode == tf.estimator.ModeKeys.TRAIN:
-        #optimizer = tf.train.MomentumOptimizer(
-        #    learning_rate=params.learning_rate,
-        #    momentum=params.momentum
-        #)
-        optimizer = tf.train.AdamOptimizer(
-            learning_rate=params.learning_rate
-        )
-        train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
-        accuracy = tf.metrics.accuracy(labels=labels, predictions=class_ids)
+        equality = tf.equal(class_ids, labels)
+        accuracy = tf.reduce_mean(tf.cast(equality, tf.float32))
+        tf.summary.scalar('accuracy', accuracy)
 
-        tf.summary.scalar('train_accuracy', accuracy[1])
-
-        return tf.estimator.EstimatorSpec(
-            mode=mode,
-            loss=loss,
-            train_op=train_op)
-    if mode == tf.estimator.ModeKeys.EVAL:
         metrics = {
-            'accuracy': tf.metrics.accuracy(labels=labels, predictions=class_ids),
+            'accuracy': accuracy_metric,
         }
-        return tf.estimator.EstimatorSpec(
-            mode=mode,
-            loss=loss,
-            eval_metric_ops=metrics)
+
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            optimizer = tf.train.AdamOptimizer(
+                learning_rate=params.learning_rate
+            )
+            train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
+        else:
+            train_op = None
+        spec = tf.estimator.EstimatorSpec(mode=mode,
+                                          loss=loss,
+                                          train_op=train_op,
+                                          eval_metric_ops=metrics)
+    return spec
 
 
 def create_estimator(run_config, hparams):
