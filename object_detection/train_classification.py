@@ -11,9 +11,6 @@ def create_input_fn(training=True, batch_size=32, epochs=20):
         os.path.join(par.data_base_dir, "training.pkl" if training else "validation.pkl"),
         batch_size=batch_size, repeat=None if training else 1, shuffle=training
     )
-    #if training:
-        # ds = ds.repeat()
-
     return ds
 
 
@@ -59,12 +56,12 @@ def model_fn(features, labels, mode, params):
         }
 
         if mode == tf.estimator.ModeKeys.TRAIN:
-            #optimizer = tf.train.AdamOptimizer(
-            #    learning_rate=params.learning_rate
-            #)
-            optimizer = tf.train.GradientDescentOptimizer(
+            optimizer = tf.train.AdamOptimizer(
                 learning_rate=params.learning_rate
             )
+            #optimizer = tf.train.GradientDescentOptimizer(
+            #    learning_rate=params.learning_rate
+            #)
             train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
         else:
             train_op = None
@@ -98,12 +95,12 @@ def main():
     tf.logging.set_verbosity(tf.logging.INFO)
 
     hparams = tf.contrib.training.HParams(
-        type='vgg19',
+        type='resnet50',
         # epochs=epochs,
         max_steps=200000,
         num_epochs=200,
         batch_size=32,
-        learning_rate=0.01,
+        learning_rate=0.001,
         dropout_rate=0.6,
         momentum=0.9
     )
