@@ -114,7 +114,6 @@ def main():
     )
 
     estimator = create_estimator(run_config, hparams)
-    estimator.evaluate()
     train_spec, eval_spec = create_train_and_eval_spec(hparams)
     tf.estimator.train_and_evaluate(estimator, train_spec, eval_spec)
 
