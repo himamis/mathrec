@@ -14,8 +14,8 @@ def create_input_fn(training=True, batch_size=64, epochs=20):
 
 
 def model_fn(features, labels, mode, params):
-    # features = tf.Print(features, [tf.shape(features)], "Shape: ", summarize=100)
-    features = tf.Print(features, [features], "Images", summarize=100)
+    features = tf.Print(features, [tf.shape(features)], "FEATURE Shape: ", summarize=100)
+    #features = tf.Print(features, [features], "Images", summarize=100)
     features = (tf.to_float(features) - tf.constant(128, dtype=tf.float32)) / tf.constant(128, dtype=tf.float32)
 
     if params.type == "vgg16":
