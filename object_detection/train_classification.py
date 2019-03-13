@@ -112,7 +112,8 @@ def main():
     run_config = tf.estimator.RunConfig(
         log_step_count_steps=100,
         tf_random_seed=1234567,
-        model_dir=os.path.join(par.tensorboard_log_dir, par.tensorboard_name)
+        model_dir=os.path.join(par.tensorboard_log_dir, par.tensorboard_name),
+        save_checkpoints_steps=40
     )
 
     estimator = create_estimator(run_config, hparams)
