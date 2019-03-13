@@ -82,10 +82,14 @@ def create_estimator(run_config, hparams):
 
 def create_train_and_eval_spec(hparams):
     train_spec = tf.estimator.TrainSpec(
-        input_fn=lambda: create_input_fn(training=True, epochs=hparams.epochs),
+        input_fn=lambda: create_input_fn(training=True,
+                                         epochs=hparams.epochs,
+                                         batch_size=hparams.batch_size),
         max_steps=None)
     eval_spec = tf.estimator.EvalSpec(
-        input_fn=lambda: create_input_fn(training=False, epochs=1),
+        input_fn=lambda: create_input_fn(training=False,
+                                         epochs=1,
+                                         batch_size=hparams.batch_size),
         steps=None)
     return train_spec, eval_spec
 
@@ -95,9 +99,8 @@ def main():
 
     hparams = tf.contrib.training.HParams(
         type='resnet50',
-        epochs=20,
-        #max_steps=200000,
-        batch_size=32,
+        epochs=200,
+        batch_size=64,
         learning_rate=0.001,
         dropout_rate=0.6,
         momentum=0.9
