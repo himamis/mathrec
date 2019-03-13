@@ -6,9 +6,9 @@ from object_detection.generator import create_dataset_tensors
 import trainer.params as par
 
 
-def create_input_fn(training=True, batch_size=32, epochs=20):
+def create_input_fn(training=True, batch_size=64, epochs=20):
     ds = create_dataset_tensors(
-        os.path.join(par.data_base_dir, "training.pkl" if training else "validation.pkl"),
+        os.path.join(par.data_base_dir, "validation.pkl" if training else "validation.pkl"),
         batch_size=batch_size, repeat=None if training else 1, shuffle=training
     )
     return ds
