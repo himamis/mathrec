@@ -102,7 +102,7 @@ def main():
     tf.logging.set_verbosity(tf.logging.INFO)
 
     hparams = tf.contrib.training.HParams(
-        type='resnet50',
+        type='vgg19',
         epochs=200,
         batch_size=64,
         learning_rate=0.001,
