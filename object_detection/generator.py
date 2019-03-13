@@ -90,19 +90,20 @@ class DataGenerator(object):
 
     def _transform(self):
         for index, image in enumerate(self.images):
-            aspect_ratio = float(utils.w(image)) / float(utils.h(image))
+            # aspect_ratio = float(utils.w(image)) / float(utils.h(image))
+            image = utils.resize(image, _image_size[0], _image_size[1])
 
-            if utils.w(image) > self.image_size[0]:
-                image = utils.resize(image, self.image_size[0], int(round(self.image_size[0] / aspect_ratio)))
-            if utils.h(image) > self.image_size[1]:
-                image = utils.resize(image, int(round(self.image_size[1] * aspect_ratio)), self.image_size[1])
-
-            if utils.w(image) < self.image_size[0] or utils.h(image) < self.image_size[1]:
-                missing_w = self.image_size[0] - utils.w(image)
-                missing_h = self.image_size[1] - utils.h(image)
-                top, bottom = pad(missing_h)
-                left, right = pad(missing_w)
-                image = utils.pad_image(image, top, left, bottom, right, 0, 1, cv2.bitwise_or)
+            # if utils.w(image) > self.image_size[0]:
+            #     image = utils.resize(image, self.image_size[0], int(round(self.image_size[0] / aspect_ratio)))
+            # if utils.h(image) > self.image_size[1]:
+            #     image = utils.resize(image, int(round(self.image_size[1] * aspect_ratio)), self.image_size[1])
+            #
+            # if utils.w(image) < self.image_size[0] or utils.h(image) < self.image_size[1]:
+            #     missing_w = self.image_size[0] - utils.w(image)
+            #     missing_h = self.image_size[1] - utils.h(image)
+            #     top, bottom = pad(missing_h)
+            #     left, right = pad(missing_w)
+            #     image = utils.pad_image(image, top, left, bottom, right, 0, 1, cv2.bitwise_or)
 
             image = np.reshape(image, self.image_size + (1,))
 
