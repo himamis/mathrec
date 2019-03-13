@@ -1,14 +1,15 @@
 import os
 import tensorflow as tf
+import numpy as np
 import slim.nets.resnet_v2 as resnet
 import slim.nets.vgg as vgg
-from object_detection.generator import create_dataset_tensors
+from object_detection.generator import create_dataset_tensors, empirical_class_weights
 import trainer.params as par
 
 
 def create_input_fn(training=True, batch_size=64, epochs=20):
     return create_dataset_tensors(
-        os.path.join(par.data_base_dir, "validation.pkl" if training else "validation.pkl"),
+        os.path.join(par.data_base_dir, "training.pkl" if training else "validation.pkl"),
         batch_size=batch_size, repeat=epochs if training else 1, shuffle=training
     )
 
@@ -49,7 +50,7 @@ def model_fn(features, labels, mode, params):
         labels = tf.Print(labels, [labels], "Labels: ", summarize=100)
         labels = tf.Print(labels, [class_ids], "ClassIDS: ", summarize=100)
         class_ids = tf.Print(class_ids, [class_ids], "Class_ids: ", summarize=100)
-        loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
+        loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits, weights=empirical_class_weights)
         accuracy_metric = tf.metrics.accuracy(labels=labels, predictions=class_ids)
 
         equality = tf.equal(class_ids, labels)
