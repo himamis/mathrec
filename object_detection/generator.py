@@ -12,7 +12,7 @@ def create_dataset_tensors(path, batch_size=32, shuffle=True, repeat=None):
     data_generator = _create_data_generator(path)
 
     def data_generator_function():
-        for i in range(data_generator.size()):
+        for i in range(50):#range(data_generator.size()):
             yield data_generator.next()
 
     dataset = _create_dataset(data_generator_function, batch_size=batch_size, shuffle=shuffle, repeat=repeat)
