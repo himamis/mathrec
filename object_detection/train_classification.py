@@ -7,14 +7,14 @@ import trainer.params as par
 
 
 def create_input_fn(training=True, batch_size=64, epochs=20):
-    ds = create_dataset_tensors(
+    return create_dataset_tensors(
         os.path.join(par.data_base_dir, "validation.pkl" if training else "validation.pkl"),
-        batch_size=batch_size, repeat=None if training else 1, shuffle=training
+        batch_size=batch_size, repeat=epochs if training else 1, shuffle=training
     )
-    return ds
 
 
 def model_fn(features, labels, mode, params):
+    # features = tf.Print(features, [tf.shape(features)], "Shape: ", summarize=100)
     features = (tf.to_float(features) - tf.constant(128, dtype=tf.float32)) / tf.constant(128, dtype=tf.float32)
     if params.type == "vgg16":
         logits, _ = vgg.vgg_16(
@@ -42,10 +42,9 @@ def model_fn(features, labels, mode, params):
         spec = tf.estimator.EstimatorSpec(mode=mode, predictions=class_ids)
     else:
         labels = labels - 1
-        labels = tf.Print(labels, [labels], "Labels: ", summarize=100)
-        class_ids = tf.Print(class_ids, [class_ids], "Class_ids: ", summarize=100)
+        # labels = tf.Print(labels, [labels], "Labels: ", summarize=100)
+        # class_ids = tf.Print(class_ids, [class_ids], "Class_ids: ", summarize=100)
         loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
-        # labels = tf.Print(labels, [labels, class_ids], "Shapes: ", summarize=100)
         accuracy_metric = tf.metrics.accuracy(labels=labels, predictions=class_ids)
 
         equality = tf.equal(class_ids, labels)
@@ -62,9 +61,6 @@ def model_fn(features, labels, mode, params):
             optimizer = tf.train.AdamOptimizer(
                 learning_rate=params.learning_rate
             )
-            #optimizer = tf.train.GradientDescentOptimizer(
-            #    learning_rate=params.learning_rate
-            #)
             train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
         else:
             train_op = None
@@ -86,8 +82,8 @@ def create_estimator(run_config, hparams):
 
 def create_train_and_eval_spec(hparams):
     train_spec = tf.estimator.TrainSpec(
-        input_fn=lambda: create_input_fn(training=True, epochs=None),
-        max_steps=10)
+        input_fn=lambda: create_input_fn(training=True, epochs=hparams.epochs),
+        max_steps=None)
     eval_spec = tf.estimator.EvalSpec(
         input_fn=lambda: create_input_fn(training=False, epochs=1),
         steps=None)
@@ -99,9 +95,8 @@ def main():
 
     hparams = tf.contrib.training.HParams(
         type='resnet50',
-        # epochs=epochs,
-        max_steps=200000,
-        num_epochs=200,
+        epochs=20,
+        #max_steps=200000,
         batch_size=32,
         learning_rate=0.001,
         dropout_rate=0.6,
