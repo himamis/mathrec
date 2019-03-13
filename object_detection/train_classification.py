@@ -93,7 +93,8 @@ def create_train_and_eval_spec(hparams):
         input_fn=lambda: create_input_fn(training=False,
                                          epochs=1,
                                          batch_size=hparams.batch_size),
-        steps=None)
+        steps=None,
+        throttle_secs=0)
     return train_spec, eval_spec
 
 
