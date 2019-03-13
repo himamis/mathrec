@@ -24,11 +24,15 @@ def create_generator(path):
 
 
 def _create_dataset(generator, length, batch_size=32, shuffle=True, repeat=None):
+    if repeat is not None:
+        length *= repeat
     dataset = tf.data.Dataset.from_generator(
         generator,
         (tf.int32, tf.int32),
         (_image_size + (1,), ())
-    ).take(length).repeat(repeat)
+    ).take(length)
+    if repeat is None:
+        dataset = dataset.repeat()
     # if repeat is not None:
     #    dataset = dataset.repeat(repeat)
     if shuffle:
