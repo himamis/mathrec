@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 import tensorflow as tf
 
-_image_size = (224, 224)
+_image_size = (128, 128)
 _buffer_size = 100
 
 
