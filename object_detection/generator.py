@@ -71,6 +71,13 @@ class DataGenerator(object):
         self._transform()
         self._assert()
 
+        cc = {lab: 0 for lab in self.labels}
+        for _, image, label in dataset:
+            cc[label] += 1
+
+        print({self._encoder[lab] - 1: num for lab, num in cc.items()})
+
+
     def _read_classes(self):
         for label in self.labels:
             self.classes.add(label)

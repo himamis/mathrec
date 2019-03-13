@@ -15,7 +15,9 @@ def create_input_fn(training=True, batch_size=64, epochs=20):
 
 def model_fn(features, labels, mode, params):
     # features = tf.Print(features, [tf.shape(features)], "Shape: ", summarize=100)
+    features = tf.Print(features, [features], "Images", summarize=100)
     features = (tf.to_float(features) - tf.constant(128, dtype=tf.float32)) / tf.constant(128, dtype=tf.float32)
+
     if params.type == "vgg16":
         logits, _ = vgg.vgg_16(
             features,
@@ -36,6 +38,8 @@ def model_fn(features, labels, mode, params):
         )
     else:
         raise ValueError("type not available")
+
+    logits = tf.Print(logits, [logits], "Logits", summarize=100)
 
     class_ids = tf.argmax(logits, 1, output_type=tf.int32)
     if mode == tf.estimator.ModeKeys.PREDICT:
