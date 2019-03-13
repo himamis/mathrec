@@ -43,7 +43,9 @@ def model_fn(features, labels, mode, params):
     else:
         labels = labels - 1
         loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
+        # labels = tf.Print(labels, [labels, class_ids], "Shapes: ", summarize=100)
         accuracy_metric = tf.metrics.accuracy(labels=labels, predictions=class_ids)
+        accuracy_metric = (tf.Print(accuracy_metric[0], [labels, class_ids], "Shapes: ", summarize=100), accuracy_metric[1])
 
         equality = tf.equal(class_ids, labels)
         accuracy = tf.reduce_mean(tf.cast(equality, tf.float32))
