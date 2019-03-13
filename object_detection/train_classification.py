@@ -47,6 +47,7 @@ def model_fn(features, labels, mode, params):
     else:
         labels = labels - 1
         labels = tf.Print(labels, [labels], "Labels: ", summarize=100)
+        labels = tf.Print(labels, [class_ids], "ClassIDS: ", summarize=100)
         class_ids = tf.Print(class_ids, [class_ids], "Class_ids: ", summarize=100)
         loss = tf.losses.sparse_softmax_cross_entropy(labels=labels, logits=logits)
         accuracy_metric = tf.metrics.accuracy(labels=labels, predictions=class_ids)
