@@ -49,7 +49,7 @@ def model_fn(features, labels, mode, params):
         accuracy = tf.reduce_mean(tf.cast(equality, tf.float32))
         tf.summary.scalar('accuracy', accuracy)
         tf.summary.image("image", features)
-        logging_hook = tf.train.LoggingTensorHook({"loss": loss, "train_accuracy": accuracy}, every_n_iter=2)
+        logging_hook = tf.train.LoggingTensorHook({"loss": loss, "train_accuracy": accuracy}, every_n_iter=100)
 
         metrics = {
             'accuracy': accuracy_metric,
@@ -105,7 +105,7 @@ def main():
         momentum=0.9
     )
     run_config = tf.estimator.RunConfig(
-        log_step_count_steps=10,
+        log_step_count_steps=100,
         tf_random_seed=1234567,
         model_dir=os.path.join(par.tensorboard_log_dir, par.tensorboard_name)
     )
