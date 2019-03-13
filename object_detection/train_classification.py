@@ -61,9 +61,10 @@ def model_fn(features, labels, mode, params):
             optimizer = tf.train.AdamOptimizer(
                 learning_rate=params.learning_rate
             )
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-            with tf.control_dependencies(update_ops):
-                train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
+            train_op = tf.contrib.slim.learning.create_train_op(loss, optimizer)
+            #update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
+            #with tf.control_dependencies(update_ops):
+            #    train_op = optimizer.minimize(loss, global_step=tf.train.get_global_step())
         else:
             train_op = None
         spec = tf.estimator.EstimatorSpec(mode=mode,
