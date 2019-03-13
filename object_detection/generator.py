@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 import tensorflow as tf
 
-_image_size = (128, 128)
+_image_size = (224, 224)
 _buffer_size = 1000
 
 
@@ -12,6 +12,7 @@ def create_dataset_tensors(path, batch_size=32, shuffle=True, repeat=None):
     data_generator = _create_data_generator(path)
 
     def data_generator_function():
+        # TODO REMOVE THIS
         for i in range(50):#range(data_generator.size()):
             yield data_generator.next()
 
