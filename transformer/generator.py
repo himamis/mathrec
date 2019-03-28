@@ -20,7 +20,7 @@ class DataGenerator(object):
 
     def _sort_data(self):
         for index in range(len(self.data)):
-            formula, input = self.data[index]
+            _, input, formula = self.data[index]
             # Sort by minx
             sorted_input = sorted(input, key=lambda inp: inp[1][0])
             self.data[index] = (formula, sorted_input)
