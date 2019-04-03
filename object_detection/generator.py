@@ -71,16 +71,17 @@ class DataGenerator(object):
         self._transform()
         self._assert()
 
-        # cls_weights = class_weight.compute_class_weight('balanced', sorted(list(set(self.labels))), self.labels)
-        #
-        # number = {lab: 0 for lab in self.labels}
-        # for _, image, label in dataset:
-        #     number[label] += 1
-        #
-        # number = {self._encoder[label]: value for label, value in number.items()}
-        # weights = [number[key] for key in sorted(number.keys())]
-        # weights = [weight / sum(weights) for weight in weights]
-        # print(weights)
+        cls_weights = class_weight.compute_class_weight('balanced', np.unique(self.labels), self.labels)
+        print(cls_weights)
+
+        number = {lab: 0 for lab in self.labels}
+        for _, image, label in dataset:
+            number[label] += 1
+
+        number = {self._encoder[label]: value for label, value in number.items()}
+        weights = [number[key] for key in sorted(number.keys())]
+        weights = [weight / sum(weights) for weight in weights]
+        print(weights)
 
 
     def _read_classes(self):

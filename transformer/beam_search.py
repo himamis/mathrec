@@ -89,7 +89,7 @@ class SequenceBeamSearch(object):
         # Mask and gather
         move_mask = np.zeros(self.vocab_size, dtype=np.int32)
         gather = np.array(range(vocab_size))
-        for replace, with_this in [('\\frac', '-')]:
+        for replace, with_this in [('\\frac', '-'), ('\\cdot', '.')]:
             move_mask[encoding_vocab[replace]] = 1
             clean_mask[encoding_vocab[replace]] = 0
             gather[encoding_vocab[replace]] = encoding_vocab[with_this]

@@ -101,7 +101,7 @@ def create_train_and_eval_spec(hparams):
                                          epochs=1,
                                          batch_size=hparams.batch_size),
         steps=None,
-        throttle_secs=0)
+        throttle_secs=120)
     return train_spec, eval_spec
 
 
@@ -120,7 +120,7 @@ def main():
         log_step_count_steps=100,
         tf_random_seed=1234567,
         model_dir=os.path.join(par.tensorboard_log_dir, par.tensorboard_name),
-        save_checkpoints_steps=40
+        save_checkpoints_steps=200
     )
 
     estimator = create_estimator(run_config, hparams)
