@@ -155,7 +155,7 @@ def create_config():
 
 def create_saver_and_save_path():
     saver = tf.train.Saver(name=params.tensorboard_name, pad_step_number=True)
-    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name)
+    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name, "transformer")
 
     return saver, save_path
 
