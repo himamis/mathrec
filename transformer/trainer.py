@@ -25,12 +25,12 @@ def log(message):
 
 
 def create_generators(batch_size=32):
-    training = read_pkl(path.join(params.data_base_dir, 'training.pkl'))
+    training = read_pkl(path.join(params.data_base_dir, params.training_fname + ".pkl"))
     training_generator = generator.DataGenerator(training, batch_size, do_shuffle=True)
 
     validation_data = "validation.pkl"
     if params.validate_on_training:
-        validation_data = "training.pkl"
+        validation_data = params.training_fname + ".pkl"
     validating = read_pkl(path.join(params.data_base_dir, validation_data))
     # validating_batch_size = int(batch_size / 2)
     validating_batch_size = batch_size

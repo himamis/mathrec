@@ -58,3 +58,4 @@ alpha = float(parse_arg('--alpha', default=0.6))
 beam_size = _parse_int('--beam-size', default=6)
 
 validate_only = _parse_boolean('--validate-only', default=False)
+training_fname = parse_arg("--training-fname", default="training")
