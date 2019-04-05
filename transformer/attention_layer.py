@@ -148,8 +148,8 @@ class Attention(tf.layers.Layer):
 
         if trainer.params.sparsemax:
             shape = tf.shape(logits)
-            batch_size = shape[0]
-            logits = tf.reshape(logits, [batch_size, -1])
+            head_size = shape[3]
+            logits = tf.reshape(logits, [-1, head_size])
             weights = tf.contrib.sparsemax.sparsemax(logits, name="attention_weights_sparse")
             weights = tf.reshape(weights, shape)
         else:
