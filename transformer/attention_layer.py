@@ -19,7 +19,7 @@ from __future__ import division
 from __future__ import print_function
 
 import tensorflow as tf
-
+import trainer.params
 
 class Attention(tf.layers.Layer):
     """Multi-headed attention layer."""
@@ -145,7 +145,11 @@ class Attention(tf.layers.Layer):
             logits = tf.matmul(q, k, transpose_b=True)
 
         logits += bias
-        weights = tf.nn.softmax(logits, name="attention_weights")
+
+        if trainer.params.sparsemax:
+            weights = tf.contrib.sparsemax.sparsemax(logits, name="attention_weights_sparse")
+        else:
+            weights = tf.nn.softmax(logits, name="attention_weights")
         if self.train:
             weights = tf.nn.dropout(weights, 1.0 - self.attention_dropout)
 
