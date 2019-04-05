@@ -21,6 +21,7 @@ from __future__ import print_function
 import tensorflow as tf
 import trainer.params
 
+
 class Attention(tf.layers.Layer):
     """Multi-headed attention layer."""
 
@@ -103,7 +104,6 @@ class Attention(tf.layers.Layer):
       Attention layer output with shape [batch_size, length_x, hidden_size]
     """
 
-
         # Linearly project the query (q), key (k) and value (v) using different
         # learned projections. This is in preparation of splitting them into
         # multiple heads. Multi-head attention uses multiple queries, keys, and
@@ -147,7 +147,11 @@ class Attention(tf.layers.Layer):
         logits += bias
 
         if trainer.params.sparsemax:
+            shape = tf.shape(logits)
+            batch_size = shape[0]
+            logits = tf.reshape(logits, [batch_size, -1])
             weights = tf.contrib.sparsemax.sparsemax(logits, name="attention_weights_sparse")
+            weights = tf.reshape(weights, shape)
         else:
             weights = tf.nn.softmax(logits, name="attention_weights")
         if self.train:
@@ -164,7 +168,6 @@ class Attention(tf.layers.Layer):
         # Run the combined outputs through another linear projection layer.
         attention_output = self.output_dense_layer(attention_output)
         return attention_output
-
 
     def _relative_attention_inner(self, x, y, z, transpose):
         """Relative position-aware dot-product attention inner calculation.
