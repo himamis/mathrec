@@ -88,6 +88,13 @@ def create_model(transformer_params):
         return model.TransformerLatex(transformer_params)
 
 
+def create_tex_file(output_path, name, latex):
+    filename = path.join(output_path, name + ".txt")
+    tex_file = open(filename, 'w')
+    tex_file.write(latex)
+    tex_file.close()
+
+
 def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, validating):
     wern = 0
     exprate = 0
@@ -100,7 +107,7 @@ def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output
     targets = []
     for validation_step in range(validating.steps()):
         progress_bar("Validating", validation_step + 1, validating.steps())
-        encoded_tokens, bounding_boxes, encoded_formulas, _ = validating.next_batch()
+        name, encoded_tokens, bounding_boxes, encoded_formulas, _ = validating.next_batch()
         feed_dict = {
             tokens_placeholder: encoded_tokens,
             bounding_box_placeholder: bounding_boxes,
@@ -126,6 +133,12 @@ def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output
             results.append(result)
             targets.append(target)
             wers.append(cwer)
+
+            if params.create_tex_files is not None:
+                # Remove <END> symbol
+                result = result[:-1]
+                result = vocabulary.decode_formula(result)
+                create_tex_file(params.create_tex_files, name[i], result)
 
     validating.reset()
 
@@ -155,7 +168,7 @@ def create_config():
 
 def create_saver_and_save_path():
     saver = tf.train.Saver(name=params.tensorboard_name, pad_step_number=True)
-    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name, "transformer")
+    save_path = path.join(params.model_checkpoint_dir, params.tensorboard_name)
 
     return saver, save_path
 
@@ -193,7 +206,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         steps = training.steps()
         for step in range(steps):
             progress_bar("Epoch {}".format(epoch + 1), step + 1, steps)
-            encoded_tokens, bounding_boxes, encoded_formulas, encoded_formulas_masks = training.next_batch()
+            _, encoded_tokens, bounding_boxes, encoded_formulas, encoded_formulas_masks = training.next_batch()
             feed_dict = {
                 tokens_placeholder: encoded_tokens,
                 bounding_box_placeholder: bounding_boxes,
@@ -334,7 +347,14 @@ def train(transformer_params, tokens_placeholder, bounding_box_placeholder,
 
 def test(transformer_params, tokens_placeholder, bounding_box_placeholder,
          output_placeholder, output_masks_placeholder):
-    _, validating = create_generators(params.batch_size)
+    batch_size = params.batch_size
+    if params.create_tex_files is not None:
+        # Create results one by one
+        # As I am not sure, if the padding
+        # Influences other predictions
+        # This makes inference slower
+        batch_size = 1
+    _, validating = create_generators(batch_size )
     with tf.Session(config=create_config()) as sess:
         _, eval_fn, _ = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
                                                   output_placeholder, output_masks_placeholder)

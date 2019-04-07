@@ -20,14 +20,14 @@ class DataGenerator(object):
 
     def _sort_data(self):
         for index in range(len(self.data)):
-            _, input, formula = self.data[index]
+            name, input, formula = self.data[index]
             # Sort by minx
             sorted_input = sorted(input, key=lambda inp: inp[1][0])
-            self.data[index] = (formula, sorted_input)
+            self.data[index] = (name, formula, sorted_input)
 
 
     def _build_chunks(self):
-        lengs = [len(inputs) for formula, inputs in self.data]
+        lengs = [len(inputs) for _, _, inputs in self.data]
         _, data = zip(*sorted(zip(lengs, self.data), key=lambda a: a[0]))
         self.data_chuncks = [data[i:i + self.batch_size] for i in range(0, len(data), self.batch_size)]
 
@@ -53,7 +53,7 @@ class DataGenerator(object):
         data_bucket = self.data_chuncks[self.chunk_index]
         self.chunk_index += 1
 
-        formulas, inputs = zip(*data_bucket)
+        name, formulas, inputs = zip(*data_bucket)
         tokens = []
         bounding_boxes = []
         for input in inputs:
@@ -75,4 +75,4 @@ class DataGenerator(object):
         bounding_boxes = [np.concatenate((np.array(box), np.repeat(0, 4 * (num - len(box))).reshape((-1, 4))))
                           for box in bounding_boxes]
 
-        return encoded_tokens, bounding_boxes, encoded_formulas, encoded_formulas_masks
+        return name, encoded_tokens, bounding_boxes, encoded_formulas, encoded_formulas_masks
