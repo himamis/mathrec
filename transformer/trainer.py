@@ -135,7 +135,7 @@ def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output
             if params.create_tex_files is not None:
                 # Remove <END> symbol
                 result = result[:-1]
-                result = vocabulary.decode_formula(result)
+                result = vocabulary.decode_formula(result, join=True, joiner=" ")
                 create_tex_file(params.create_tex_files, name[i], result)
 
     validating.reset()
@@ -450,4 +450,4 @@ def transform(model, inputs):
         }
         outputs = session.run(eval_fn, feed_dict)
         result = outputs['outputs'][0]
-    return vocabulary.decode_formula(result, join=True)
+    return vocabulary.decode_formula(result, join=True, joiner=" ")

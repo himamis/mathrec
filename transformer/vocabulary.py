@@ -17,8 +17,8 @@ encoding_vocabulary[PAD] = PAD_ID
 decoding_vocabulary = {v: k for k, v in encoding_vocabulary.items()}
 
 
-def decode_formula(formula, join=True):
+def decode_formula(formula, join=True, joiner=""):
     res = [decoding_vocabulary[f] for f in formula]
     if join:
-        res = "".join(res)
+        res = joiner.join(res)
     return res
