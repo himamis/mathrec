@@ -27,7 +27,7 @@ def log(message):
 def create_generators(batch_size=32):
     training = read_pkl(path.join(params.data_base_dir, params.training_fname + ".pkl"))
     training_generator = generator.DataGenerator(training, batch_size, do_shuffle=True)
-    
+
     validation_data = "validation.pkl"
     if params.validate_on_training:
         validation_data = params.training_fname + ".pkl"
@@ -110,9 +110,7 @@ def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output
         name, encoded_tokens, bounding_boxes, encoded_formulas, _ = validating.next_batch()
         feed_dict = {
             tokens_placeholder: encoded_tokens,
-            bounding_box_placeholder: bounding_boxes,
-            output_placeholder: encoded_formulas  # ,
-            # output_masks_placeholder: encoded_formulas_masks
+            bounding_box_placeholder: bounding_boxes
         }
         outputs = sess.run(eval_fn, feed_dict)
 
