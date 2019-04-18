@@ -120,6 +120,18 @@ CUSTOM_PARAMS.update(
     reduce_distance=None,
 
     transform_diffs=True,
-    l2_regularization=0.0001
+    l2_regularization=0.0001,
+
+    act_type="basic",
+    act_epsilon=0.01,
+    act_max_steps=12,
+    act_halting_bias_init=1.0,
+    act_loss_weight=0.01,
+    num_inrecurrence_layers=1,
+#    layer_preprocess_sequence=
+##    layer_prepostprocess_dropout=
+ #   norm_type=
+ #   norm_epsilon=
+ #   layer_prepostprocess_dropout_broadcast_dims=
     # learning_rate=0.0007
 )

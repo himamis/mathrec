@@ -12,7 +12,7 @@ from trainer.metrics import wer, exp_rate
 from utilities import progress_bar
 from transformer import model_params
 from utils import metrics
-
+import time
 
 random.seed(123)
 tf.set_random_seed(123)
@@ -359,7 +359,8 @@ def test(transformer_params, tokens_placeholder, bounding_box_placeholder,
         _, eval_fn, _ = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
                                                   output_placeholder, output_masks_placeholder)
         saver, save_path = create_saver_and_save_path()
-        restore_model(sess, saver, save_path, params.start_epoch)
+        # TODO Restore
+        # restore_model(sess, saver, save_path, params.start_epoch)
         avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder,
                                                   output_placeholder, validating)
         print("Done validating\n Avg_wer: {}\nAvg_acc: {}\nAvg_exp_rate: {}\n".format(avg_wer, avg_acc,
@@ -383,4 +384,73 @@ def main(transformer_params):
               output_placeholder, output_masks_placeholder)
 
 
-main(model_params.CUSTOM_PARAMS)
+def prepare_transform():
+    transformer_params = model_params.CUSTOM_PARAMS
+    update_params(transformer_params)
+
+    tokens_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="tokens")
+    bounding_box_placeholder = tf.placeholder(tf.float32, shape=(None, None, 4), name="bounding_boxes")
+
+    output_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="output")
+    output_masks_placeholder = tf.placeholder(tf.float32, shape=(None, None), name="output_masks")
+    session = tf.Session(config=create_config())
+    with session.as_default():
+        _, eval_fn, _ = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
+                                              output_placeholder, output_masks_placeholder)
+        saver, save_path = create_saver_and_save_path()
+        restore_model(session, saver, save_path, params.start_epoch)
+
+    return (eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, session)
+
+
+def normalize(inputs):
+    info = np.finfo(np.float32)
+
+    min_x = info.max
+    min_y = info.max
+    max_x = info.min
+    max_y = info.min
+
+    for token, bounding_box in inputs:
+        min_x = min(min_x, bounding_box[0])
+        min_y = min(min_y, bounding_box[1])
+        max_x = max(max_x, bounding_box[2])
+        max_y = max(max_y, bounding_box[3])
+
+    trans_x = min_x
+    trans_y = min_y
+    scale_x = 1 / (max_x - min_x)
+    scale_y = 1 / (max_y - min_y)
+    result = []
+    for token, bounding_box in inputs:
+        box = ((bounding_box[0] - trans_x) * scale_x,
+               (bounding_box[1] - trans_y) * scale_y,
+               (bounding_box[2] - trans_x) * scale_x,
+               (bounding_box[3] - trans_y) * scale_y)
+        if type(token) is str:
+            token = vocabulary.encoding_vocabulary[token]
+        result.append((token, box))
+
+    sorted_result = sorted(result, key=lambda inp: inp[1][0])
+
+    sorted_result.append((vocabulary.EOS_ID, (1.0, 1.0, 1.0, 1.0)))
+
+    return sorted_result
+
+
+def transform(model, inputs):
+    try:
+        inputs = normalize(inputs)
+    except KeyError:
+        time.sleep(1)
+        return ""
+    tokens, bounding_boxes = zip(*inputs)
+    eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, session = model
+    with session.as_default():
+        feed_dict = {
+            tokens_placeholder: [tokens],
+            bounding_box_placeholder: [bounding_boxes]
+        }
+        outputs = session.run(eval_fn, feed_dict)
+        result = outputs['outputs'][0]
+    return vocabulary.decode_formula(result, join=True)
