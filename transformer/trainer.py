@@ -359,8 +359,7 @@ def test(transformer_params, tokens_placeholder, bounding_box_placeholder,
         _, eval_fn, _ = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
                                                   output_placeholder, output_masks_placeholder)
         saver, save_path = create_saver_and_save_path()
-        # TODO Restore
-        # restore_model(sess, saver, save_path, params.start_epoch)
+        restore_model(sess, saver, save_path, params.start_epoch)
         avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder,
                                                   output_placeholder, validating)
         print("Done validating\n Avg_wer: {}\nAvg_acc: {}\nAvg_exp_rate: {}\n".format(avg_wer, avg_acc,
