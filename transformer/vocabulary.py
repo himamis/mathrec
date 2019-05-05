@@ -14,6 +14,7 @@ encoding_vocabulary = {token: index + 2 for index, token in enumerate(encoding_v
 encoding_vocabulary[END] = EOS_ID
 encoding_vocabulary[PAD] = PAD_ID
 
+
 decoding_vocabulary = {v: k for k, v in encoding_vocabulary.items()}
 
 

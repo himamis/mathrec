@@ -38,8 +38,14 @@ def create_token_img(token):
     return img
 
 
-def print_token(image, token, bounding_box):
+
+def print_token(image, token, bounding_box, minx2=0.0, miny2=0.0,maxx2=1.0, maxy2=1.0):
     minx, miny, maxx, maxy = bounding_box
+    minx = (minx - minx2) * 1.0 / (maxx2 -minx2)
+    miny = (miny - miny2) * 1.0 / (maxy2 - miny2)
+    maxx = (maxx - minx2) * 1.0 / (maxx2 - minx2)
+    maxy = (maxy - miny2) * 1.0 / (maxy2 - miny2)
+
     image_width = graphics.w(image)
     image_height = graphics.h(image)
 
@@ -60,9 +66,13 @@ def print_token(image, token, bounding_box):
 
 
 def create_image(input, width=400, height=200):
+    minx = min([bbox[0] for _, _, bbox in input])
+    miny = min([bbox[1] for _, _, bbox in input])
+    maxx = max([bbox[2] for _, _, bbox in input])
+    maxy = max([bbox[3] for _, _, bbox in input])
     image = graphics.new_image(width, height)
-    for token, bounding_box in input:
-        print_token(image, token, bounding_box)
+    for href, token, bounding_box in input:
+        print_token(image, token, bounding_box, minx, miny, maxx, maxy)
     return image
 
 

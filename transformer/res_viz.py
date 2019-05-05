@@ -1,10 +1,77 @@
 import tkinter as tk
 from gui import simple_dialog
-from transformer import trainer
 import threading
 import queue
+import h2o
+import numpy as np
 
+info = np.finfo(np.float32)
+
+
+def normalize_boxes(boxes, to_size=0.01):
+    if len(boxes) == 1:
+        return boxes
+    min_x_dist = info.max
+    min_y_dist = info.max
+    for i in range(len(boxes) - 1):
+        for j in range(i + 1, len(boxes)):
+            token1, box1 = boxes[i]
+            token2, box2 = boxes[j]
+            dists_x = (box1[0] - box2[0], box1[0] - box2[2], box1[2] - box2[0], box1[2] - box2[2])
+            dists_y = (box1[1] - box2[1], box1[1] - box2[3], box1[3] - box2[1], box1[3] - box2[3])
+            abs_dists_x = [abs(dist) for dist in dists_x if dist != 0]
+            abs_dists_y = [abs(dist) for dist in dists_y if dist != 0]
+            if len(abs_dists_y) == 0:
+                abs_dists_y = [to_size]
+            if len(abs_dists_x) == 0:
+                abs_dists_x = [to_size]
+            smallest_x = min(abs_dists_x)
+            smallest_y = min(abs_dists_y)
+
+            min_x_dist = min(min_x_dist, smallest_x)
+            min_y_dist = min(min_y_dist, smallest_y)
+    scale_x = to_size / min_x_dist
+    scale_y = to_size / min_y_dist
+
+    for index, (token, box) in enumerate(boxes):
+        boxes[index] = (token, (box[0] * scale_x, box[1] * scale_y, box[2] * scale_x, box[3] * scale_y))
+    return boxes
+
+# Main algorithm for sequence data
+def key(inp):
+    token, bounding = inp
+    if token == '(' or token == '\\[' or token == '\\{':
+        return bounding[0]
+    elif token == ')' or token == '\\]' or token == '\\}':
+        return bounding[2]
+    else:
+        return (bounding[0] + bounding[2]) / 2
+
+def standardize_data(bounding_boxes):
+    normalize_boxes(bounding_boxes)
+    return sorted(bounding_boxes, key=key)
+
+def create_features(boxes):
+    boxes = standardize_data(boxes)
+    data = []
+    for i in range(len(boxes) - 1):
+        for j in range(i + 1, len(boxes)):
+            ftok, b1 = boxes[i]
+            ttok, b2 = boxes[j]
+            data += [(b1[0] - b2[0], b1[0] - b2[2], b1[2] - b2[0], b1[2] - b2[2],
+                     b1[1] - b2[1], b1[1] - b2[3], b1[3] - b2[1], b1[3] - b2[3],
+                     ftok, ttok)]
+    return h2o.H2OFrame.from_python(data, column_types=['numeric', 'numeric', 'numeric', 'numeric',
+                                                        'numeric', 'numeric', 'numeric', 'numeric',
+                                                        'factor', 'factor'],
+                                   column_names=['minx-minx','minx-maxx','maxx-minx', 'maxx-maxx',
+              'miny-miny', 'miny-maxy', 'maxy-miny', 'maxy-maxy','relative_to', 'this'])
+
+
+
+h2o.connect()
 q = queue.Queue()
+input_action = queue.Queue()
 
 class TransformerInput:
 
@@ -44,26 +111,48 @@ class TransformerInput:
 
 class EvaluationController:
 
-    def __init__(self, model, res_var, transformer_input):
+    def __init__(self, model, res_var):
         self.model = model
         self.res_var = res_var
-        self.transformer_input = transformer_input
+        self.transformer_input = TransformerInput()
 
     def start_evaluating(self):
         while True:
+            a = input_action.get()
+            self.do_action(a)
             inp = self.transformer_input.to_input()
             if len(inp) > 0:
                 self.run_model(inp)
 
+    def do_action(self, action):
+        action, params = action
+        if action == "remove":
+            self.transformer_input.remove(params)
+        elif action == "add":
+            (rect, value, bbox) = params
+            self.transformer_input.add(rect, value, bbox)
+        elif action == "change_box":
+            (handle, c) = params
+            self.transformer_input.change_box(handle, c)
+        elif action == "clear":
+            self.transformer_input.clear()
+        else:
+            print("UNKNOWN ACTION")
+
+
+
     def run_model(self, input):
         print("Running model")
-        result = trainer.transform(self.model, input)
-        q.put(result)
+        # print(input)
+        features = create_features(input)
+        #print(features)
+        result = self.model.predict(features)
+        #print(result)
+        if len(result) != 0:
+            print(result.concat(features[-2:]))
+        #result = "csa"
+        #q.put(result)
 
-
-
-
-transformer_input = TransformerInput()
 
 class InputDialog(simple_dialog.Dialog):
 
@@ -143,7 +232,8 @@ class CreatorController(MouseController):
         self.canvas.config(cursor='')
 
     def _ok_callback(self, value):
-        transformer_input.add(self.rect, value, self.bbox)
+        input_action.put(("add", (self.rect, value, self.bbox)))
+        # transformer_input.add(self.rect, value, self.bbox)
         tag = "index_" + str(self.rect)
         self.canvas.create_text(self.bbox[0], self.bbox[1]-10, text=value, tags=(tag, "text", self.rect))
         self.canvas.create_line(self.bbox[2] - 10, self.bbox[1] - 10, self.bbox[2], self.bbox[1], tags=(tag, "delete", self.rect))
@@ -173,7 +263,8 @@ class MovingController(MouseController):
             self._move_item(index, delta_x, delta_y)
 
         c = canvas.coords(self.handle)
-        transformer_input.change_box(self.handle, c)
+        input_action.put(("change_box", (self.handle, c)))
+        #transformer_input.change_box(self.handle, c)
 
         self.x = event.x
         self.y = event.y
@@ -224,7 +315,8 @@ class DeleteController(MouseController):
         self.canvas.config(cursor='')
 
     def _delete(self):
-        transformer_input.remove(self.handle)
+        input_action.put(("remove", self.handle))
+        # transformer_input.remove(self.handle)
         indices = self.canvas.find_withtag("index_" + str(self.handle))
         for index in indices:
             self.canvas.delete(index)
@@ -296,15 +388,19 @@ def load_transformer_background():
 
 def load_transformer():
     label_var.set("Loading...")
-    transformer_model = trainer.prepare_transform()
-    eval_c = EvaluationController(transformer_model, res_var, transformer_input)
+    transformer_model = h2o.load_model(
+        "/Users/balazs/Documents/notebooks/transformer-naive/DRF_model_python_1556794313082_1"
+        #"/Users/balazs/Documents/notebooks/transformer-naive/DRF_model_python_1556873193433_3"
+    )
+    eval_c = EvaluationController(transformer_model, res_var,)
     label_var.set("Ready!")
     threading.Thread(target=eval_c.start_evaluating).run()
 
 def clear_canvas():
     print("Clear canvas")
     canvas.delete(tk.ALL)
-    transformer_input.clear()
+    input_action.put(("clear", None))
+    # transformer_input.clear()
 
 
 def create_buttons(top):
@@ -330,7 +426,7 @@ def poll():
         pass
     top.after(100, poll)
 
-transformer_model = None
+model = None
 
 
 top = tk.Tk()
