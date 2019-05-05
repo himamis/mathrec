@@ -119,6 +119,7 @@ CUSTOM_PARAMS.update(
     alpha=0.6,
     reduce_distance=None,
 
+    extra_diffs=True,
     transform_diffs=True,
     l2_regularization=0.0001,
 

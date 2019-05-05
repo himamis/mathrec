@@ -116,7 +116,15 @@ class Transformer(object):
             inputs_padding = model_utils.get_padding(inputs)
 
             with tf.name_scope("create_diffs"):
-                diff = bounding_boxes[:, None, :, :] - bounding_boxes[:, :, None, :]
+                first = bounding_boxes[:, None, :, :]
+                second = bounding_boxes[:, :, None, :]
+                diff = first - second
+
+                if self.params["extra_diffs"]:
+                    extra = tf.stack([second[:, :, :, 2], second[:, :, :, 3], second[:, :, :, 0], second[:, :, :, 1]], axis=3)
+                    diff2 = first - extra
+
+                    diff = tf.concat([diff, diff2], axis=3)
 
                 if self.params["transform_diffs"]:
                     diff = tf.where(tf.less(diff, 0), -1 - diff, 1 - diff)
