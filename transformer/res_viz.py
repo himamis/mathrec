@@ -8,6 +8,33 @@ import numpy as np
 info = np.finfo(np.float32)
 
 
+def normalize(inputs, padding=0.0001):
+    min_x = info.max
+    min_y = info.max
+    max_x = info.min
+    max_y = info.min
+
+    for token, bounding_box in inputs:
+        min_x = min(min_x, bounding_box[0])
+        min_y = min(min_y, bounding_box[1])
+        max_x = max(max_x, bounding_box[2])
+        max_y = max(max_y, bounding_box[3])
+
+    trans_x = min_x - padding / 2.0
+    trans_y = min_y - padding / 2.0
+    scale_x = (1 - padding) / (max_x - min_x)
+    scale_y = (1 - padding) / (max_y - min_y)
+    result = []
+    for token, bounding_box in inputs:
+        box = ((bounding_box[0] - trans_x) * scale_x,
+               (bounding_box[1] - trans_y) * scale_y,
+               (bounding_box[2] - trans_x) * scale_x,
+               (bounding_box[3] - trans_y) * scale_y)
+        result.append((token, box))
+
+    return result
+
+
 def normalize_boxes(boxes, to_size=0.01):
     if len(boxes) == 1:
         return boxes
@@ -48,7 +75,7 @@ def key(inp):
         return (bounding[0] + bounding[2]) / 2
 
 def standardize_data(bounding_boxes):
-    normalize_boxes(bounding_boxes)
+    bounding_boxes = normalize(bounding_boxes)
     return sorted(bounding_boxes, key=key)
 
 def create_features(boxes):
@@ -60,16 +87,23 @@ def create_features(boxes):
             ttok, b2 = boxes[j]
             data += [(b1[0] - b2[0], b1[0] - b2[2], b1[2] - b2[0], b1[2] - b2[2],
                      b1[1] - b2[1], b1[1] - b2[3], b1[3] - b2[1], b1[3] - b2[3],
+                      b1[0], b1[1], b1[2], b1[3], b2[0], b2[1], b2[2], b2[3],
                      ftok, ttok)]
     return h2o.H2OFrame.from_python(data, column_types=['numeric', 'numeric', 'numeric', 'numeric',
                                                         'numeric', 'numeric', 'numeric', 'numeric',
+                                                        'numeric', 'numeric', 'numeric', 'numeric',
+                                                        'numeric', 'numeric', 'numeric', 'numeric',
                                                         'factor', 'factor'],
                                    column_names=['minx-minx','minx-maxx','maxx-minx', 'maxx-maxx',
-              'miny-miny', 'miny-maxy', 'maxy-miny', 'maxy-maxy','relative_to', 'this'])
+              'miny-miny', 'miny-maxy', 'maxy-miny', 'maxy-maxy',
+                                                 'rminx', 'rminy', 'rmaxx', 'rmaxy',
+                                                 'tminx', 'tminy', 'tmaxx', 'tmaxy',
+                                                 'relative_to', 'this'])
 
 
 
-h2o.connect()
+#h2o.connect()
+h2o.init()
 q = queue.Queue()
 input_action = queue.Queue()
 
@@ -120,6 +154,8 @@ class EvaluationController:
         while True:
             a = input_action.get()
             self.do_action(a)
+            with input_action.mutex:
+                input_action.queue.clear()
             inp = self.transformer_input.to_input()
             if len(inp) > 0:
                 self.run_model(inp)
@@ -389,7 +425,7 @@ def load_transformer_background():
 def load_transformer():
     label_var.set("Loading...")
     transformer_model = h2o.load_model(
-        "/Users/balazs/Documents/notebooks/transformer-naive/DRF_model_python_1556794313082_1"
+        "/Users/balazs/Documents/notebooks/transformer-naive/DRF_model_python_1556873193433_19"
         #"/Users/balazs/Documents/notebooks/transformer-naive/DRF_model_python_1556873193433_3"
     )
     eval_c = EvaluationController(transformer_model, res_var,)

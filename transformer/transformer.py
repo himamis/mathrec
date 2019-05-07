@@ -346,22 +346,27 @@ class EncoderStack(tf.layers.Layer):
 
     def __init__(self, params, train):
         super(EncoderStack, self).__init__()
-        self.layers = []
-        for _ in range(params["num_hidden_layers"]):
-            # Create sublayers for each layer.
-            self_attention_layer = attention_layer.SelfAttention(
-                params["hidden_size"], params["num_heads"],
-                params["attention_dropout"], train, diffs_att=True)
-            feed_forward_network = ffn_layer.FeedFowardNetwork(
-                params["hidden_size"], params["filter_size"],
-                params["relu_dropout"], train, params["allow_ffn_pad"])
-
-            self.layers.append([
-                PrePostProcessingWrapper(self_attention_layer, params, train),
-                PrePostProcessingWrapper(feed_forward_network, params, train)])
+        if params["reuse_encoder_layers"]:
+            self.layers = [self.create_layer(params, train, 0)] * params["num_hidden_layers"]
+        else:
+            self.layers = []
+            for index in range(params["num_hidden_layers"]):
+                self.layers.append(self.create_layer(params, train, index))
 
         # Create final layer normalization layer.
         self.output_normalization = LayerNormalization(params["hidden_size"])
+
+    def create_layer(self, params, train, index):
+        # Create sublayers for each layer.
+        self_attention_layer = attention_layer.SelfAttention(
+            params["hidden_size"], params["num_heads"],
+            params["attention_dropout"], train, diffs_att=True)
+        feed_forward_network = ffn_layer.FeedFowardNetwork(
+            params["hidden_size"], params["filter_size"],
+            params["relu_dropout"], train, params["allow_ffn_pad"])
+
+        return ("layer_{}".format(index), [PrePostProcessingWrapper(self_attention_layer, params, train),
+                PrePostProcessingWrapper(feed_forward_network, params, train)])
 
     def call(self, encoder_inputs, attention_bias, inputs_padding, diffs):
         """Return the output of the encoder layer stacks.
@@ -376,12 +381,12 @@ class EncoderStack(tf.layers.Layer):
           Output of encoder layer stack.
           float32 tensor with shape [batch_size, input_length, hidden_size]
         """
-        for n, layer in enumerate(self.layers):
+        for n, (name, layer) in enumerate(self.layers):
             # Run inputs through the sublayers.
             self_attention_layer = layer[0]
             feed_forward_network = layer[1]
 
-            with tf.variable_scope("layer_%d" % n):
+            with tf.variable_scope(name):
                 with tf.variable_scope("self_attention"):
                     encoder_inputs = self_attention_layer(encoder_inputs, attention_bias, diffs=diffs)
                 with tf.variable_scope("ffn"):
@@ -405,23 +410,29 @@ class DecoderStack(tf.layers.Layer):
         super(DecoderStack, self).__init__()
         self.layers = []
         self.params = params
-        for _ in range(params["num_hidden_layers"]):
-            self_attention_layer = attention_layer.SelfAttention(
-                params["hidden_size"], params["num_heads"],
-                params["attention_dropout"], train)
-            enc_dec_attention_layer = attention_layer.Attention(
-                params["hidden_size"], params["num_heads"],
-                params["attention_dropout"], train)
-            feed_forward_network = ffn_layer.FeedFowardNetwork(
-                params["hidden_size"], params["filter_size"],
-                params["relu_dropout"], train, params["allow_ffn_pad"])
-
-            self.layers.append([
-                PrePostProcessingWrapper(self_attention_layer, params, train),
-                PrePostProcessingWrapper(enc_dec_attention_layer, params, train),
-                PrePostProcessingWrapper(feed_forward_network, params, train)])
+        if params["reuse_decoder_layers"]:
+            self.layers = [self.create_layer(params, train, 0)] * params["num_hidden_layers"]
+        else:
+            for index in range(params["num_hidden_layers"]):
+                self.layers.append(self.create_layer(params, train, index))
 
         self.output_normalization = LayerNormalization(params["hidden_size"])
+
+    def create_layer(self, params, train, index):
+        self_attention_layer = attention_layer.SelfAttention(
+            params["hidden_size"], params["num_heads"],
+            params["attention_dropout"], train)
+        enc_dec_attention_layer = attention_layer.Attention(
+            params["hidden_size"], params["num_heads"],
+            params["attention_dropout"], train)
+        feed_forward_network = ffn_layer.FeedFowardNetwork(
+            params["hidden_size"], params["filter_size"],
+            params["relu_dropout"], train, params["allow_ffn_pad"])
+
+        return ("layer_{}".format(index), [
+            PrePostProcessingWrapper(self_attention_layer, params, train),
+            PrePostProcessingWrapper(enc_dec_attention_layer, params, train),
+            PrePostProcessingWrapper(feed_forward_network, params, train)])
 
     def call(self, decoder_inputs, encoder_outputs, decoder_self_attention_bias,
              attention_bias, cache=None):
@@ -444,14 +455,14 @@ class DecoderStack(tf.layers.Layer):
           Output of decoder layer stack.
           float32 tensor with shape [batch_size, target_length, hidden_size]
         """
-        for n, layer in enumerate(self.layers):
+        for n, (layer_name, layer) in enumerate(self.layers):
             self_attention_layer = layer[0]
             enc_dec_attention_layer = layer[1]
             feed_forward_network = layer[2]
 
             # Run inputs through the sublayers.
-            layer_name = "layer_%d" % n
-            layer_cache = cache[layer_name] if cache is not None else None
+            cache_name = "layer_{}".format(n)
+            layer_cache = cache[cache_name] if cache is not None else None
             with tf.variable_scope(layer_name):
                 if self.params["add_position_timing_signal"]:
                     with tf.name_scope("add_position_timing_signal"):

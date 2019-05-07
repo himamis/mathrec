@@ -123,6 +123,9 @@ CUSTOM_PARAMS.update(
     transform_diffs=True,
     l2_regularization=0.0001,
 
+    reuse_encoder_layers=True,
+    reuse_decoder_layers=True,
+
     act_type="basic",
     act_epsilon=0.01,
     act_max_steps=12,
