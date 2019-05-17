@@ -61,3 +61,5 @@ validate_only = _parse_boolean('--validate-only', default=False)
 training_fname = parse_arg("--training-fname", default="training")
 sparsemax = _parse_boolean("--sparsemax", default=False)
 create_tex_files = parse_arg("--tex-files-dir", default=None)
+
+evaluate = _parse_boolean('--evaluate', default=False)

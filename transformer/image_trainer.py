@@ -24,13 +24,6 @@ def log(message):
         print(message)
 
 
-def find_bin_index(length, bins):
-    for index, (min, max) in enumerate(bins):
-        if length >= min and length <= max:
-            return index
-    assert False, "Hmm"
-
-
 def create_generators(batch_size=32):
     training = read_pkl(path.join(params.data_base_dir, params.training_fname + ".pkl"))
     training_generator = generator.DataGenerator(training, batch_size, do_shuffle=True)
@@ -41,45 +34,9 @@ def create_generators(batch_size=32):
     validating = read_pkl(path.join(params.data_base_dir, validation_data))
     # validating_batch_size = int(batch_size / 2)
     validating_batch_size = batch_size
-    if not params.evaluate:
-        validating_generator = generator.DataGenerator(validating, validating_batch_size, do_shuffle=False)
-    else:
-        bin_sizes = [(1, 3), (4, 10), (11, 16), (17, 25), (25, 500)]
-        bins = [[] for _ in bin_sizes]
-        for input in validating:
-            _, inp, _ = input
-            index = find_bin_index(bin_sizes, len(inp))
-            bins[index].append(input)
-
-        validating_generator = []
-        for bin in bins:
-            validating_generator.append(generator.DataGenerator(bin, validating_batch_size, do_shuffle=False))
+    validating_generator = generator.DataGenerator(validating, validating_batch_size, do_shuffle=False)
 
     return training_generator, validating_generator
-
-# def create_generators(batch_size=32):
-#     training = read_pkl(path.join(params.data_base_dir, 'training_data.pkl'))
-#     training_generator = generator.DataGenerator(training, batch_size, do_shuffle=True, steps=0)
-#
-#     validation_data = "validating_data.pkl"
-#     if params.validate_on_training:
-#         validation_data = "training_data.pkl"
-#     vv = read_pkl(path.join(params.data_base_dir, validation_data))
-#     validating = []
-#     for (formula, input) in vv:
-#         form_string = "".join(formula)
-#         if "A+A+B+B+C" in form_string or "x\\timesx\\timesx" in form_string or \
-#                 "1+1+1+" in form_string or \
-#                 "9999" in form_string or \
-#                 "A+A+B+B+C" in form_string or \
-#                 "100000000" in form_string:
-#             validating.append((formula, input))
-#
-#     validating_batch_size = 1
-#     validating_generator = generator.DataGenerator(validating, validating_batch_size, do_shuffle=False)
-#
-#     return training_generator, validating_generator
-
 
 
 def get_learning_rate(learning_rate, hidden_size, learning_rate_warmup_steps):
@@ -104,7 +61,7 @@ def get_learning_rate(learning_rate, hidden_size, learning_rate_warmup_steps):
 
 def create_model(transformer_params):
     with tf.name_scope("model"):
-        return model.TransformerLatex(transformer_params)
+        return model.ImageTransformerLatex(transformer_params)
 
 
 def create_tex_file(output_path, name, latex):
@@ -114,7 +71,7 @@ def create_tex_file(output_path, name, latex):
     tex_file.close()
 
 
-def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, validating):
+def validate(sess, eval_fn, tokens_placeholder, validating):
     wern = 0
     exprate = 0
     accn = 0
@@ -126,10 +83,9 @@ def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output
     targets = []
     for validation_step in range(validating.steps()):
         progress_bar("Validating", validation_step + 1, validating.steps())
-        name, encoded_tokens, bounding_boxes, encoded_formulas, _ = validating.next_batch()
+        name, encoded_tokens, encoded_formulas, _ = validating.next_batch()
         feed_dict = {
-            tokens_placeholder: encoded_tokens,
-            bounding_box_placeholder: bounding_boxes
+            tokens_placeholder: encoded_tokens
         }
         outputs = sess.run(eval_fn, feed_dict)
 
@@ -194,7 +150,7 @@ def restore_model(sess, saver, save_path, epoch):
     saver.restore(sess, save_path + "-%08d" % epoch)
 
 
-def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder,
+def train_loop(sess, train, eval_fn, tokens_placeholder, output_placeholder,
                output_masks_placeholder):
     training, validating = create_generators(params.batch_size)
     saver, save_path = create_saver_and_save_path()
@@ -223,10 +179,9 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         steps = training.steps()
         for step in range(steps):
             progress_bar("Epoch {}".format(epoch + 1), step + 1, steps)
-            _, encoded_tokens, bounding_boxes, encoded_formulas, encoded_formulas_masks = training.next_batch()
+            _, encoded_tokens, encoded_formulas, encoded_formulas_masks = training.next_batch()
             feed_dict = {
                 tokens_placeholder: encoded_tokens,
-                bounding_box_placeholder: bounding_boxes,
                 output_placeholder: encoded_formulas,
                 output_masks_placeholder: encoded_formulas_masks
             }
@@ -239,7 +194,7 @@ def train_loop(sess, train, eval_fn, tokens_placeholder, bounding_box_placeholde
         if (epoch + 1) % params.epoch_per_validation != 0:
             continue
 
-        avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder,
+        avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, tokens_placeholder,
                                                   output_placeholder, validating)
         sess.run([
             tf.assign(tf_avg_wer, avg_wer),
@@ -268,11 +223,11 @@ def update_params(transformer_params):
     transformer_params.update(beam_size=params.beam_size)
 
 
-def create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
+def create_eval_train_fns(transformer_params, tokens_placeholder,
                           output_placeholder, output_masks_placeholder):
     with tf.device(params.device):
         model = create_model(transformer_params)
-        logits = model(tokens_placeholder, bounding_box_placeholder, output_placeholder, True)
+        logits = model(tokens_placeholder, output_placeholder, True)
 
         xentropy, weights = metrics.padded_cross_entropy_loss(
             logits, output_placeholder,
@@ -315,7 +270,7 @@ def create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_p
         result = tf.argmax(tf.nn.softmax(logits), output_type=tf.int32, axis=2)
         accuracy = tf.contrib.metrics.accuracy(result, output_placeholder, output_masks_placeholder)
 
-        eval_fn = model(tokens_placeholder, bounding_box_placeholder)
+        eval_fn = model(tokens_placeholder)
 
     train_dir = path.join(params.tensorboard_log_dir, params.tensorboard_name)
     writer = tf.contrib.summary.create_file_writer(train_dir)
@@ -331,9 +286,6 @@ def create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_p
         tf.contrib.summary.scalar("loss", loss)
         tf.contrib.summary.scalar("accuracy", accuracy)
         tf.contrib.summary.scalar("learning_rate", learning_rate)
-        # tf.contrib.summary.image("diffs",
-        #                         tf.get_default_graph().get_tensor_by_name(
-        #                             "transformer/Transformer/encode/create_diffs/diffs:0"))
 
     total_parameters = 0
     for variable in tf.trainable_variables():
@@ -352,17 +304,16 @@ def create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_p
     return train, eval_fn, writer
 
 
-def train(transformer_params, tokens_placeholder, bounding_box_placeholder,
+def train(transformer_params, image_placeholder,
           output_placeholder, output_masks_placeholder):
-    train_fn, eval_fn, writer = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
-                          output_placeholder, output_masks_placeholder)
+    train_fn, eval_fn, writer = create_eval_train_fns(transformer_params, image_placeholder,
+                                                      output_placeholder, output_masks_placeholder)
     with writer.as_default():
         with tf.Session(config=create_config()) as sess:
-            train_loop(sess, train_fn, eval_fn, tokens_placeholder, bounding_box_placeholder,
-                       output_placeholder, output_masks_placeholder)
+            train_loop(sess, train_fn, eval_fn, image_placeholder, output_placeholder, output_masks_placeholder)
 
 
-def test(transformer_params, tokens_placeholder, bounding_box_placeholder,
+def test(transformer_params, image_placeholder,
          output_placeholder, output_masks_placeholder):
     batch_size = params.batch_size
     if params.create_tex_files is not None:
@@ -373,106 +324,25 @@ def test(transformer_params, tokens_placeholder, bounding_box_placeholder,
         batch_size = 1
     _, validating = create_generators(batch_size )
     with tf.Session(config=create_config()) as sess:
-        _, eval_fn, _ = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
-                                                  output_placeholder, output_masks_placeholder)
+        _, eval_fn, _ = create_eval_train_fns(transformer_params, image_placeholder, output_placeholder, output_masks_placeholder)
         saver, save_path = create_saver_and_save_path()
         restore_model(sess, saver, save_path, params.start_epoch)
-        if not params.evaluate:
-            avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder,
-                                                      output_placeholder, validating)
-            print("Done validating\n Avg_wer: {}\nAvg_acc: {}\nAvg_exp_rate: {}\n".format(avg_wer, avg_acc, avg_exp_rate))
-        else:
-            for index, valid in enumerate(validating):
-                print("Validate bin no {}".format(index))
-                avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder,
-                                                          output_placeholder, valid)
-            print("Done validating\n Avg_wer: {}\nAvg_acc: {}\nAvg_exp_rate: {}\n".format(avg_wer, avg_acc, avg_exp_rate))
+        avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, image_placeholder, output_placeholder, validating)
+        print("Done validating\n Avg_wer: {}\nAvg_acc: {}\nAvg_exp_rate: {}\n".format(avg_wer, avg_acc,
+                                                                                      avg_exp_rate))
 
 
 def main(transformer_params):
     update_params(transformer_params)
 
-    tokens_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="tokens")
-    bounding_box_placeholder = tf.placeholder(tf.float32, shape=(None, None, 4), name="bounding_boxes")
+    image_placeholder = tf.placeholder(tf.int32, shape=(1000, 1000, 1), name="images")
 
     output_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="output")
     output_masks_placeholder = tf.placeholder(tf.float32, shape=(None, None), name="output_masks")
 
     if params.validate_only:
-        test(transformer_params, tokens_placeholder, bounding_box_placeholder,
+        test(transformer_params, image_placeholder,
              output_placeholder, output_masks_placeholder)
     else:
-        train(transformer_params, tokens_placeholder, bounding_box_placeholder,
+        train(transformer_params, image_placeholder,
               output_placeholder, output_masks_placeholder)
-
-
-def prepare_transform():
-    transformer_params = model_params.CUSTOM_PARAMS
-    update_params(transformer_params)
-
-    tokens_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="tokens")
-    bounding_box_placeholder = tf.placeholder(tf.float32, shape=(None, None, 4), name="bounding_boxes")
-
-    output_placeholder = tf.placeholder(tf.int32, shape=(None, None), name="output")
-    output_masks_placeholder = tf.placeholder(tf.float32, shape=(None, None), name="output_masks")
-    session = tf.Session(config=create_config())
-    with session.as_default():
-        _, eval_fn, _ = create_eval_train_fns(transformer_params, tokens_placeholder, bounding_box_placeholder,
-                                              output_placeholder, output_masks_placeholder)
-        saver, save_path = create_saver_and_save_path()
-        restore_model(session, saver, save_path, params.start_epoch)
-
-    return (eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, session)
-
-
-def normalize(inputs):
-    info = np.finfo(np.float32)
-
-    min_x = info.max
-    min_y = info.max
-    max_x = info.min
-    max_y = info.min
-
-    for token, bounding_box in inputs:
-        min_x = min(min_x, bounding_box[0])
-        min_y = min(min_y, bounding_box[1])
-        max_x = max(max_x, bounding_box[2])
-        max_y = max(max_y, bounding_box[3])
-
-    trans_x = min_x
-    trans_y = min_y
-    scale_x = 1 / (max_x - min_x)
-    scale_y = 1 / (max_y - min_y)
-    result = []
-    for token, bounding_box in inputs:
-        box = ((bounding_box[0] - trans_x) * scale_x,
-               (bounding_box[1] - trans_y) * scale_y,
-               (bounding_box[2] - trans_x) * scale_x,
-               (bounding_box[3] - trans_y) * scale_y)
-        if type(token) is str:
-            token = vocabulary.encoding_vocabulary[token]
-        result.append((token, box))
-
-    sorted_result = sorted(result, key=lambda inp: inp[1][0])
-
-    sorted_result.append((vocabulary.EOS_ID, (1.0, 1.0, 1.0, 1.0)))
-
-    return sorted_result
-
-
-def transform(model, inputs):
-    try:
-        inputs = normalize(inputs)
-    except KeyError:
-        time.sleep(1)
-        return ""
-    tokens, bounding_boxes = zip(*inputs)
-    eval_fn, tokens_placeholder, bounding_box_placeholder, output_placeholder, session = model
-    with session.as_default():
-        feed_dict = {
-            tokens_placeholder: [tokens],
-            bounding_box_placeholder: [bounding_boxes]
-        }
-        outputs = session.run(eval_fn, feed_dict)
-        result = outputs['outputs'][0]
-    return vocabulary.decode_formula(result, join=True, joiner=" ")
