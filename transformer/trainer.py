@@ -24,7 +24,7 @@ def log(message):
         print(message)
 
 
-def find_bin_index(length, bins):
+def find_bin_index(bins, length):
     for index, (min, max) in enumerate(bins):
         if length >= min and length <= max:
             return index
