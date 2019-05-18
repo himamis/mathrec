@@ -44,7 +44,7 @@ def create_generators(batch_size=32):
     if not params.evaluate:
         validating_generator = generator.DataGenerator(validating, validating_batch_size, do_shuffle=False)
     else:
-        bin_sizes = [(1, 3), (4, 10), (11, 16), (17, 25), (25, 500)]
+        bin_sizes = [(1, 3), (4, 10), (11, 16), (17, 5000)]
         bins = [[] for _ in bin_sizes]
         for input in validating:
             _, inp, _ = input
