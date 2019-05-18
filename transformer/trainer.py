@@ -47,9 +47,9 @@ def create_generators(batch_size=32):
         sorted_data = sorted(validating, key=lambda a: len(a[1]))
         total_length = len(sorted_data)
         no_bins = 5
-        bins = [[]] * no_bins
+        bins = [[] for _ in range(no_bins)]
         data_per_bin = int(total_length / no_bins)
-        bin_max_size = [i * data_per_bin for i in range(no_bins)]
+        bin_max_size = [(i + 1) * data_per_bin for i in range(no_bins)]
 
         # Put the rest in the last bin
         bin_max_size[no_bins - 1] = len(sorted_data)
@@ -62,6 +62,7 @@ def create_generators(batch_size=32):
 
         bin_sizes = []
         for bin in bins:
+            print("length of bin {}" .format(len(bin)))
             first = bin[0]
             last = bin[-1]
 
