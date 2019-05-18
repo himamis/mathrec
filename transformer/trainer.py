@@ -52,7 +52,9 @@ def create_generators(batch_size=32):
             bins[index].append(input)
 
         validating_generator = []
-        for bin in bins:
+        for index, bin in enumerate(bins):
+            print("Creating bin index {} with min max {} ".format(index, bin_sizes[index]))
+            print("No of elements in bin {}".format(len(bin)))
             validating_generator.append(generator.DataGenerator(bin, validating_batch_size, do_shuffle=False))
 
     return training_generator, validating_generator
