@@ -44,12 +44,28 @@ def create_generators(batch_size=32):
     if not params.evaluate:
         validating_generator = generator.DataGenerator(validating, validating_batch_size, do_shuffle=False)
     else:
-        bin_sizes = [(1, 3), (4, 10), (11, 16), (17, 5000)]
-        bins = [[] for _ in bin_sizes]
-        for input in validating:
-            _, inp, _ = input
-            index = find_bin_index(bin_sizes, len(inp))
-            bins[index].append(input)
+        sorted_data = sorted(validating, key=lambda a: len(a[1]))
+        total_length = len(sorted_data)
+        no_bins = 5
+        bins = [] * no_bins
+        data_per_bin = int(total_length / no_bins)
+        bin_max_size = [i * data_per_bin for i in range(no_bins)]
+
+        # Put the rest in the last bin
+        bin_max_size[no_bins - 1] = len(sorted_data)
+        current_bin = 0
+
+        for index, input in enumerate(sorted_data):
+            if bin_max_size[current_bin] < index:
+                current_bin += 1
+            bins[current_bin].append(input)
+
+        bin_sizes = []
+        for bin in bins:
+            first = bin[0]
+            last = bin[-1]
+
+            bin_sizes.append((len(first[1]), len(last[1])))
 
         validating_generator = []
         for index, bin in enumerate(bins):
