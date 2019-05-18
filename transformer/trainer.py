@@ -388,7 +388,7 @@ def test(transformer_params, tokens_placeholder, bounding_box_placeholder,
                 print("Validate bin no {}".format(index))
                 avg_wer, avg_acc, avg_exp_rate = validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder,
                                                           output_placeholder, valid)
-            print("Done validating\n Avg_wer: {}\nAvg_acc: {}\nAvg_exp_rate: {}\n".format(avg_wer, avg_acc, avg_exp_rate))
+                print("Done validating\n Avg_wer: {}\nAvg_acc: {}\nAvg_exp_rate: {}\n".format(avg_wer, avg_acc, avg_exp_rate))
 
 
 def main(transformer_params):
