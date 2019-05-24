@@ -141,6 +141,7 @@ def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output
 
     inputs = []
     wers = []
+    exprates = []
     results = []
     targets = []
     for validation_step in range(validating.steps()):
@@ -160,7 +161,9 @@ def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output
             log("Validation: \n Expected: \t {}\nResult: \t {}".format(target, result))
             cwer = wer(result, target) / max(len(target), len(result))
             wern += cwer
-            exprate += exp_rate(target, result)
+            erate = exp_rate(target, result)
+            exprates.append(erate)
+            exprate += erate
             if abs(cwer) < 1e-6:
                 accn += 1
             no += 1
@@ -175,6 +178,11 @@ def validate(sess, eval_fn, tokens_placeholder, bounding_box_placeholder, output
                 result = result[:-1]
                 result = vocabulary.decode_formula(result, join=True, joiner=" ")
                 create_tex_file(params.create_tex_files, name[i], result)
+
+    if params.evaluate:
+        print("Wers {} ".format(wers))
+        print("Accs {} ".format(accn))
+        print("Exprates {}".format(exprates))
 
     validating.reset()
 
